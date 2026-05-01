@@ -89,7 +89,7 @@ const login = async (req, res, next) => {
     const token = generateToken({ id: user.id, email: user.email, role: user.role });
     const refreshToken = generateRefreshToken({ id: user.id });
 
-    const { password: _password, ...userWithoutPassword } = user;
+    const { password: unusedPassword, ...userWithoutPassword } = user;
 
     return sendSuccess(res, { user: userWithoutPassword, token, refreshToken }, MESSAGES.AUTH_LOGIN_SUCCESS);
   } catch (error) {

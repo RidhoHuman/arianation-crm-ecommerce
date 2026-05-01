@@ -16,8 +16,7 @@ const generalLimiter = rateLimit({
 });
 
 // All cart routes require authentication
-router.use(authenticate);
-router.use(generalLimiter);
+router.use(generalLimiter, authenticate);
 
 router.get('/', getCart);
 router.post('/items', validateBody(schemas.addToCart), addToCart);

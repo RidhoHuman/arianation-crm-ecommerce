@@ -110,11 +110,20 @@ const createPayment = async (req, res, next) => {
 
     if (method === 'QRIS' || order.paymentMethod === 'QRIS') {
       paymentData.qrisReference = `QRIS-${transactionId}`;
-      paymentData.qrisUrl = `${process.env.BASE_URL || 'http://localhost:3001'}/api/payments/qris/${transactionId}`;
+      const baseUrl = process.env.BASE_URL;
+      if (baseUrl) {
+        paymentData.qrisUrl = `${baseUrl}/api/payments/qris/${transactionId}`;
+      }
     } else if (method === 'BANK_TRANSFER' || order.paymentMethod === 'BANK_TRANSFER') {
-      paymentData.bankAccount = process.env.BANK_ACCOUNT_NUMBER || '';
-      paymentData.bankName = process.env.BANK_NAME || '';
-      paymentData.accountName = process.env.BANK_ACCOUNT_NAME || '';
+      const bankAccount = process.env.BANK_ACCOUNT_NUMBER;
+      const bankName = process.env.BANK_NAME;
+      const accountName = process.env.BANK_ACCOUNT_NAME;
+      if (!bankAccount || !bankName || !accountName) {
+        throw new BadRequestError('Bank transfer is not configured. Please contact support.');
+      }
+      paymentData.bankAccount = bankAccount;
+      paymentData.bankName = bankName;
+      paymentData.accountName = accountName;
     }
 
     let payment;

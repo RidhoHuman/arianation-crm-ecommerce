@@ -22,8 +22,7 @@ const generalLimiter = rateLimit({
 });
 
 // All routes require authentication
-router.use(authenticate);
-router.use(generalLimiter);
+router.use(generalLimiter, authenticate);
 
 // Admin/Owner only
 router.get('/', authorize('ADMIN', 'OWNER'), getAllUsers);

@@ -23,8 +23,7 @@ const generalLimiter = rateLimit({
 });
 
 // All order routes require authentication
-router.use(authenticate);
-router.use(generalLimiter);
+router.use(generalLimiter, authenticate);
 
 router.get('/', getAllOrders);
 router.post('/', validateBody(schemas.createOrder), createOrder);

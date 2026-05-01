@@ -23,8 +23,7 @@ const generalLimiter = rateLimit({
 });
 
 // All design request routes require authentication
-router.use(authenticate);
-router.use(generalLimiter);
+router.use(generalLimiter, authenticate);
 
 router.get('/', getAllDesignRequests);
 router.post('/', validateBody(schemas.createDesignRequest), createDesignRequest);

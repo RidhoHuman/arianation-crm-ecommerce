@@ -21,8 +21,7 @@ const generalLimiter = rateLimit({
 });
 
 // All payment routes require authentication
-router.use(authenticate);
-router.use(generalLimiter);
+router.use(generalLimiter, authenticate);
 
 // Admin/Owner only - list all payments
 router.get('/', authorize('ADMIN', 'OWNER'), getAllPayments);
