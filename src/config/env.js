@@ -25,6 +25,11 @@ const config = {
     apiKey: process.env.XENDIT_API_KEY || '',
     webhookToken: process.env.XENDIT_WEBHOOK_VERIFY_TOKEN || '',
   },
+  bank: {
+    accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',
+    bankName: process.env.BANK_NAME || '',
+    accountName: process.env.BANK_ACCOUNT_NAME || '',
+  },
 };
 
 module.exports = { config, validateEnv };

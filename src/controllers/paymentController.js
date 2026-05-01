@@ -110,11 +110,11 @@ const createPayment = async (req, res, next) => {
 
     if (method === 'QRIS' || order.paymentMethod === 'QRIS') {
       paymentData.qrisReference = `QRIS-${transactionId}`;
-      paymentData.qrisUrl = `https://payment.arianation.com/qris/${transactionId}`;
+      paymentData.qrisUrl = `${process.env.BASE_URL || 'http://localhost:3001'}/api/payments/qris/${transactionId}`;
     } else if (method === 'BANK_TRANSFER' || order.paymentMethod === 'BANK_TRANSFER') {
-      paymentData.bankAccount = '1234567890';
-      paymentData.bankName = 'BCA';
-      paymentData.accountName = 'Arianation';
+      paymentData.bankAccount = process.env.BANK_ACCOUNT_NUMBER || '';
+      paymentData.bankName = process.env.BANK_NAME || '';
+      paymentData.accountName = process.env.BANK_ACCOUNT_NAME || '';
     }
 
     let payment;

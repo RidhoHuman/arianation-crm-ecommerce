@@ -203,6 +203,9 @@ const changePassword = async (req, res, next) => {
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundError(MESSAGES.USER_NOT_FOUND);
+    }
     const isValid = await comparePassword(currentPassword, user.password);
 
     if (!isValid) {

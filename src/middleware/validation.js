@@ -23,7 +23,7 @@ const validateBody = (schema) => {
         continue;
       }
 
-      if (rules.type === 'number' && (typeof value !== 'number' || isNaN(value))) {
+      if (rules.type === 'number' && (typeof value !== 'number' || Number.isNaN(value))) {
         errors.push({ field, message: `${field} must be a number` });
         continue;
       }
@@ -40,7 +40,7 @@ const validateBody = (schema) => {
         if (rules.maxLength && value.length > rules.maxLength) {
           errors.push({ field, message: `${field} must not exceed ${rules.maxLength} characters` });
         }
-        if (rules.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        if (rules.email && !/^[^\s@]{1,64}@[^\s@]{1,253}$/.test(value)) {
           errors.push({ field, message: `${field} must be a valid email address` });
         }
         if (rules.enum && !rules.enum.includes(value)) {

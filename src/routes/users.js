@@ -1,6 +1,7 @@
 // src/routes/users.js
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const {
   getAllUsers,
@@ -12,8 +13,17 @@ const {
 } = require('../controllers/userController');
 const { authenticate, authorize } = require('../middleware/auth');
 
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later.' },
+});
+
 // All routes require authentication
 router.use(authenticate);
+router.use(generalLimiter);
 
 // Admin/Owner only
 router.get('/', authorize('ADMIN', 'OWNER'), getAllUsers);

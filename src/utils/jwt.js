@@ -3,20 +3,27 @@
 const jwt = require('jsonwebtoken');
 const { AuthenticationError } = require('./errors');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_change_in_production';
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  return secret;
+};
+
 const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
 
 const generateToken = (payload) => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRE });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRE });
 };
 
 const generateRefreshToken = (payload) => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '30d' });
 };
 
 const verifyToken = (token) => {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, getJwtSecret());
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       throw new AuthenticationError('Token has expired');
