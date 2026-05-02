@@ -209,6 +209,9 @@ const getPaymentByOrder = async (req, res, next) => {
     }
 
     const payment = await prisma.payment.findUnique({ where: { orderId } });
+    if (!payment) {
+      throw new NotFoundError(MESSAGES.PAYMENT_NOT_FOUND);
+    }
 
     return sendSuccess(res, payment, MESSAGES.PAYMENT_FOUND);
   } catch (error) {
