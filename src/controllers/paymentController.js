@@ -158,11 +158,13 @@ const verifyPayment = async (req, res, next) => {
       throw new BadRequestError(MESSAGES.PAYMENT_ALREADY_COMPLETED);
     }
 
+    const finalStatus = status || 'COMPLETED';
+
     const updatedPayment = await prisma.payment.update({
       where: { id },
       data: {
-        status: status || 'COMPLETED',
-        paymentDate: status === 'COMPLETED' ? new Date() : null,
+        status: finalStatus,
+        paymentDate: finalStatus === 'COMPLETED' ? new Date() : null,
         verifiedBy: req.user.id,
         verifiedAt: new Date(),
         notes: notes || null,
