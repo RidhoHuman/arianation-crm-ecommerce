@@ -102,27 +102,42 @@ const createOrder = async (req, res, next) => {
     let orderItems = [];
 
     if (items && Array.isArray(items) && items.length > 0) {
-      for (const item of items) {
-        const product = await prisma.product.findUnique({ where: { id: item.productId } });
+      const productIds = [...new Set(items.map((item) => item.productId))];
+      const variantIds = [...new Set(items.filter((item) => item.variantId).map((item) => item.variantId))];
+
+      const [products, variants] = await prisma.$transaction([
+        prisma.product.findMany({
+          where: { id: { in: productIds } },
+        }),
+        prisma.productVariant.findMany({
+          where: { id: { in: variantIds } },
+        }),
+      ]);
+
+      const productsById = new Map(products.map((product) => [product.id, product]));
+      const variantsById = new Map(variants.map((variant) => [variant.id, variant]));
+
+      orderItems = items.map((item) => {
+        const product = productsById.get(item.productId);
         if (!product || !product.isActive) {
           throw new NotFoundError(`Product ${item.productId} not found`);
         }
 
         let unitPrice = product.price;
         if (item.variantId) {
-          const variant = await prisma.productVariant.findUnique({ where: { id: item.variantId } });
+          const variant = variantsById.get(item.variantId);
           if (variant) unitPrice += variant.additionalPrice;
         }
 
-        orderItems.push({
+        return {
           productId: item.productId,
           variantId: item.variantId || null,
           quantity: item.quantity,
           unitPrice,
           subtotal: unitPrice * item.quantity,
           notes: item.notes || null,
-        });
-      }
+        };
+      });
     } else {
       const cart = await prisma.shoppingCart.findUnique({
         where: { userId },
