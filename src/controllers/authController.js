@@ -18,34 +18,38 @@ const register = async (req, res, next) => {
 
     const hashedPassword = await hashPassword(password);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        fullName,
-        phone: phone || null,
-        role: 'CUSTOMER',
-      },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        phone: true,
-        role: true,
-        createdAt: true,
-      },
-    });
+    const user = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          fullName,
+          phone: phone || null,
+          role: 'CUSTOMER',
+        },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          phone: true,
+          role: true,
+          createdAt: true,
+        },
+      });
 
-    await prisma.customerProfile.create({
-      data: { userId: user.id },
-    });
+      await tx.customerProfile.create({
+        data: { userId: createdUser.id },
+      });
 
-    await prisma.customerMetrics.create({
-      data: { userId: user.id },
-    });
+      await tx.customerMetrics.create({
+        data: { userId: createdUser.id },
+      });
 
-    await prisma.shoppingCart.create({
-      data: { userId: user.id },
+      await tx.shoppingCart.create({
+        data: { userId: createdUser.id },
+      });
+
+      return createdUser;
     });
 
     const token = generateToken({ id: user.id, email: user.email, role: user.role });
