@@ -3,11 +3,30 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { PrismaClient } = require('@prisma/client');
+
+const prisma = require('./config/database');
+const { validateEnv } = require('./config/env');
+const logger = require('./middleware/logger');
+const errorHandler = require('./middleware/errorHandler');
+
+// Routes
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const productRoutes = require('./routes/products');
+const cartRoutes = require('./routes/cart');
+const orderRoutes = require('./routes/orders');
+const paymentRoutes = require('./routes/payments');
+const designRequestRoutes = require('./routes/designRequests');
+
+// Validate environment variables
+try {
+  validateEnv();
+} catch (err) {
+  console.error('❌ Environment validation failed:', err.message);
+  process.exit(1);
+}
 
 const app = express();
-const prisma = new PrismaClient();
-
 const PORT = process.env.PORT || 3001;
 
 // ============================================================
@@ -21,6 +40,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(logger);
 
 // ============================================================
 // ROUTES
@@ -29,34 +49,35 @@ app.use(express.urlencoded({ extended: true }));
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
-    status: 'OK',
+    success: true,
     message: 'Arianation API is running',
     timestamp: new Date(),
     environment: process.env.NODE_ENV
   });
 });
 
+// API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/design-requests', designRequestRoutes);
+
 // ============================================================
 // ERROR HANDLING
 // ============================================================
 
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  
-  res.status(err.status || 500).json({
-    status: 'ERROR',
-    message: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
-
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
-    status: 'NOT_FOUND',
+    success: false,
     message: `Route ${req.method} ${req.path} not found`
   });
 });
+
+app.use(errorHandler);
 
 // ============================================================
 // SERVER STARTUP
