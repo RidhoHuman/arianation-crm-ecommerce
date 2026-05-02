@@ -1,0 +1,83 @@
+<svg viewBox="0 0 600 1150" xmlns="http://www.w3.org/2000/svg" style="border: 1px solid #ccc;">
+  <defs>
+    <marker id="arrowFlow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#333" />
+    </marker>
+  </defs>
+  <!-- Title -->
+  <text x="300" y="30" font-size="18" font-weight="bold" text-anchor="middle">Customer Order Processing Flow</text>
+  <!-- Start -->
+  <ellipse cx="300" cy="70" rx="40" ry="30" fill="#90EE90" stroke="#333" stroke-width="2"/>
+  <text x="300" y="75" text-anchor="middle" font-weight="bold">START</text>
+  <!-- Arrow -->
+  <line x1="300" y1="100" x2="300" y2="140" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <!-- Login -->
+  <rect x="220" y="140" width="160" height="60" fill="#E3F2FD" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="300" y="165" text-anchor="middle" font-weight="bold">Login /Register</text>
+  <text x="300" y="185" text-anchor="middle" font-size="11">Authenticate User</text>
+  <!-- Arrow -->
+  <line x1="300" y1="200" x2="300" y2="240" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <!-- Browse Products -->
+  <rect x="220" y="240" width="160" height="60" fill="#E3F2FD" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="300" y="265" text-anchor="middle" font-weight="bold">Browse Products</text>
+  <text x="300" y="285" text-anchor="middle" font-size="11">View Catalog</text>
+  <!-- Arrow -->
+  <line x1="300" y1="300" x2="300" y2="340" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <!-- Add to Cart Decision -->
+  <polygon points="300,340 360,380 300,420 240,380" fill="#FFF4E6" stroke="#333" stroke-width="2"/>
+  <text x="300" y="385" text-anchor="middle" font-weight="bold">Add to</text>
+  <text x="300" y="400" text-anchor="middle" font-weight="bold">Cart?</text>
+  <!-- No branch -->
+  <line x1="240" y1="380" x2="120" y2="380" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <text x="170" y="375" font-size="11">No</text>
+  <line x1="120" y1="380" x2="120" y2="300" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <line x1="120" y1="300" x2="220" y2="300" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <!-- Yes branch -->
+  <line x1="300" y1="420" x2="300" y2="460" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <text x="320" y="445" font-size="11">Yes</text>
+  <!-- Add Item to Cart -->
+  <rect x="220" y="460" width="160" height="60" fill="#E3F2FD" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="300" y="485" text-anchor="middle" font-weight="bold">Add Item to Cart</text>
+  <text x="300" y="505" text-anchor="middle" font-size="11">Update Quantity</text>
+  <!-- Arrow -->
+  <line x1="300" y1="520" x2="300" y2="560" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <!-- Continue Shopping Decision -->
+  <polygon points="300,560 360,600 300,640 240,600" fill="#FFF4E6" stroke="#333" stroke-width="2"/>
+  <text x="300" y="605" text-anchor="middle" font-weight="bold">Continue</text>
+  <text x="300" y="620" text-anchor="middle" font-weight="bold">Shopping?</text>
+  <!-- Yes branch back to Browse -->
+  <line x1="360" y1="600" x2="450" y2="600" stroke="#333" stroke-width="2"/>
+  <text x="410" y="595" font-size="11">Yes</text>
+  <line x1="450" y1="600" x2="450" y2="270" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <line x1="450" y1="270" x2="380" y2="270" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <!-- No - Proceed to Checkout -->
+  <line x1="300" y1="640" x2="300" y2="680" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <text x="320" y="665" font-size="11">No</text>
+  <!-- Checkout -->
+  <rect x="220" y="680" width="160" height="60" fill="#F3E5F5" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="300" y="705" text-anchor="middle" font-weight="bold">Proceed to Checkout</text>
+  <text x="300" y="725" text-anchor="middle" font-size="11">Review Cart &amp; Total</text>
+  <!-- Arrow -->
+  <line x1="300" y1="740" x2="300" y2="780" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <!-- Select Payment Method -->
+  <rect x="220" y="780" width="160" height="60" fill="#FCE4EC" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="300" y="805" text-anchor="middle" font-weight="bold">Select Payment Method</text>
+  <text x="300" y="825" text-anchor="middle" font-size="11">QRIS / Transfer / COD</text>
+  <!-- Arrow -->
+  <line x1="300" y1="840" x2="300" y2="880" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <!-- Process Payment -->
+  <rect x="220" y="880" width="160" height="60" fill="#FCE4EC" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="300" y="905" text-anchor="middle" font-weight="bold">Process Payment</text>
+  <text x="300" y="925" text-anchor="middle" font-size="11">Payment Gateway</text>
+  <!-- Arrow -->
+  <line x1="300" y1="940" x2="300" y2="980" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+  <!-- Order Confirmed -->
+  <rect x="220" y="980" width="160" height="60" fill="#E8F5E9" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="300" y="1005" text-anchor="middle" font-weight="bold">Order Confirmed</text>
+  <text x="300" y="1025" text-anchor="middle" font-size="11">Receive Confirmation</text>
+  <!-- End -->
+  <ellipse cx="300" cy="1080" rx="40" ry="30" fill="#FFB6C1" stroke="#333" stroke-width="2"/>
+  <text x="300" y="1085" text-anchor="middle" font-weight="bold">END</text>
+  <!-- Arrow to End -->
+  <line x1="300" y1="1040" x2="300" y2="1050" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow)"/>
+</svg>

@@ -1,0 +1,99 @@
+<svg viewBox="0 0 700 1100" xmlns="http://www.w3.org/2000/svg" style="border: 1px solid #ccc;">
+  <defs>
+    <marker id="arrowFlow2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#333" />
+    </marker>
+  </defs>
+  <!-- Title -->
+  <text x="350" y="30" font-size="18" font-weight="bold" text-anchor="middle">Custom Design Request Workflow</text>
+  <!-- Start -->
+  <ellipse cx="350" cy="70" rx="40" ry="30" fill="#90EE90" stroke="#333" stroke-width="2"/>
+  <text x="350" y="75" text-anchor="middle" font-weight="bold">START</text>
+  <!-- Arrow -->
+  <line x1="350" y1="100" x2="350" y2="140" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <!-- Customer Uploads Design -->
+  <rect x="270" y="140" width="160" height="60" fill="#E8F5E9" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="350" y="165" text-anchor="middle" font-weight="bold">Upload Design File</text>
+  <text x="350" y="185" text-anchor="middle" font-size="11">PNG/JPG/PDF/AI/CDR</text>
+  <!-- Arrow -->
+  <line x1="350" y1="200" x2="350" y2="240" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <!-- Validate File -->
+  <polygon points="350,240 410,280 350,320 290,280" fill="#FFF4E6" stroke="#333" stroke-width="2"/>
+  <text x="350" y="280" text-anchor="middle" font-weight="bold">File Valid</text>
+  <text x="350" y="295" text-anchor="middle" font-weight="bold">?</text>
+  <!-- Invalid Branch -->
+  <line x1="290" y1="280" x2="150" y2="280" stroke="#333" stroke-width="2"/>
+  <text x="200" y="275" font-size="11">No</text>
+  <rect x="50" y="250" width="140" height="60" fill="#FFCDD2" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="120" y="275" text-anchor="middle" font-weight="bold">Reject File</text>
+  <text x="120" y="295" text-anchor="middle" font-size="11">Notify Customer</text>
+  <line x1="120" y1="250" x2="120" y2="180" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <line x1="120" y1="180" x2="270" y2="180" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <!-- Valid - Continue -->
+  <line x1="350" y1="320" x2="350" y2="360" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <text x="370" y="345" font-size="11">Yes</text>
+  <!-- Send to Design Staff -->
+  <rect x="270" y="360" width="160" height="60" fill="#E1F5FE" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="350" y="385" text-anchor="middle" font-weight="bold">Send to Design Staff</text>
+  <text x="350" y="405" text-anchor="middle" font-size="11">Create Review Task</text>
+  <!-- Arrow -->
+  <line x1="350" y1="420" x2="350" y2="460" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <!-- Staff Review -->
+  <rect x="270" y="460" width="160" height="60" fill="#E0F2F1" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="350" y="485" text-anchor="middle" font-weight="bold">Design Staff Reviews</text>
+  <text x="350" y="505" text-anchor="middle" font-size="11">Provide Feedback</text>
+  <!-- Arrow -->
+  <line x1="350" y1="520" x2="350" y2="560" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <!-- Decision: Approved/Revision/Rejected -->
+  <polygon points="350,560 430,630 350,700 270,630" fill="#FFF4E6" stroke="#333" stroke-width="2"/>
+  <text x="350" y="630" text-anchor="middle" font-weight="bold">Design</text>
+  <text x="350" y="645" text-anchor="middle" font-weight="bold">Status?</text>
+  <!-- Approved Branch (Right) -->
+  <line x1="430" y1="630" x2="550" y2="630" stroke="#333" stroke-width="2"/>
+  <text x="500" y="625" font-size="11">Approved</text>
+  <rect x="470" y="600" width="140" height="60" fill="#C8E6C9" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="540" y="625" text-anchor="middle" font-weight="bold">Approve Design</text>
+  <text x="540" y="645" text-anchor="middle" font-size="11">Ready for Production</text>
+  <!-- Rejected Branch (Left) -->
+  <line x1="270" y1="630" x2="120" y2="630" stroke="#333" stroke-width="2"/>
+  <text x="180" y="625" font-size="11">Rejected</text>
+  <rect x="30" y="600" width="140" height="60" fill="#FFCDD2" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="100" y="625" text-anchor="middle" font-weight="bold">Reject Design</text>
+  <text x="100" y="645" text-anchor="middle" font-size="11">Notify Customer</text>
+  <line x1="100" y1="600" x2="100" y2="500" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <line x1="100" y1="500" x2="270" y2="500" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <!-- Revision Needed (Bottom) -->
+  <line x1="350" y1="700" x2="350" y2="760" stroke="#333" stroke-width="2"/>
+  <text x="370" y="735" font-size="11">Revision Needed</text>
+  <rect x="270" y="760" width="160" height="60" fill="#FFF9C4" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="350" y="785" text-anchor="middle" font-weight="bold">Send Revision Notes</text>
+  <text x="350" y="805" text-anchor="middle" font-size="11">to Customer</text>
+  <line x1="350" y1="820" x2="350" y2="860" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <!-- Customer Makes Revision -->
+  <rect x="270" y="860" width="160" height="60" fill="#E8F5E9" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="350" y="885" text-anchor="middle" font-weight="bold">Customer Revises Design</text>
+  <text x="350" y="905" text-anchor="middle" font-size="11">Upload New Version</text>
+  
+  <!-- Loop back to review -->
+  <line x1="350" y1="860" x2="200" y2="860" stroke="#333" stroke-width="2"/>
+  <line x1="200" y1="860" x2="200" y2="490" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <line x1="200" y1="490" x2="270" y2="490" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <text x="210" y="675" font-size="11">Resubmit</text>
+  <!-- Approved - Create Order -->
+  <line x1="540" y1="600" x2="540" y2="560" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <line x1="540" y1="560" x2="430" y2="630" stroke="#333" stroke-width="2"/>
+  <rect x="470" y="480" width="140" height="60" fill="#C8E6C9" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="540" y="505" text-anchor="middle" font-weight="bold">Create Order Item</text>
+  <text x="540" y="525" text-anchor="middle" font-size="11">Link Design Request</text>
+  <!-- Arrow -->
+  <line x1="540" y1="480" x2="540" y2="420" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <!-- Notify Completion -->
+  <rect x="470" y="360" width="140" height="60" fill="#E0F2F1" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="540" y="385" text-anchor="middle" font-weight="bold">Notify Completion</text>
+  <text x="540" y="405" text-anchor="middle" font-size="11">to Customer</text>
+  <!-- Arrow -->
+  <line x1="540" y1="360" x2="540" y2="320" stroke="#333" stroke-width="2" marker-end="url(#arrowFlow2)"/>
+  <!-- End -->
+  <ellipse cx="540" cy="280" rx="40" ry="30" fill="#FFB6C1" stroke="#333" stroke-width="2"/>
+  <text x="540" y="285" text-anchor="middle" font-weight="bold">END</text>
+</svg>

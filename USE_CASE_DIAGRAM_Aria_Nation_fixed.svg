@@ -1,0 +1,179 @@
+<svg width="100%" viewBox="0 0 680 1420" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Use Case Diagram Arianation CRM &amp; E-Commerce System</title>
+<desc>Use case diagram lengkap sistem Arianation meliputi Customer, Admin, Design Staff, Owner, dan Payment Gateway</desc>
+<defs>
+<style>
+  text { font-family: Arial, sans-serif; font-size: 12px; fill: #333; }
+  .th { font-size: 12px; font-weight: bold; fill: #1a1a1a; }
+  .ts { font-size: 11px; fill: #555; }
+</style>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<!-- System Boundary -->
+<rect x="120" y="10" width="545" height="1395" rx="16" fill="none" stroke="#888" stroke-width="1" stroke-dasharray="8,4"/>
+<text class="ts" x="392" y="30" text-anchor="middle" fill="#888">Arianation CRM &amp; E-Commerce System</text>
+
+<!-- Section Labels -->
+<text class="ts" x="392" y="68" text-anchor="middle" fill="#aaa">— Autentikasi —</text>
+<text class="ts" x="392" y="238" text-anchor="middle" fill="#aaa">— Katalog &amp; Keranjang —</text>
+<text class="ts" x="392" y="438" text-anchor="middle" fill="#aaa">— Pembayaran —</text>
+<text class="ts" x="392" y="618" text-anchor="middle" fill="#aaa">— Custom Design / Sablon —</text>
+<text class="ts" x="392" y="808" text-anchor="middle" fill="#aaa">— Tracking &amp; Riwayat —</text>
+<text class="ts" x="392" y="958" text-anchor="middle" fill="#aaa">— Program Loyalitas —</text>
+<text class="ts" x="392" y="1098" text-anchor="middle" fill="#aaa">— Manajemen Admin —</text>
+<text class="ts" x="392" y="1228" text-anchor="middle" fill="#aaa">— Design Staff —</text>
+<text class="ts" x="392" y="1348" text-anchor="middle" fill="#aaa">— Owner Analytics —</text>
+
+<!-- AUTH -->
+<ellipse cx="252" cy="98" rx="82" ry="24" fill="#E0F2F1" stroke="#00897B" stroke-width="0.8"/>
+<text class="th" x="252" y="98" text-anchor="middle" dominant-baseline="central">Register account</text>
+<ellipse cx="392" cy="98" rx="60" ry="24" fill="#E0F2F1" stroke="#00897B" stroke-width="0.8"/>
+<text class="th" x="392" y="98" text-anchor="middle" dominant-baseline="central">Login</text>
+<ellipse cx="530" cy="98" rx="78" ry="24" fill="#E0F2F1" stroke="#00897B" stroke-width="0.8"/>
+<text class="th" x="530" y="98" text-anchor="middle" dominant-baseline="central">Manage profile</text>
+
+<!-- E-COMMERCE -->
+<ellipse cx="242" cy="268" rx="78" ry="24" fill="#E3F2FD" stroke="#1976D2" stroke-width="0.8"/>
+<text class="th" x="242" y="268" text-anchor="middle" dominant-baseline="central">Browse products</text>
+<ellipse cx="392" cy="268" rx="74" ry="24" fill="#E3F2FD" stroke="#1976D2" stroke-width="0.8"/>
+<text class="th" x="392" y="268" text-anchor="middle" dominant-baseline="central">Search &amp; filter</text>
+<ellipse cx="542" cy="268" rx="84" ry="24" fill="#E3F2FD" stroke="#1976D2" stroke-width="0.8"/>
+<text class="th" x="542" y="268" text-anchor="middle" dominant-baseline="central">View product details</text>
+<ellipse cx="252" cy="348" rx="70" ry="24" fill="#E3F2FD" stroke="#1976D2" stroke-width="0.8"/>
+<text class="th" x="252" y="348" text-anchor="middle" dominant-baseline="central">Add to cart</text>
+<ellipse cx="392" cy="348" rx="66" ry="24" fill="#E3F2FD" stroke="#1976D2" stroke-width="0.8"/>
+<text class="th" x="392" y="348" text-anchor="middle" dominant-baseline="central">View cart</text>
+<ellipse cx="542" cy="348" rx="70" ry="24" fill="#E3F2FD" stroke="#1976D2" stroke-width="0.8"/>
+<text class="th" x="542" y="348" text-anchor="middle" dominant-baseline="central">Checkout</text>
+
+<!-- PAYMENT -->
+<ellipse cx="242" cy="468" rx="88" ry="24" fill="#FCE4EC" stroke="#C2185B" stroke-width="0.8"/>
+<text class="th" x="242" y="468" text-anchor="middle" dominant-baseline="central">Select payment method</text>
+<ellipse cx="392" cy="468" rx="84" ry="24" fill="#FCE4EC" stroke="#C2185B" stroke-width="0.8"/>
+<text class="th" x="392" y="468" text-anchor="middle" dominant-baseline="central">Process payment (QRIS)</text>
+<ellipse cx="542" cy="468" rx="86" ry="24" fill="#FCE4EC" stroke="#C2185B" stroke-width="0.8"/>
+<text class="th" x="542" y="468" text-anchor="middle" dominant-baseline="central">Process bank transfer</text>
+<ellipse cx="392" cy="548" rx="76" ry="24" fill="#FFF3E0" stroke="#F57C00" stroke-width="0.8"/>
+<text class="th" x="392" y="548" text-anchor="middle" dominant-baseline="central">Confirm order</text>
+
+<!-- CUSTOM DESIGN -->
+<ellipse cx="242" cy="648" rx="76" ry="24" fill="#E8F5E9" stroke="#388E3C" stroke-width="0.8"/>
+<text class="th" x="242" y="648" text-anchor="middle" dominant-baseline="central">Upload design</text>
+<ellipse cx="392" cy="648" rx="76" ry="24" fill="#E8F5E9" stroke="#388E3C" stroke-width="0.8"/>
+<text class="th" x="392" y="648" text-anchor="middle" dominant-baseline="central">Design review</text>
+<ellipse cx="548" cy="648" rx="88" ry="24" fill="#E8F5E9" stroke="#388E3C" stroke-width="0.8"/>
+<text class="th" x="548" y="648" text-anchor="middle" dominant-baseline="central">Request revision</text>
+<ellipse cx="242" cy="728" rx="78" ry="24" fill="#E8F5E9" stroke="#388E3C" stroke-width="0.8"/>
+<text class="th" x="242" y="728" text-anchor="middle" dominant-baseline="central">Approve design</text>
+
+<!-- TRACKING -->
+<ellipse cx="302" cy="838" rx="80" ry="24" fill="#FFEBEE" stroke="#D32F2F" stroke-width="0.8"/>
+<text class="th" x="302" y="838" text-anchor="middle" dominant-baseline="central">Track order status</text>
+<ellipse cx="502" cy="838" rx="86" ry="24" fill="#FFEBEE" stroke="#D32F2F" stroke-width="0.8"/>
+<text class="th" x="502" y="838" text-anchor="middle" dominant-baseline="central">View order history</text>
+
+<!-- LOYALTY -->
+<ellipse cx="232" cy="988" rx="90" ry="24" fill="#F1F8E9" stroke="#689F38" stroke-width="0.8"/>
+<text class="th" x="232" y="988" text-anchor="middle" dominant-baseline="central">Earn loyalty points</text>
+<ellipse cx="392" cy="988" rx="80" ry="24" fill="#F1F8E9" stroke="#689F38" stroke-width="0.8"/>
+<text class="th" x="392" y="988" text-anchor="middle" dominant-baseline="central">Redeem points</text>
+<ellipse cx="555" cy="988" rx="86" ry="24" fill="#F1F8E9" stroke="#689F38" stroke-width="0.8"/>
+<text class="th" x="555" y="988" text-anchor="middle" dominant-baseline="central">View loyalty balance</text>
+
+<!-- ADMIN UC -->
+<ellipse cx="262" cy="1128" rx="76" ry="24" fill="#EDE7F6" stroke="#7B1FA2" stroke-width="0.8"/>
+<text class="th" x="262" y="1128" text-anchor="middle" dominant-baseline="central">Manage users</text>
+<ellipse cx="392" cy="1128" rx="76" ry="24" fill="#EDE7F6" stroke="#7B1FA2" stroke-width="0.8"/>
+<text class="th" x="392" y="1128" text-anchor="middle" dominant-baseline="central">Verify payments</text>
+<ellipse cx="540" cy="1128" rx="80" ry="24" fill="#EDE7F6" stroke="#7B1FA2" stroke-width="0.8"/>
+<text class="th" x="540" y="1128" text-anchor="middle" dominant-baseline="central">Manage products</text>
+
+<!-- DESIGN STAFF UC -->
+<ellipse cx="302" cy="1258" rx="92" ry="24" fill="#E0F2F1" stroke="#00897B" stroke-width="0.8"/>
+<text class="th" x="302" y="1258" text-anchor="middle" dominant-baseline="central">Review design request</text>
+<ellipse cx="510" cy="1258" rx="92" ry="24" fill="#E0F2F1" stroke="#00897B" stroke-width="0.8"/>
+<text class="th" x="510" y="1258" text-anchor="middle" dominant-baseline="central">Send design feedback</text>
+
+<!-- OWNER UC -->
+<ellipse cx="248" cy="1378" rx="86" ry="24" fill="#FFF8E1" stroke="#F57C00" stroke-width="0.8"/>
+<text class="th" x="248" y="1378" text-anchor="middle" dominant-baseline="central">View sales analytics</text>
+<ellipse cx="406" cy="1378" rx="92" ry="24" fill="#FFF8E1" stroke="#F57C00" stroke-width="0.8"/>
+<text class="th" x="406" y="1378" text-anchor="middle" dominant-baseline="central">View customer metrics</text>
+<ellipse cx="572" cy="1378" rx="82" ry="24" fill="#FFF8E1" stroke="#F57C00" stroke-width="0.8"/>
+<text class="th" x="572" y="1378" text-anchor="middle" dominant-baseline="central">Generate reports</text>
+
+<!-- ACTORS -->
+<circle cx="60" cy="608" r="28" fill="#E3F2FD" stroke="#1976D2" stroke-width="1"/>
+<text class="th" x="60" y="603" text-anchor="middle" fill="#0D47A1" font-size="11">Cust-</text>
+<text class="th" x="60" y="617" text-anchor="middle" fill="#0D47A1" font-size="11">omer</text>
+
+<circle cx="650" cy="1128" r="28" fill="#EDE7F6" stroke="#7B1FA2" stroke-width="1"/>
+<text class="th" x="650" y="1128" text-anchor="middle" fill="#4A148C" font-size="11">Admin</text>
+
+<circle cx="650" cy="1258" r="28" fill="#E0F2F1" stroke="#00897B" stroke-width="1"/>
+<text class="th" x="650" y="1253" text-anchor="middle" fill="#004D40" font-size="10">Design</text>
+<text class="th" x="650" y="1266" text-anchor="middle" fill="#004D40" font-size="10">Staff</text>
+
+<circle cx="650" cy="1378" r="28" fill="#FFF8E1" stroke="#F57C00" stroke-width="1"/>
+<text class="th" x="650" y="1378" text-anchor="middle" fill="#E65100" font-size="11">Owner</text>
+
+<!-- Payment Gateway -->
+<rect x="20" y="450" width="72" height="44" rx="6" fill="#FFE0B2" stroke="#E65100" stroke-width="0.8"/>
+<text class="ts" x="56" y="467" text-anchor="middle" fill="#BF360C">Payment</text>
+<text class="ts" x="56" y="482" text-anchor="middle" fill="#BF360C">Gateway</text>
+
+<!-- ASSOCIATION: Customer -->
+<line x1="85" y1="598" x2="170" y2="104" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="80" y1="592" x2="332" y2="98" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="80" y1="596" x2="164" y2="270" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="80" y1="600" x2="182" y2="350" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="82" y1="604" x2="326" y2="350" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="84" y1="608" x2="472" y2="350" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="80" y1="612" x2="154" y2="468" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="78" y1="618" x2="166" y2="648" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="75" y1="620" x2="164" y2="730" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="74" y1="626" x2="222" y2="838" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="74" y1="628" x2="416" y2="838" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="72" y1="632" x2="142" y2="988" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="72" y1="634" x2="312" y2="988" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="72" y1="636" x2="469" y2="988" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+
+<!-- ASSOCIATION: Admin -->
+<line x1="622" y1="1122" x2="618" y2="1128" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="622" y1="1126" x2="468" y2="1128" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="622" y1="1130" x2="338" y2="1128" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+
+<!-- ASSOCIATION: Design Staff -->
+<line x1="622" y1="1254" x2="602" y2="1258" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="622" y1="1262" x2="418" y2="1258" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+
+<!-- ASSOCIATION: Owner -->
+<line x1="626" y1="1374" x2="654" y2="1378" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="626" y1="1378" x2="498" y2="1378" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="626" y1="1382" x2="334" y2="1378" stroke="#666" stroke-width="0.5" marker-end="url(#arrow)"/>
+
+<!-- Payment Gateway associations (dashed) -->
+<path d="M92 468 L154 468" fill="none" stroke="#E65100" stroke-width="0.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+<path d="M88 472 L308 472 L308 468" fill="none" stroke="#E65100" stroke-width="0.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+<!-- INCLUDE / EXTEND (dashed) -->
+<path d="M542 372 L542 430 L330 430 L330 444" fill="none" stroke="#999" stroke-width="0.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+<text class="ts" x="440" y="425" text-anchor="middle" fill="#999">&lt;&lt;include&gt;&gt;</text>
+<path d="M542 372 L542 520 L468 520 L468 524" fill="none" stroke="#999" stroke-width="0.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+<text class="ts" x="555" y="516" text-anchor="middle" fill="#999">&lt;&lt;include&gt;&gt;</text>
+<path d="M392 572 L392 590 L232 590 L232 964" fill="none" stroke="#999" stroke-width="0.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+<text class="ts" x="310" y="585" text-anchor="middle" fill="#999">&lt;&lt;include&gt;&gt;</text>
+<path d="M392 672 L392 700 L320 700 L320 704" fill="none" stroke="#999" stroke-width="0.5" stroke-dasharray="3,3" marker-end="url(#arrow)"/>
+<text class="ts" x="362" y="696" text-anchor="middle" fill="#999">&lt;&lt;extend&gt;&gt;</text>
+
+<!-- Legend -->
+<line x1="135" y1="1406" x2="165" y2="1406" stroke="#666" stroke-width="0.8" marker-end="url(#arrow)"/>
+<text class="ts" x="170" y="1409" fill="#555">Association</text>
+<line x1="270" y1="1406" x2="300" y2="1406" stroke="#999" stroke-width="0.8" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+<text class="ts" x="306" y="1409" fill="#999">&lt;&lt;include&gt;&gt;</text>
+<line x1="420" y1="1406" x2="450" y2="1406" stroke="#999" stroke-width="0.8" stroke-dasharray="2,2" marker-end="url(#arrow)"/>
+<text class="ts" x="456" y="1409" fill="#999">&lt;&lt;extend&gt;&gt;</text>
+</svg>

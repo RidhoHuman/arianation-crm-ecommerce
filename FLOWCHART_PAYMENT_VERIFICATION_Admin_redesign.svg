@@ -1,0 +1,126 @@
+<svg width="100%" viewBox="0 0 680 1160" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Payment Verification Workflow — Admin Perspective</title>
+<desc>Flowchart alur verifikasi pembayaran dari perspektif Admin pada sistem Arianation.</desc>
+<defs>
+<style>
+  text { font-family: Arial, sans-serif; font-size: 13px; fill: #2C2C2A; }
+  .th { font-weight: bold; font-size: 13px; fill: #2C2C2A; }
+  .ts { font-size: 11px; fill: #5F5E5A; }
+</style>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<!-- START -->
+<ellipse cx="340" cy="44" rx="52" ry="24" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+<text class="th" x="340" y="44" text-anchor="middle" dominant-baseline="central">Start</text>
+
+<line x1="340" y1="68" x2="340" y2="98" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- PAYMENT RECEIVED -->
+<rect x="230" y="98" width="220" height="56" rx="8" fill="#FBEAF0" stroke="#993556" stroke-width="0.8"/>
+<text class="th" x="340" y="118" text-anchor="middle" dominant-baseline="central">Payment received</text>
+<text class="ts" x="340" y="138" text-anchor="middle" dominant-baseline="central">From gateway / bank</text>
+
+<line x1="340" y1="154" x2="340" y2="194" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- DECISION: PAYMENT METHOD? -->
+<polygon points="340,194 420,234 340,274 260,234" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.8"/>
+<text class="th" x="340" y="229" text-anchor="middle" dominant-baseline="central">Payment</text>
+<text class="th" x="340" y="245" text-anchor="middle" dominant-baseline="central">method?</text>
+
+<!-- Branch arrows from diamond -->
+<path d="M260 234 L130 234" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<text class="ts" x="194" y="226" text-anchor="middle">QRIS</text>
+
+<line x1="340" y1="274" x2="340" y2="314" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<text class="ts" x="358" y="298" text-anchor="start">Bank transfer</text>
+
+<path d="M420 234 L550 234" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<text class="ts" x="486" y="226" text-anchor="middle">COD</text>
+
+<!-- QRIS BOX -->
+<rect x="40" y="254" width="180" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+<text class="th" x="130" y="274" text-anchor="middle" dominant-baseline="central">Auto-verify QRIS</text>
+<text class="ts" x="130" y="294" text-anchor="middle" dominant-baseline="central">Check transaction ID</text>
+
+<!-- BANK TRANSFER BOX -->
+<rect x="230" y="314" width="220" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+<text class="th" x="340" y="334" text-anchor="middle" dominant-baseline="central">Manual review</text>
+<text class="ts" x="340" y="354" text-anchor="middle" dominant-baseline="central">Check bank proof</text>
+
+<!-- COD BOX -->
+<rect x="460" y="254" width="180" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+<text class="th" x="550" y="274" text-anchor="middle" dominant-baseline="central">Mark as pending</text>
+<text class="ts" x="550" y="294" text-anchor="middle" dominant-baseline="central">Collect at delivery</text>
+
+<!-- MERGE 3 branches → y=430 -->
+<path d="M130 310 L130 430 L270 430" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<line x1="340" y1="370" x2="340" y2="430" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<path d="M550 310 L550 430 L410 430" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- DECISION: PAYMENT VERIFIED? -->
+<polygon points="340,430 430,475 340,520 250,475" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.8"/>
+<text class="th" x="340" y="469" text-anchor="middle" dominant-baseline="central">Payment</text>
+<text class="th" x="340" y="485" text-anchor="middle" dominant-baseline="central">verified?</text>
+
+<!-- NO → REJECT -->
+<path d="M250 475 L130 475" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<text class="ts" x="188" y="467" text-anchor="middle">No</text>
+
+<rect x="40" y="447" width="180" height="56" rx="8" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.8"/>
+<text class="th" x="130" y="467" text-anchor="middle" dominant-baseline="central">Reject payment</text>
+<text class="ts" x="130" y="487" text-anchor="middle" dominant-baseline="central">Notify customer</text>
+
+<!-- Retry loop -->
+<path d="M130 503 L130 560 L60 560 L60 121 L230 121" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+<text class="ts" x="66" y="345" text-anchor="start">Retry / re-submit</text>
+
+<!-- YES → UPDATE PAYMENT STATUS -->
+<line x1="340" y1="520" x2="340" y2="560" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<text class="ts" x="358" y="544" text-anchor="start">Yes</text>
+
+<rect x="220" y="560" width="240" height="56" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.8"/>
+<text class="th" x="340" y="580" text-anchor="middle" dominant-baseline="central">Update payment status</text>
+<text class="ts" x="340" y="600" text-anchor="middle" dominant-baseline="central">Status: completed</text>
+
+<line x1="340" y1="616" x2="340" y2="656" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- UPDATE ORDER STATUS -->
+<rect x="220" y="656" width="240" height="56" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.8"/>
+<text class="th" x="340" y="676" text-anchor="middle" dominant-baseline="central">Update order status</text>
+<text class="ts" x="340" y="696" text-anchor="middle" dominant-baseline="central">Status: confirmed</text>
+
+<line x1="340" y1="712" x2="340" y2="752" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- SEND CONFIRMATION -->
+<rect x="220" y="752" width="240" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.8"/>
+<text class="th" x="340" y="772" text-anchor="middle" dominant-baseline="central">Send confirmation</text>
+<text class="ts" x="340" y="792" text-anchor="middle" dominant-baseline="central">Email &amp; notification</text>
+
+<line x1="340" y1="808" x2="340" y2="848" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- RECORD IN ANALYTICS -->
+<rect x="220" y="848" width="240" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+<text class="th" x="340" y="868" text-anchor="middle" dominant-baseline="central">Record in analytics</text>
+<text class="ts" x="340" y="888" text-anchor="middle" dominant-baseline="central">Update revenue data</text>
+
+<line x1="340" y1="904" x2="340" y2="944" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- END -->
+<ellipse cx="340" cy="968" rx="52" ry="24" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+<text class="th" x="340" y="968" text-anchor="middle" dominant-baseline="central">End</text>
+
+<!-- LEGEND -->
+<rect x="40" y="1020" width="600" height="120" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5"/>
+<text class="th" x="60" y="1044" dominant-baseline="central">Legenda</text>
+<ellipse cx="76" cy="1074" rx="28" ry="14" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+<text class="ts" x="112" y="1074" dominant-baseline="central">Terminator (start / end)</text>
+<rect x="48" y="1102" width="56" height="24" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+<text class="ts" x="112" y="1114" dominant-baseline="central">Proses / aksi</text>
+<polygon points="340,1064 378,1084 340,1104 302,1084" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.8"/>
+<text class="ts" x="390" y="1084" dominant-baseline="central">Keputusan (decision)</text>
+<line x1="302" y1="1114" x2="358" y2="1114" stroke="#888780" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+<text class="ts" x="370" y="1114" dominant-baseline="central">Alur balik / retry</text>
+</svg>
