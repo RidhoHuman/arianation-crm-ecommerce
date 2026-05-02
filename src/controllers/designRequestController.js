@@ -157,7 +157,9 @@ const updateDesignRequest = async (req, res, next) => {
     if (quantity !== undefined) updateData.quantity = quantity;
     if (productTypeForSablon !== undefined) updateData.productTypeForSablon = productTypeForSablon;
     if (colorPreferences !== undefined) updateData.colorPreferences = colorPreferences;
-    if (deadline !== undefined) updateData.deadline = new Date(deadline);
+    if (deadline !== undefined) {
+      updateData.deadline = deadline === null || deadline === '' ? null : new Date(deadline);
+    }
 
     if (status !== undefined) {
       updateData.status = status;
