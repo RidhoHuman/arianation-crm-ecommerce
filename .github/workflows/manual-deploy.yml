@@ -39,17 +39,14 @@ jobs:
       - name: Deploy to Vercel (${{ github.event.inputs.environment }})
         run: |
           if [ "${{ github.event.inputs.environment }}" = "production" ]; then
-            vercel deploy --token ${{ secrets.VERCEL_TOKEN }} \
-                          --scope ${{ secrets.VERCEL_ORG_ID }} \
-                          --project ${{ secrets.VERCEL_PROJECT_ID }} \
-                          --prod
+            vercel --prod
           else
-            vercel deploy --token ${{ secrets.VERCEL_TOKEN }} \
-                          --scope ${{ secrets.VERCEL_ORG_ID }} \
-                          --project ${{ secrets.VERCEL_PROJECT_ID }}
+            vercel
           fi
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Notify deployment
         run: |
