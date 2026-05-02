@@ -3,7 +3,7 @@
 const prisma = require('../config/database');
 const { hashPassword, comparePassword } = require('../utils/password');
 const { generateToken, generateRefreshToken, verifyToken } = require('../utils/jwt');
-const { sendSuccess, sendCreated, sendError } = require('../utils/response');
+const { sendSuccess, sendCreated } = require('../utils/response');
 const { ConflictError, AuthenticationError, NotFoundError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
 
