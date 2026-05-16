@@ -10,9 +10,11 @@ const {
   updateDesignRequest,
   submitDesignRequest,
   addFeedback,
+  deleteDesignRequest,
 } = require('../controllers/designRequestController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
+const { uploadDesign } = require('../middleware/upload');
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -26,10 +28,12 @@ const generalLimiter = rateLimit({
 router.use(generalLimiter, authenticate);
 
 router.get('/', getAllDesignRequests);
-router.post('/', validateBody(schemas.createDesignRequest), createDesignRequest);
+router.post('/', uploadDesign, createDesignRequest);
 router.get('/:id', getDesignRequestById);
 router.put('/:id', updateDesignRequest);
+router.patch('/:id', updateDesignRequest);
 router.put('/:id/submit', submitDesignRequest);
 router.post('/:id/feedback', authorize('ADMIN', 'OWNER', 'DESIGN_STAFF'), addFeedback);
+router.delete('/:id', deleteDesignRequest);
 
 module.exports = router;

@@ -10,6 +10,9 @@ const {
   updateOrderStatus,
   cancelOrder,
   getOrderTracking,
+  getOrderStatusHistory,
+  getOrderTimeline,
+  getOrderNotifications,
 } = require('../controllers/orderController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
@@ -100,5 +103,10 @@ router.get('/:id', getOrderById);
 router.put('/:id/status', authorize('ADMIN', 'OWNER', 'DESIGN_STAFF'), updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);
 router.get('/:id/tracking', getOrderTracking);
+
+// Order fulfillment routes
+router.get('/:id/status-history', getOrderStatusHistory);
+router.get('/:id/timeline', getOrderTimeline);
+router.get('/:id/notifications', getOrderNotifications);
 
 module.exports = router;

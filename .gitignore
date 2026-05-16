@@ -1,4 +1,7 @@
 node_modules
+/frontend/node_modules
+/frontend/.next
+/frontend/coverage
 # Keep environment variables out of version control
 .env
 .env.local

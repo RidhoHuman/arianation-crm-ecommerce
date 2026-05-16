@@ -85,13 +85,28 @@ const createDesignRequest = async (req, res, next) => {
       designTitle,
       designDescription,
       referenceImageUrl,
-      designFileUrl,
-      fileType,
       quantity,
       productTypeForSablon,
       colorPreferences,
       deadline,
     } = req.body;
+
+    // Validation
+    if (!designTitle || !quantity) {
+      throw new Error('designTitle and quantity are required');
+    }
+
+    // Handle file upload
+    let designFileUrl = referenceImageUrl; // Default to reference image if no file uploaded
+    let fileType = 'EXTERNAL_URL';
+
+    if (req.file) {
+      designFileUrl = `/uploads/${req.file.filename}`;
+      const path = require('path');
+      fileType = path.extname(req.file.originalname).substring(1).toUpperCase();
+    } else if (!designFileUrl) {
+      throw new Error('Either design file upload or reference image URL is required');
+    }
 
     if (orderId) {
       const order = await prisma.order.findUnique({ where: { id: orderId } });
@@ -109,13 +124,31 @@ const createDesignRequest = async (req, res, next) => {
         referenceImageUrl: referenceImageUrl || null,
         designFileUrl,
         fileType,
-        quantity,
+        quantity: parseInt(quantity, 10),
         productTypeForSablon: productTypeForSablon || null,
         colorPreferences: colorPreferences || null,
         deadline: deadline ? new Date(deadline) : null,
-        status: 'DRAFT',
+        status: 'SUBMITTED',
+        submittedAt: new Date(),
+      },
+      include: {
+        feedback: true,
+        order: {
+          select: { id: true, orderNumber: true, status: true },
+        },
       },
     });
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'DESIGN_REQUEST_CREATED',
+        orderId: orderId || null,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      },
+    }).catch(() => {}); // Don't fail if audit log fails
 
     return sendCreated(res, request, MESSAGES.DESIGN_REQUEST_CREATED);
   } catch (error) {
@@ -240,6 +273,44 @@ const addFeedback = async (req, res, next) => {
   }
 };
 
+const deleteDesignRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const designRequest = await prisma.designRequest.findUnique({ where: { id } });
+    if (!designRequest) {
+      throw new NotFoundError(MESSAGES.DESIGN_REQUEST_NOT_FOUND);
+    }
+
+    if (req.user.role === 'CUSTOMER' && designRequest.userId !== req.user.id) {
+      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    }
+
+    // Only allow deletion if status is DRAFT or REJECTED
+    if (!['DRAFT', 'REJECTED'].includes(designRequest.status)) {
+      throw new Error(`Cannot delete design request with status ${designRequest.status}`);
+    }
+
+    await prisma.designRequest.delete({
+      where: { id },
+    });
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        action: 'DESIGN_REQUEST_DELETED',
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      },
+    }).catch(() => {});
+
+    return sendSuccess(res, null, 'Design request deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllDesignRequests,
   getDesignRequestById,
@@ -247,4 +318,5 @@ module.exports = {
   updateDesignRequest,
   submitDesignRequest,
   addFeedback,
+  deleteDesignRequest,
 };

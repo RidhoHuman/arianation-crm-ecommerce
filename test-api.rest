@@ -1,7 +1,111 @@
-POST http://localhost:3001/api/auth/login
-Content-Type: application/json
+### Arianation CRM - API Testing
+### Gunakan VS Code REST Client Extension untuk run requests ini
+### Klik "Send Request" di atas setiap endpoint
+
+### ═══════════════════════════════════════════════════
+### VARIABLES & CONFIG
+### ═══════════════════════════════════════════════════
+
+@baseUrl = http://localhost:3001
+@contentType = application/json
+
+### ═══════════════════════════════════════════════════
+### 1. HEALTH CHECK
+### ═══════════════════════════════════════════════════
+
+### Test Backend Status
+GET {{baseUrl}}/api/health
+
+###
+
+### ═══════════════════════════════════════════════════
+### 2. AUTHENTICATION
+### ═══════════════════════════════════════════════════
+
+### Register New User
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
 
 {
-  "email": "admin@arianation.com",
-  "password": "admin123"
+  "name": "Ariana Customer",
+  "email": "customer@arianation.com",
+  "password": "password123"
 }
+
+###
+
+### Login as Customer
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "customer@arianation.com",
+  "password": "password123"
+}
+
+###
+
+### Refresh Token
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+###
+
+### Logout
+POST {{baseUrl}}/api/auth/logout
+Content-Type: {{contentType}}
+
+###
+
+### ═══════════════════════════════════════════════════
+### 3. CHECKOUT FLOW
+### ═══════════════════════════════════════════════════
+
+### Guest Checkout (No Login Required)
+POST {{baseUrl}}/api/checkout
+Content-Type: {{contentType}}
+
+{
+  "firstName": "Budi",
+  "lastName": "Santoso",
+  "address": "Jl. Diponegoro No. 123",
+  "apartment": "Apt 5B",
+  "city": "Jakarta",
+  "province": "EAST JAVA",
+  "postalCode": "60111",
+  "phone": "081234567890",
+  "country": "INDONESIA"
+}
+
+###
+
+### Get Checkout Status
+GET {{baseUrl}}/api/checkout/order-id-here
+
+###
+
+### ═══════════════════════════════════════════════════
+### 4. PRODUCTS
+### ═══════════════════════════════════════════════════
+
+### Get All Products
+GET {{baseUrl}}/api/products
+
+###
+
+### ═══════════════════════════════════════════════════
+### 5. DESIGN REQUESTS (CUSTOM SABLON)
+### ═══════════════════════════════════════════════════
+
+### Create Design Request
+POST {{baseUrl}}/api/design-requests
+Content-Type: {{contentType}}
+
+{
+  "title": "Custom Sablon Design",
+  "description": "I want to customize my shirt",
+  "quantity": 10,
+  "deadline": "2026-06-01"
+}
+
+###

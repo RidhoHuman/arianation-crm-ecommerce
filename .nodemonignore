@@ -1,0 +1,16 @@
+node_modules
+.next
+.turbo
+dist
+build
+coverage
+.git
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+frontend
+prisma/migrations
+.vscode
+.idea

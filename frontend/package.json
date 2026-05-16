@@ -1,0 +1,24 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "set NODE_OPTIONS=--max-old-space-size=512 && next dev",
+    "dev:turbo": "set NODE_OPTIONS=--max-old-space-size=512 && next dev --turbo",
+    "build": "set NODE_OPTIONS=--max-old-space-size=1024 && next build",
+    "start": "set NODE_OPTIONS=--max-old-space-size=1024 && next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^16.2.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.16",
+    "eslint": "^10.3.0",
+    "eslint-config-next": "16.2.4",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.4.1"
+  }
+}

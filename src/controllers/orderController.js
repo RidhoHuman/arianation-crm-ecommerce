@@ -4,6 +4,7 @@ const prisma = require('../config/database');
 const { sendSuccess, sendCreated, sendPaginated } = require('../utils/response');
 const { NotFoundError, BadRequestError, AuthorizationError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
+const orderFulfillmentService = require('../services/orderFulfillmentService');
 
 const getAllOrders = async (req, res, next) => {
   try {
@@ -194,31 +195,18 @@ const createOrder = async (req, res, next) => {
 const updateOrderStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { status, reason, notes } = req.body;
 
-    const order = await prisma.order.findUnique({ where: { id } });
-    if (!order) {
-      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
-    }
+    // Use fulfillment service for validated status update
+    const updatedOrder = await orderFulfillmentService.updateOrderStatus(
+      id,
+      status,
+      req.user.id, // updatedBy
+      reason,
+      notes
+    );
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: { status, notes: notes || order.notes },
-    });
-
-    if (['ADMIN', 'OWNER'].includes(req.user.role)) {
-      await prisma.adminActivityLog.create({
-        data: {
-          adminId: req.user.id,
-          action: 'ORDER_STATUS_UPDATED',
-          targetId: id,
-          targetType: 'Order',
-          details: JSON.stringify({ previousStatus: order.status, newStatus: status }),
-        },
-      });
-    }
-
-    return sendSuccess(res, updatedOrder, MESSAGES.ORDER_UPDATED);
+    return sendSuccess(res, updatedOrder, 'Order status updated successfully');
   } catch (error) {
     next(error);
   }
@@ -277,4 +265,77 @@ const getOrderTracking = async (req, res, next) => {
   }
 };
 
-module.exports = { getAllOrders, getOrderById, createOrder, updateOrderStatus, cancelOrder, getOrderTracking };
+const getOrderStatusHistory = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
+    }
+
+    if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    }
+
+    const history = await orderFulfillmentService.getOrderStatusHistory(id);
+
+    return sendSuccess(res, history, 'Order status history retrieved');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getOrderTimeline = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
+    }
+
+    if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    }
+
+    const timeline = await orderFulfillmentService.getOrderTimeline(id);
+
+    return sendSuccess(res, timeline, 'Order timeline retrieved');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getOrderNotifications = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
+    }
+
+    if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    }
+
+    const notifications = await orderFulfillmentService.getOrderNotifications(id);
+
+    return sendSuccess(res, notifications, 'Order notifications retrieved');
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getAllOrders,
+  getOrderById,
+  createOrder,
+  updateOrderStatus,
+  cancelOrder,
+  getOrderTracking,
+  getOrderStatusHistory,
+  getOrderTimeline,
+  getOrderNotifications,
+};

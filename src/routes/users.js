@@ -28,6 +28,10 @@ router.use(generalLimiter, authenticate);
 router.get('/', authorize('ADMIN', 'OWNER'), getAllUsers);
 
 // Profile management (own user)
+router.get('/me', (req, res, next) => {
+  req.params.id = req.user.id;
+  return getUserById(req, res, next);
+});
 router.put('/profile', updateProfile);
 router.put('/change-password', changePassword);
 

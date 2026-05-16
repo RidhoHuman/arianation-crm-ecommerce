@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
-    "test": "jest --coverage",
+    "dev": "set NODE_OPTIONS=--max-old-space-size=1024 && nodemon src/index.js",
+    "dev:debug": "set NODE_OPTIONS=--max-old-space-size=512 --inspect && nodemon src/index.js",
+    "start": "set NODE_OPTIONS=--max-old-space-size=1024 && node src/index.js",
+    "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .js",
     "lint:fix": "eslint src --ext .js --fix",
@@ -25,11 +26,14 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

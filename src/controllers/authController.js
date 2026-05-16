@@ -7,6 +7,13 @@ const { sendSuccess, sendCreated } = require('../utils/response');
 const { ConflictError, AuthenticationError, NotFoundError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  path: '/',
+};
+
 const register = async (req, res, next) => {
   try {
     const { email, password, fullName, phone } = req.body;
@@ -53,8 +60,12 @@ const register = async (req, res, next) => {
     });
 
     const token = generateToken({ id: user.id, email: user.email, role: user.role });
+    const refreshToken = generateRefreshToken({ id: user.id });
 
-    return sendCreated(res, { user, token }, MESSAGES.AUTH_REGISTER_SUCCESS);
+    res.cookie('accessToken', token, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    return sendCreated(res, { user, token, refreshToken }, MESSAGES.AUTH_REGISTER_SUCCESS);
   } catch (error) {
     next(error);
   }
@@ -93,6 +104,9 @@ const login = async (req, res, next) => {
     const token = generateToken({ id: user.id, email: user.email, role: user.role });
     const refreshToken = generateRefreshToken({ id: user.id });
 
+    res.cookie('accessToken', token, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+
     const { password: unusedPassword, ...userWithoutPassword } = user;
 
     return sendSuccess(res, { user: userWithoutPassword, token, refreshToken }, MESSAGES.AUTH_LOGIN_SUCCESS);
@@ -103,6 +117,8 @@ const login = async (req, res, next) => {
 
 const logout = async (req, res, next) => {
   try {
+    res.clearCookie('accessToken', { ...cookieOptions });
+    res.clearCookie('refreshToken', { ...cookieOptions });
     return sendSuccess(res, null, MESSAGES.AUTH_LOGOUT_SUCCESS);
   } catch (error) {
     next(error);
@@ -111,7 +127,7 @@ const logout = async (req, res, next) => {
 
 const refreshToken = async (req, res, next) => {
   try {
-    const { refreshToken: token } = req.body;
+    const token = req.body.refreshToken || req.cookies?.refreshToken;
 
     if (!token) {
       throw new AuthenticationError('Refresh token is required');
@@ -130,6 +146,9 @@ const refreshToken = async (req, res, next) => {
 
     const newToken = generateToken({ id: user.id, email: user.email, role: user.role });
     const newRefreshToken = generateRefreshToken({ id: user.id });
+
+    res.cookie('accessToken', newToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', newRefreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     return sendSuccess(res, { token: newToken, refreshToken: newRefreshToken }, 'Token refreshed successfully');
   } catch (error) {

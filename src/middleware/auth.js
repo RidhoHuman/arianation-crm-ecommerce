@@ -7,12 +7,15 @@ const prisma = require('../config/database');
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.accessToken;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if ((!authHeader || !authHeader.startsWith('Bearer ')) && !cookieToken) {
       throw new AuthenticationError('Authentication token is required');
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : cookieToken;
     const decoded = verifyToken(token);
 
     const user = await prisma.user.findUnique({
@@ -58,12 +61,15 @@ const authorize = (...roles) => {
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.accessToken;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if ((!authHeader || !authHeader.startsWith('Bearer ')) && !cookieToken) {
       return next();
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : cookieToken;
     const decoded = verifyToken(token);
 
     const user = await prisma.user.findUnique({

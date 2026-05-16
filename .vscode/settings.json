@@ -1,0 +1,34 @@
+{
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/coverage": true,
+    "**/dist": true,
+    "**/.turbo": true,
+    "**/.vercel": true,
+    "**/generated": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/coverage": true,
+    "**/dist": true,
+    "**/.turbo": true,
+    "**/.vercel": true,
+    "**/generated": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/coverage/**": true,
+    "**/dist/**": true,
+    "**/.turbo/**": true,
+    "**/.vercel/**": true,
+    "**/generated/**": true
+  },
+  "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "eslint.workingDirectories": [
+    { "mode": "auto" }
+  ]
+}

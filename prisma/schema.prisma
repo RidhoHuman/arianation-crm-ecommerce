@@ -5,8 +5,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+  // Enable connection pooling for better resource management
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ============================================================
@@ -257,6 +259,8 @@ model Order {
   payment             Payment?
   tracking            OrderTracking?
   designRequests      DesignRequest[]
+  statusHistory       OrderStatusHistory[]
+  notifications       OrderNotification[]
   
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -264,6 +268,84 @@ model Order {
   @@index([userId])
   @@index([status])
   @@index([orderDate])
+}
+
+model GuestOrder {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String?
+  address       String
+  apartment     String?
+  city          String
+  province      String?
+  postalCode    String
+  country       String?
+  phone         String
+  status        String   @default("PENDING")
+  total         Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  orderId      String?
+  guestOrderId String?
+  action       String
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([guestOrderId])
+  @@index([action])
+}
+
+// ============================================================
+// ORDER STATUS & NOTIFICATIONS
+// ============================================================
+
+model OrderStatusHistory {
+  id              String    @id @default(cuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  previousStatus  String
+  newStatus       String
+  reason          String?
+  updatedBy       String    // Admin/System that made change
+  notes           String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+model OrderNotification {
+  id            String    @id @default(cuid())
+  orderId       String
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  userId        String?   // Recipient user
+  recipientEmail String?
+  
+  type          String    // CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED, FAILED
+  title         String
+  message       String
+  emailSent     Boolean   @default(false)
+  sentAt        DateTime?
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([orderId])
+  @@index([type])
 }
 
 model OrderItem {
