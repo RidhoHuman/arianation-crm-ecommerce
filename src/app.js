@@ -18,6 +18,8 @@ const paymentRoutes = require('./routes/payments');
 const designRequestRoutes = require('./routes/designRequests');
 const adminRoutes = require('./routes/admin');
 const webhookRoutes = require('./routes/webhooks');
+const batchRoutes = require('./routes/batch');
+const analyticsRoutes = require('./routes/analytics');
 const checkoutRoutes = require('../routes/checkout');
 
 // Validate environment variables (throws if invalid)
@@ -51,6 +53,8 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api', checkoutRoutes);
 app.use('/api/design-requests', designRequestRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/batch', batchRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 // 404
