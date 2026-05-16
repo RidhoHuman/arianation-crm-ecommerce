@@ -56,6 +56,12 @@ jobs:
             echo "Waiting for MySQL..."; sleep 2
           done
 
+      - name: Create .env file from secrets
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
+          echo "DIRECT_DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "NODE_ENV=test" >> .env
+
       - name: Install dependencies
         run: npm ci
 
