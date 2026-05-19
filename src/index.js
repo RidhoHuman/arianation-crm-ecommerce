@@ -1,4 +1,5 @@
-// src/index.js
+// src/index.js - Local development entry point only
+// For production (Vercel), use api/index.js instead
 
 require('dotenv').config();
 const prisma = require('./config/database');
@@ -6,10 +7,14 @@ const app = require('./app');
 
 const PORT = process.env.PORT || 3001;
 
+// Skip database check on production (serverless)
 const startServer = async () => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
-    console.log('✅ Database connection successful');
+    // Only test DB connection in development
+    if (process.env.NODE_ENV !== 'production') {
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('✅ Database connection successful');
+    }
 
     app.listen(PORT, () => {
       console.log(`\n🚀 Server running on http://localhost:${PORT}`);
