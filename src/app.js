@@ -60,6 +60,45 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Debug endpoint
+app.get('/api/debug', async (req, res) => {
+  try {
+    const dbUrl = process.env.DATABASE_URL;
+    const dbUrlMasked = dbUrl ? dbUrl.replace(/:[^@]*@/, ':***@') : 'NOT SET';
+    
+    // Try a simple query
+    let dbStatus = 'Unknown';
+    let tables = [];
+    try {
+      const result = await prisma.$queryRaw`SELECT 1 as test`;
+      dbStatus = 'Connected';
+      
+      // Try to list tables
+      const tablesResult = await prisma.$queryRaw`SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'arianation_db'`;
+      tables = tablesResult.map(t => t.TABLE_NAME);
+    } catch (dbError) {
+      dbStatus = `Failed: ${dbError.message}`;
+    }
+    
+    res.json({
+      success: true,
+      debug: {
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL: dbUrlMasked,
+        Database_Status: dbStatus,
+        Tables: tables,
+        Timestamp: new Date(),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : 'Not shown in production',
+    });
+  }
+});
+
 // API
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
