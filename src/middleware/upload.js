@@ -1,11 +1,24 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '../../public/uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Determine uploads directory
+// On Vercel/serverless, use /tmp; locally use /public/uploads
+let uploadsDir;
+if (process.env.NODE_ENV === 'production') {
+  // Vercel uses /tmp for temporary files
+  uploadsDir = path.join(os.tmpdir(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  console.warn('⚠️  Using temporary uploads directory on serverless platform. Consider implementing cloud storage (S3, etc.) for production.');
+} else {
+  // Local development
+  uploadsDir = path.join(__dirname, '../../public/uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
 }
 
 // Configure storage
