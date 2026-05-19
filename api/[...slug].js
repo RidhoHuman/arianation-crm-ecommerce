@@ -1,41 +1,44 @@
 // api/[...slug].js - Catch-all handler for all API routes
-// This allows Express app to handle all /api/* routes
 
-// Only load .env in development, not in production (Vercel)
+// Only load .env in development
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
 
 let app;
+let appLoadError = null;
+
 try {
+  console.log('Loading app...');
   app = require('../src/app');
-  console.log('✅ App loaded successfully');
+  console.log('App loaded OK');
 } catch (error) {
-  console.error('❌ Failed to load app:', error.message);
-  console.error(error.stack);
+  appLoadError = error;
+  console.log('App load failed:', error.message);
+  console.log('Error type:', error.constructor.name);
+  console.log('Stack:', error.stack.split('\n').slice(0, 3).join('\n'));
   app = null;
 }
 
-// Export handler function for Vercel
+// Export handler function
 module.exports = (req, res) => {
-  // If app failed to load, return error
   if (!app) {
-    console.error('⚠️  App is null');
+    console.log('Returning error - app is null');
+    console.log('appLoadError:', appLoadError?.message);
     return res.status(500).json({
       success: false,
-      message: 'Application failed to initialize',
+      message: 'Application failed to load',
+      error: appLoadError?.message || 'Unknown error',
     });
   }
 
   try {
-    // Call Express app as middleware/request handler
     app(req, res);
   } catch (error) {
-    console.error('Request handler error:', error);
+    console.log('Handler error:', error.message);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'production' ? undefined : error.message,
+      message: 'Request failed',
     });
   }
 };
