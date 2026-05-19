@@ -9,24 +9,30 @@ if (process.env.NODE_ENV !== 'production') {
 let app;
 try {
   app = require('../src/app');
+  console.log('✅ App loaded successfully');
 } catch (error) {
-  console.error('Failed to load app:', error.message);
-  console.error('Stack:', error.stack);
-  module.exports = (req, res) => {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to load application',
-      error: error.message,
-    });
-  };
+  console.error('❌ Failed to load app:', error.message);
+  console.error(error.stack);
+  app = null;
 }
 
+// Export handler function for Vercel
 module.exports = (req, res) => {
-  try {
-    return app(req, res);
-  } catch (error) {
-    console.error('Request error:', error);
+  // If app failed to load, return error
+  if (!app) {
+    console.error('⚠️  App is null');
     return res.status(500).json({
+      success: false,
+      message: 'Application failed to initialize',
+    });
+  }
+
+  try {
+    // Call Express app as middleware/request handler
+    app(req, res);
+  } catch (error) {
+    console.error('Request handler error:', error);
+    res.status(500).json({
       success: false,
       message: 'Internal server error',
       error: process.env.NODE_ENV === 'production' ? undefined : error.message,
