@@ -33,12 +33,23 @@ module.exports = (req, res) => {
   }
 
   try {
+    // Wrap request/response to capture errors
+    const originalJson = res.json.bind(res);
+    res.json = function(data) {
+      if (data && data.message && data.message.includes('ValidationError')) {
+        console.log('[VALIDATION ERROR]', data.message, data.errors);
+      }
+      return originalJson(data);
+    };
+
     app(req, res);
   } catch (error) {
-    console.log('Handler error:', error.message);
+    console.log('[HANDLER ERROR]', error.message);
+    console.log('[ERROR STACK]', error.stack);
     res.status(500).json({
       success: false,
       message: 'Request failed',
+      error: error.message,
     });
   }
 };

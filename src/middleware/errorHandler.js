@@ -6,6 +6,16 @@ const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
+  // Log full error details
+  console.log('[ERROR HANDLER]', {
+    name: err.name,
+    message: err.message,
+    code: err.code,
+    statusCode: statusCode,
+    path: req.path,
+    method: req.method,
+  });
+
   // Prisma error handling
   if (err.code === 'P2002') {
     statusCode = 409;
