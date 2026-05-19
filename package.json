@@ -7,6 +7,7 @@
     "dev": "set NODE_OPTIONS=--max-old-space-size=1024 && nodemon src/index.js",
     "dev:debug": "set NODE_OPTIONS=--max-old-space-size=512 --inspect && nodemon src/index.js",
     "start": "set NODE_OPTIONS=--max-old-space-size=1024 && node src/index.js",
+    "build": "prisma generate && prisma migrate deploy",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .js",
