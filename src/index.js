@@ -1,7 +1,11 @@
 // src/index.js - Local development entry point only
-// For production (Vercel), use api/index.js instead
+// For production (Vercel), use api/[...slug].js instead
 
-require('dotenv').config();
+// Only load .env in development
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
+
 const prisma = require('./config/database');
 const app = require('./app');
 
