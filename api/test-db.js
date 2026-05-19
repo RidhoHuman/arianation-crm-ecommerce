@@ -1,12 +1,13 @@
 // api/test-db.js - Simple test to check database connectivity
-require('dotenv').config({
-  override: true,
-});
+// DO NOT load .env on production - Vercel provides env vars directly
 
 module.exports = async (req, res) => {
   try {
     console.log('[TEST-DB] NODE_ENV:', process.env.NODE_ENV);
     console.log('[TEST-DB] Has DATABASE_URL:', !!process.env.DATABASE_URL);
+    if (process.env.DATABASE_URL) {
+      console.log('[TEST-DB] DATABASE_URL length:', process.env.DATABASE_URL.length);
+    }
 
     const prisma = require('../src/config/database');
 
@@ -20,7 +21,7 @@ module.exports = async (req, res) => {
       result,
       env: {
         NODE_ENV: process.env.NODE_ENV,
-        DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'MISSING',
+        DATABASE_URL: process.env.DATABASE_URL ? 'SET (' + process.env.DATABASE_URL.length + ' chars)' : 'MISSING',
       },
     });
   } catch (error) {
