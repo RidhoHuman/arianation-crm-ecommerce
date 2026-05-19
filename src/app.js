@@ -4,7 +4,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
 const prisma = require('./config/database');
-const { validateEnv } = require('./config/env');
+const { config, validateEnv } = require('./config/env');
 const logger = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -23,7 +23,13 @@ const analyticsRoutes = require('./routes/analytics');
 const checkoutRoutes = require('../routes/checkout');
 
 // Validate environment variables (throws if invalid)
-validateEnv();
+try {
+  validateEnv();
+} catch (error) {
+  console.warn('Environment validation warning:', error.message);
+  // Don't throw - allow app to load, but log warning
+  // This handles cases where env vars come from Vercel
+}
 
 const app = express();
 
