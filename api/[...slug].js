@@ -1,5 +1,6 @@
 // api/[...slug].js - Catch-all handler for all API routes
 
+
 // Only load .env in development
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
@@ -8,15 +9,20 @@ if (process.env.NODE_ENV !== 'production') {
 let app;
 let appLoadError = null;
 
+console.log('[API HANDLER] NODE_ENV:', process.env.NODE_ENV);
+console.log('[API HANDLER] Loading app...');
+
 try {
-  console.log('Loading app...');
   app = require('../src/app');
-  console.log('App loaded OK');
+  console.log('[API HANDLER] App loaded successfully');
 } catch (error) {
   appLoadError = error;
-  console.log('App load failed:', error.message);
-  console.log('Error type:', error.constructor.name);
-  console.log('Stack:', error.stack.split('\n').slice(0, 3).join('\n'));
+  console.log('[APP LOAD ERROR] Message:', error.message);
+  console.log('[APP LOAD ERROR] Name:', error.name);
+  console.log('[APP LOAD ERROR] Code:', error.code);
+  if (error.stack) {
+    console.log('[APP LOAD ERROR] Stack:', error.stack.split('\n').slice(0, 10).join('\n'));
+  }
   app = null;
 }
 
