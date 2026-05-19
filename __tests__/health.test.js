@@ -7,7 +7,7 @@ describe('API Health Check', () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    
+
     // Health check endpoint
     app.get('/health', (req, res) => {
       res.status(200).json({ status: 'ok', timestamp: new Date() });
@@ -16,7 +16,7 @@ describe('API Health Check', () => {
 
   test('GET /health should return 200 with status ok', async () => {
     const response = await request(app).get('/health');
-    
+
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('status');
     expect(response.body.status).toBe('ok');
@@ -24,7 +24,7 @@ describe('API Health Check', () => {
 
   test('should have timestamp in response', async () => {
     const response = await request(app).get('/health');
-    
+
     expect(response.body).toHaveProperty('timestamp');
     expect(new Date(response.body.timestamp)).toBeInstanceOf(Date);
   });

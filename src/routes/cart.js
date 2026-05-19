@@ -3,7 +3,13 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
-const { getCart, addToCart, updateCartItem, removeFromCart, clearCart } = require('../controllers/cartController');
+const {
+  getCart,
+  addToCart,
+  updateCartItem,
+  removeFromCart,
+  clearCart,
+} = require('../controllers/cartController');
 const { authenticate } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
 

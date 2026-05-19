@@ -11,9 +11,22 @@ describe('orderFulfillmentService - integration', () => {
 
   beforeAll(async () => {
     // create minimal data
-    user = await prisma.user.create({ data: { email: 'test+order@example.com', password: 'x', fullName: 'Test Order' } });
-    category = await prisma.productCategory.create({ data: { categoryName: 'Test Cat', businessType: 'FASHION_RETAIL' } });
-    product = await prisma.product.create({ data: { categoryId: category.id, productName: 'Test Product', price: 50, stockQuantity: 10, productType: 'KAOS', businessType: 'FASHION_RETAIL' } });
+    user = await prisma.user.create({
+      data: { email: 'test+order@example.com', password: 'x', fullName: 'Test Order' },
+    });
+    category = await prisma.productCategory.create({
+      data: { categoryName: 'Test Cat', businessType: 'FASHION_RETAIL' },
+    });
+    product = await prisma.product.create({
+      data: {
+        categoryId: category.id,
+        productName: 'Test Product',
+        price: 50,
+        stockQuantity: 10,
+        productType: 'KAOS',
+        businessType: 'FASHION_RETAIL',
+      },
+    });
 
     order = await prisma.order.create({
       data: {
@@ -53,13 +66,19 @@ describe('orderFulfillmentService - integration', () => {
     const before = await prisma.order.findUnique({ where: { id: order.id } });
     expect(before.status).toBe('PENDING');
 
-    const updated = await orderFulfillmentService.updateOrderStatus(order.id, 'CONFIRMED', user.id, 'Test confirm', 'Notes');
+    const updated = await orderFulfillmentService.updateOrderStatus(
+      order.id,
+      'CONFIRMED',
+      user.id,
+      'Test confirm',
+      'Notes'
+    );
     expect(updated.status).toBe('CONFIRMED');
 
     const histories = await prisma.orderStatusHistory.findMany({ where: { orderId: order.id } });
     expect(histories.length).toBeGreaterThanOrEqual(1);
 
     const notifications = await prisma.orderNotification.findMany({ where: { orderId: order.id } });
-    expect(notifications.some(n => n.type === 'CONFIRMED')).toBe(true);
+    expect(notifications.some((n) => n.type === 'CONFIRMED')).toBe(true);
   });
 });

@@ -29,9 +29,22 @@ router.get('/categories', generalLimiter, getCategories);
 router.get('/:id', generalLimiter, getProductById);
 
 // Protected routes - Admin/Owner only
-router.post('/', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), validateBody(schemas.createProduct), createProduct);
+router.post(
+  '/',
+  generalLimiter,
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  validateBody(schemas.createProduct),
+  createProduct
+);
 router.put('/:id', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), updateProduct);
 router.delete('/:id', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), deleteProduct);
-router.post('/:id/variants', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), createVariant);
+router.post(
+  '/:id/variants',
+  generalLimiter,
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  createVariant
+);
 
 module.exports = router;

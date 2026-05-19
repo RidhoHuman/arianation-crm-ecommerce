@@ -144,9 +144,7 @@ router.post('/send-notifications', async (req, res, next) => {
       });
     }
 
-    const result = await batchOperationsService.batchSendNotifications(
-      orderIds
-    );
+    const result = await batchOperationsService.batchSendNotifications(orderIds);
 
     res.json({
       success: true,

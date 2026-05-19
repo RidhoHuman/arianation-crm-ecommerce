@@ -43,12 +43,17 @@ const getAllUsers = async (req, res, next) => {
       prisma.user.count({ where }),
     ]);
 
-    return sendPaginated(res, users, {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    }, MESSAGES.USERS_FOUND);
+    return sendPaginated(
+      res,
+      users,
+      {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      MESSAGES.USERS_FOUND
+    );
   } catch (error) {
     next(error);
   }
@@ -169,7 +174,12 @@ const updateProfile = async (req, res, next) => {
       },
     });
 
-    if (address !== undefined || city !== undefined || postalCode !== undefined || province !== undefined) {
+    if (
+      address !== undefined ||
+      city !== undefined ||
+      postalCode !== undefined ||
+      province !== undefined
+    ) {
       const profileData = {};
       if (address !== undefined) profileData.address = address;
       if (city !== undefined) profileData.city = city;
@@ -224,4 +234,11 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, updateUser, deleteUser, updateProfile, changePassword };
+module.exports = {
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  updateProfile,
+  changePassword,
+};

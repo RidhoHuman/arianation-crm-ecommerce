@@ -14,7 +14,9 @@ const getCart = async (req, res, next) => {
       include: {
         items: {
           include: {
-            product: { select: { id: true, productName: true, price: true, imageUrl: true, isActive: true } },
+            product: {
+              select: { id: true, productName: true, price: true, imageUrl: true, isActive: true },
+            },
             variant: { select: { id: true, variantName: true, sku: true, additionalPrice: true } },
           },
           orderBy: { createdAt: 'desc' },

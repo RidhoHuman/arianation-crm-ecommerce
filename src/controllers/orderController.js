@@ -48,12 +48,17 @@ const getAllOrders = async (req, res, next) => {
       prisma.order.count({ where }),
     ]);
 
-    return sendPaginated(res, orders, {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    }, MESSAGES.ORDERS_FOUND);
+    return sendPaginated(
+      res,
+      orders,
+      {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      MESSAGES.ORDERS_FOUND
+    );
   } catch (error) {
     next(error);
   }
@@ -104,7 +109,9 @@ const createOrder = async (req, res, next) => {
 
     if (items && Array.isArray(items) && items.length > 0) {
       const productIds = [...new Set(items.map((item) => item.productId))];
-      const variantIds = [...new Set(items.filter((item) => item.variantId).map((item) => item.variantId))];
+      const variantIds = [
+        ...new Set(items.filter((item) => item.variantId).map((item) => item.variantId)),
+      ];
 
       const [products, variants] = await prisma.$transaction([
         prisma.product.findMany({

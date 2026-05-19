@@ -29,7 +29,7 @@ const validateStatusTransition = (currentStatus, newStatus) => {
   if (!validTransitions[currentStatus].includes(newStatus)) {
     throw new BadRequestError(
       `Cannot transition from ${currentStatus} to ${newStatus}. ` +
-      `Valid transitions: ${validTransitions[currentStatus].join(', ')}`
+        `Valid transitions: ${validTransitions[currentStatus].join(', ')}`
     );
   }
 };
@@ -44,9 +44,7 @@ const validateTransitionRules = async (order, newStatus) => {
   // PENDING → CONFIRMED: Only if Payment.status = 'COMPLETED'
   if (order.status === 'PENDING' && newStatus === 'CONFIRMED') {
     if (!order.payment || order.payment.status !== 'COMPLETED') {
-      throw new BadRequestError(
-        'Cannot confirm order without completed payment'
-      );
+      throw new BadRequestError('Cannot confirm order without completed payment');
     }
   }
 
@@ -58,9 +56,7 @@ const validateTransitionRules = async (order, newStatus) => {
   // READY_FOR_DELIVERY → SHIPPED: Require tracking number
   if (order.status === 'READY_FOR_DELIVERY' && newStatus === 'SHIPPED') {
     if (!order.tracking || !order.tracking.trackingNumber) {
-      throw new BadRequestError(
-        'Tracking number required before shipping'
-      );
+      throw new BadRequestError('Tracking number required before shipping');
     }
   }
 };
@@ -74,13 +70,7 @@ const validateTransitionRules = async (order, newStatus) => {
  * @param {String} notes - Additional notes
  * @returns {Promise<Object>} Updated order with history
  */
-const updateOrderStatus = async (
-  orderId,
-  newStatus,
-  updatedBy,
-  reason = null,
-  notes = null
-) => {
+const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, notes = null) => {
   return await prisma.$transaction(async (tx) => {
     // Get current order
     const order = await tx.order.findUnique({
@@ -293,7 +283,9 @@ const updateOrderTracking = async (orderId, payload = {}) => {
       orderId,
       status: nextStatus,
       currentLocation: payload.currentLocation || null,
-      estimatedDeliveryDate: payload.estimatedDeliveryDate ? new Date(payload.estimatedDeliveryDate) : null,
+      estimatedDeliveryDate: payload.estimatedDeliveryDate
+        ? new Date(payload.estimatedDeliveryDate)
+        : null,
       carrier: payload.carrier || null,
       trackingNumber: payload.trackingNumber || null,
       lastUpdate: new Date(),

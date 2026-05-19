@@ -28,7 +28,7 @@ if (process.env.NODE_ENV === 'development') {
 process.on('SIGINT', async () => {
   console.log('🔴 SIGINT: Disconnecting Prisma Client...');
   if (monitorInterval) clearInterval(monitorInterval);
-  await prisma.$disconnect().catch(err => {
+  await prisma.$disconnect().catch((err) => {
     console.error('Error during Prisma disconnect:', err);
   });
   process.exit(0);
@@ -37,7 +37,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   console.log('🔴 SIGTERM: Disconnecting Prisma Client...');
   if (monitorInterval) clearInterval(monitorInterval);
-  await prisma.$disconnect().catch(err => {
+  await prisma.$disconnect().catch((err) => {
     console.error('Error during Prisma disconnect:', err);
   });
   process.exit(0);
@@ -47,7 +47,7 @@ process.on('SIGTERM', async () => {
 process.on('uncaughtException', async (error) => {
   console.error('💥 Uncaught Exception:', error);
   if (monitorInterval) clearInterval(monitorInterval);
-  await prisma.$disconnect().catch(err => {
+  await prisma.$disconnect().catch((err) => {
     console.error('Error during Prisma disconnect:', err);
   });
   process.exit(1);

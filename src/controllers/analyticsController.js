@@ -41,15 +41,19 @@ const getSalesAnalytics = async (req, res, next) => {
 
     const data = Object.values(salesByDate).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    return sendSuccess(res, {
-      period: days + ' days',
-      data,
-      summary: {
-        totalOrders: orders.length,
-        totalItems: orders.reduce((sum, o) => sum + o.items.length, 0),
-        totalRevenue: orders.reduce((sum, o) => sum + o.totalAmount, 0),
+    return sendSuccess(
+      res,
+      {
+        period: days + ' days',
+        data,
+        summary: {
+          totalOrders: orders.length,
+          totalItems: orders.reduce((sum, o) => sum + o.items.length, 0),
+          totalRevenue: orders.reduce((sum, o) => sum + o.totalAmount, 0),
+        },
       },
-    }, 'Sales analytics retrieved successfully');
+      'Sales analytics retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -109,16 +113,20 @@ const getRevenueAnalytics = async (req, res, next) => {
       },
     });
 
-    return sendSuccess(res, {
-      period: days + ' days',
-      totalRevenue,
-      byCategory: categoryRevenue.sort((a, b) => b.revenue - a.revenue),
-      byPaymentMethod: paymentMethodRevenue.map((item) => ({
-        method: item.method,
-        revenue: item._sum.amount || 0,
-        transactions: item._count.id,
-      })),
-    }, 'Revenue analytics retrieved successfully');
+    return sendSuccess(
+      res,
+      {
+        period: days + ' days',
+        totalRevenue,
+        byCategory: categoryRevenue.sort((a, b) => b.revenue - a.revenue),
+        byPaymentMethod: paymentMethodRevenue.map((item) => ({
+          method: item.method,
+          revenue: item._sum.amount || 0,
+          transactions: item._count.id,
+        })),
+      },
+      'Revenue analytics retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -159,23 +167,28 @@ const getOrderAnalytics = async (req, res, next) => {
     });
 
     // Average order value
-    const avgOrderValue = ordersByDate.length > 0
-      ? ordersByDate.reduce((sum, o) => sum + o.totalAmount, 0) / ordersByDate.length
-      : 0;
+    const avgOrderValue =
+      ordersByDate.length > 0
+        ? ordersByDate.reduce((sum, o) => sum + o.totalAmount, 0) / ordersByDate.length
+        : 0;
 
-    return sendSuccess(res, {
-      period: days + ' days',
-      byStatus: ordersByStatus.map((item) => ({
-        status: item.status,
-        count: item._count.id,
-        revenue: item._sum.totalAmount || 0,
-      })),
-      byDate: Object.values(dateMap).sort((a, b) => new Date(a.date) - new Date(b.date)),
-      summary: {
-        totalOrders: ordersByDate.length,
-        avgOrderValue: Math.round(avgOrderValue),
+    return sendSuccess(
+      res,
+      {
+        period: days + ' days',
+        byStatus: ordersByStatus.map((item) => ({
+          status: item.status,
+          count: item._count.id,
+          revenue: item._sum.totalAmount || 0,
+        })),
+        byDate: Object.values(dateMap).sort((a, b) => new Date(a.date) - new Date(b.date)),
+        summary: {
+          totalOrders: ordersByDate.length,
+          avgOrderValue: Math.round(avgOrderValue),
+        },
       },
-    }, 'Order analytics retrieved successfully');
+      'Order analytics retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -236,16 +249,20 @@ const getCustomerAnalytics = async (req, res, next) => {
       })
     );
 
-    return sendSuccess(res, {
-      period: days + ' days',
-      totalCustomers,
-      newCustomers,
-      byTier: customerTiers.map((item) => ({
-        tier: item.currentTier,
-        count: item._count.id,
-      })),
-      topCustomers: topCustomerDetails,
-    }, 'Customer analytics retrieved successfully');
+    return sendSuccess(
+      res,
+      {
+        period: days + ' days',
+        totalCustomers,
+        newCustomers,
+        byTier: customerTiers.map((item) => ({
+          tier: item.currentTier,
+          count: item._count.id,
+        })),
+        topCustomers: topCustomerDetails,
+      },
+      'Customer analytics retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -302,20 +319,24 @@ const getDesignAnalytics = async (req, res, next) => {
     const rejected = designsByStatus.find((item) => item.status === 'REJECTED')?._count.id || 0;
     const approvalRate = totalDesigns > 0 ? Math.round((approved / totalDesigns) * 100) : 0;
 
-    return sendSuccess(res, {
-      period: days + ' days',
-      totalDesigns,
-      approvalRate: approvalRate + '%',
-      byStatus: designsByStatus.map((item) => ({
-        status: item.status,
-        count: item._count.id,
-      })),
-      byProductType: designsByType.map((item) => ({
-        type: item.productTypeForSablon || 'Unspecified',
-        count: item._count.id,
-      })),
-      byDate: Object.values(designsByDate).sort((a, b) => new Date(a.date) - new Date(b.date)),
-    }, 'Design analytics retrieved successfully');
+    return sendSuccess(
+      res,
+      {
+        period: days + ' days',
+        totalDesigns,
+        approvalRate: approvalRate + '%',
+        byStatus: designsByStatus.map((item) => ({
+          status: item.status,
+          count: item._count.id,
+        })),
+        byProductType: designsByType.map((item) => ({
+          type: item.productTypeForSablon || 'Unspecified',
+          count: item._count.id,
+        })),
+        byDate: Object.values(designsByDate).sort((a, b) => new Date(a.date) - new Date(b.date)),
+      },
+      'Design analytics retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }

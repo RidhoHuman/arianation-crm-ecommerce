@@ -86,12 +86,7 @@ const batchCancelOrders = async (orderIds, cancelledBy, reason = 'Bulk cancellat
         throw new BadRequestError(`Cannot cancel order with status: ${order.status}`);
       }
 
-      await orderFulfillmentService.updateOrderStatus(
-        orderId,
-        'CANCELLED',
-        cancelledBy,
-        reason
-      );
+      await orderFulfillmentService.updateOrderStatus(orderId, 'CANCELLED', cancelledBy, reason);
       results.successful++;
     } catch (error) {
       results.failed++;
@@ -207,15 +202,7 @@ const batchSendNotifications = async (orderIds) => {
  * @returns {Promise<Array>} Matching orders
  */
 const getOrdersForBatch = async (filters = {}) => {
-  const {
-    status,
-    paymentStatus,
-    dateFrom,
-    dateTo,
-    minAmount,
-    maxAmount,
-    limit = 50,
-  } = filters;
+  const { status, paymentStatus, dateFrom, dateTo, minAmount, maxAmount, limit = 50 } = filters;
 
   const where = {};
 

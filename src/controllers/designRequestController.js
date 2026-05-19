@@ -39,12 +39,17 @@ const getAllDesignRequests = async (req, res, next) => {
       prisma.designRequest.count({ where }),
     ]);
 
-    return sendPaginated(res, requests, {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    }, MESSAGES.DESIGN_REQUESTS_FOUND);
+    return sendPaginated(
+      res,
+      requests,
+      {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      MESSAGES.DESIGN_REQUESTS_FOUND
+    );
   } catch (error) {
     next(error);
   }
@@ -140,15 +145,17 @@ const createDesignRequest = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: 'DESIGN_REQUEST_CREATED',
-        orderId: orderId || null,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {}); // Don't fail if audit log fails
+    await prisma.auditLog
+      .create({
+        data: {
+          userId,
+          action: 'DESIGN_REQUEST_CREATED',
+          orderId: orderId || null,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {}); // Don't fail if audit log fails
 
     return sendCreated(res, request, MESSAGES.DESIGN_REQUEST_CREATED);
   } catch (error) {
@@ -296,14 +303,16 @@ const deleteDesignRequest = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'DESIGN_REQUEST_DELETED',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          action: 'DESIGN_REQUEST_DELETED',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, null, 'Design request deleted successfully');
   } catch (error) {

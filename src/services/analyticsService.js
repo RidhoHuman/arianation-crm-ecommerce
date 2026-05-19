@@ -17,19 +17,14 @@ const getFulfillmentAnalytics = async (filters = {}) => {
   const whereClause = dateFrom || dateTo ? { createdAt: dateFilter } : {};
 
   // Fetch all required data in parallel
-  const [
-    totalOrders,
-    ordersByStatus,
-    averageFulfillmentTime,
-    orderMetrics,
-    recentOrders,
-  ] = await Promise.all([
-    prisma.order.count({ where: whereClause }),
-    getOrdersByStatus(whereClause),
-    calculateAverageFulfillmentTime(whereClause),
-    getOrderMetrics(whereClause),
-    getRecentOrders(whereClause),
-  ]);
+  const [totalOrders, ordersByStatus, averageFulfillmentTime, orderMetrics, recentOrders] =
+    await Promise.all([
+      prisma.order.count({ where: whereClause }),
+      getOrdersByStatus(whereClause),
+      calculateAverageFulfillmentTime(whereClause),
+      getOrderMetrics(whereClause),
+      getRecentOrders(whereClause),
+    ]);
 
   return {
     summary: {
@@ -59,12 +54,7 @@ const getFulfillmentPerformance = async (filters = {}) => {
 
   const whereClause = dateFrom || dateTo ? { createdAt: dateFilter } : {};
 
-  const [
-    statusTransitions,
-    avgTimeByStatus,
-    delayedOrders,
-    onTimeDeliveries,
-  ] = await Promise.all([
+  const [statusTransitions, avgTimeByStatus, delayedOrders, onTimeDeliveries] = await Promise.all([
     getStatusTransitionAnalytics(whereClause),
     getAverageTimeByStatus(whereClause),
     getDelayedOrders(whereClause),
@@ -118,13 +108,11 @@ const calculateAverageFulfillmentTime = async (whereClause) => {
   if (deliveredOrders.length === 0) return 0;
 
   const totalDays = deliveredOrders.reduce((sum, order) => {
-    const days = Math.ceil(
-      (order.updatedAt - order.createdAt) / (1000 * 60 * 60 * 24)
-    );
+    const days = Math.ceil((order.updatedAt - order.createdAt) / (1000 * 60 * 60 * 24));
     return sum + days;
   }, 0);
 
-  return Math.round(totalDays / deliveredOrders.length * 10) / 10;
+  return Math.round((totalDays / deliveredOrders.length) * 10) / 10;
 };
 
 /**
@@ -169,8 +157,7 @@ const calculateCompletionRate = (ordersByStatus) => {
   const totalOrders = Object.values(ordersByStatus).reduce((a, b) => a + b, 0);
   if (totalOrders === 0) return 0;
 
-  const completedOrders =
-    (ordersByStatus.DELIVERED || 0) + (ordersByStatus.CANCELLED || 0);
+  const completedOrders = (ordersByStatus.DELIVERED || 0) + (ordersByStatus.CANCELLED || 0);
   return Math.round((completedOrders / totalOrders) * 100);
 };
 
@@ -202,13 +189,7 @@ const getStatusTransitionAnalytics = async (whereClause) => {
  * Get average time by status
  */
 const getAverageTimeByStatus = async (whereClause) => {
-  const statuses = [
-    'PENDING',
-    'CONFIRMED',
-    'PROCESSING',
-    'READY_FOR_DELIVERY',
-    'SHIPPED',
-  ];
+  const statuses = ['PENDING', 'CONFIRMED', 'PROCESSING', 'READY_FOR_DELIVERY', 'SHIPPED'];
   const avgTimes = {};
 
   for (const status of statuses) {
@@ -232,9 +213,7 @@ const getAverageTimeByStatus = async (whereClause) => {
       return Math.ceil((now - createdTime) / (1000 * 60 * 60)); // hours
     });
 
-    avgTimes[status] = Math.round(
-      times.reduce((a, b) => a + b, 0) / times.length
-    );
+    avgTimes[status] = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
   }
 
   return avgTimes;
@@ -291,8 +270,7 @@ const getOnTimeDeliveries = async (whereClause) => {
   const onTime = deliveredOrders.filter(
     (order) =>
       order.tracking?.estimatedDeliveryDate &&
-      new Date(order.updatedAt) <=
-        new Date(order.tracking.estimatedDeliveryDate)
+      new Date(order.updatedAt) <= new Date(order.tracking.estimatedDeliveryDate)
   );
 
   return {
@@ -308,9 +286,7 @@ const calculatePerformanceScore = (onTimeDeliveries, delayedOrders) => {
   const totalOrders = onTimeDeliveries.count + delayedOrders.count;
   if (totalOrders === 0) return 100;
 
-  const score = Math.round(
-    (onTimeDeliveries.count / totalOrders) * 100
-  );
+  const score = Math.round((onTimeDeliveries.count / totalOrders) * 100);
   return Math.min(score, 100);
 };
 
@@ -324,8 +300,7 @@ const getRevenueAnalytics = async (filters = {}) => {
   if (dateFrom) dateFilter.gte = new Date(dateFrom);
   if (dateTo) dateFilter.lte = new Date(dateTo);
 
-  const whereClause =
-    dateFrom || dateTo ? { createdAt: dateFilter } : {};
+  const whereClause = dateFrom || dateTo ? { createdAt: dateFilter } : {};
 
   const orders = await prisma.order.findMany({
     where: {

@@ -67,12 +67,16 @@ const validateCreateOrderRequest = (req, res, next) => {
     });
   }
 
-  const requiredAddressFields = ['fullName', 'addressLine1', 'city', 'state', 'postalCode', 'country'];
+  const requiredAddressFields = [
+    'fullName',
+    'addressLine1',
+    'city',
+    'state',
+    'postalCode',
+    'country',
+  ];
   for (const field of requiredAddressFields) {
-    if (
-      typeof deliveryAddress[field] !== 'string' ||
-      deliveryAddress[field].trim() === ''
-    ) {
+    if (typeof deliveryAddress[field] !== 'string' || deliveryAddress[field].trim() === '') {
       return res.status(400).json({
         success: false,
         message: `deliveryAddress.${field} is required.`,

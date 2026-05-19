@@ -129,12 +129,17 @@ const getProducts = async (req, res, next) => {
       prisma.product.count({ where }),
     ]);
 
-    return sendPaginated(res, products, {
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
-      total,
-      totalPages: Math.ceil(total / parseInt(limit, 10)),
-    }, 'Products retrieved successfully');
+    return sendPaginated(
+      res,
+      products,
+      {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit, 10)),
+      },
+      'Products retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -154,7 +159,9 @@ const createProduct = async (req, res, next) => {
     } = req.body;
 
     if (!categoryId || !productName || !price || !productType || !businessType) {
-      throw new ValidationError('Missing required fields: categoryId, productName, price, productType, businessType');
+      throw new ValidationError(
+        'Missing required fields: categoryId, productName, price, productType, businessType'
+      );
     }
 
     const product = await prisma.product.create({
@@ -172,14 +179,16 @@ const createProduct = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'PRODUCT_CREATED',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          action: 'PRODUCT_CREATED',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendCreated(res, product, 'Product created successfully');
   } catch (error) {
@@ -190,7 +199,8 @@ const createProduct = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { productName, description, price, stockQuantity, productType, imageUrl, isActive } = req.body;
+    const { productName, description, price, stockQuantity, productType, imageUrl, isActive } =
+      req.body;
 
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundError('Product not found');
@@ -210,14 +220,16 @@ const updateProduct = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'PRODUCT_UPDATED',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          action: 'PRODUCT_UPDATED',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, updated, 'Product updated successfully');
   } catch (error) {
@@ -235,14 +247,16 @@ const deleteProduct = async (req, res, next) => {
     await prisma.product.delete({ where: { id } });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'PRODUCT_DELETED',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          action: 'PRODUCT_DELETED',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, null, 'Product deleted successfully');
   } catch (error) {
@@ -273,18 +287,26 @@ const getOrders = async (req, res, next) => {
         where,
         skip,
         take: parseInt(limit, 10),
-        include: { items: { include: { product: { select: { productName: true } } } }, payment: true },
+        include: {
+          items: { include: { product: { select: { productName: true } } } },
+          payment: true,
+        },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.order.count({ where }),
     ]);
 
-    return sendPaginated(res, orders, {
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
-      total,
-      totalPages: Math.ceil(total / parseInt(limit, 10)),
-    }, 'Orders retrieved successfully');
+    return sendPaginated(
+      res,
+      orders,
+      {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit, 10)),
+      },
+      'Orders retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -329,15 +351,17 @@ const updateOrderStatus = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        orderId: id,
-        action: `ORDER_STATUS_UPDATED_TO_${status}`,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          orderId: id,
+          action: `ORDER_STATUS_UPDATED_TO_${status}`,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, updated, `Order status updated to ${status}`);
   } catch (error) {
@@ -348,7 +372,8 @@ const updateOrderStatus = async (req, res, next) => {
 const updateOrderTracking = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { carrier, trackingNumber, currentLocation, estimatedDeliveryDate, status, notes } = req.body;
+    const { carrier, trackingNumber, currentLocation, estimatedDeliveryDate, status, notes } =
+      req.body;
 
     const order = await prisma.order.findUnique({ where: { id } });
     if (!order) throw new NotFoundError('Order not found');
@@ -362,15 +387,17 @@ const updateOrderTracking = async (req, res, next) => {
       notes,
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        orderId: id,
-        action: 'ORDER_TRACKING_UPDATED',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          orderId: id,
+          action: 'ORDER_TRACKING_UPDATED',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, updatedTracking, 'Order tracking updated successfully');
   } catch (error) {
@@ -395,15 +422,17 @@ const cancelOrder = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        orderId: id,
-        action: 'ORDER_CANCELLED',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          orderId: id,
+          action: 'ORDER_CANCELLED',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, cancelled, 'Order cancelled successfully');
   } catch (error) {
@@ -464,12 +493,17 @@ const getDesignRequests = async (req, res, next) => {
       prisma.designRequest.count({ where }),
     ]);
 
-    return sendPaginated(res, requests, {
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
-      total,
-      totalPages: Math.ceil(total / parseInt(limit, 10)),
-    }, 'Design requests retrieved successfully');
+    return sendPaginated(
+      res,
+      requests,
+      {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit, 10)),
+      },
+      'Design requests retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -509,14 +543,16 @@ const updateDesignRequestStatus = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: `DESIGN_REQUEST_STATUS_UPDATED_TO_${status}`,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          action: `DESIGN_REQUEST_STATUS_UPDATED_TO_${status}`,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, updated, `Design request status updated to ${status}`);
   } catch (error) {
@@ -542,18 +578,30 @@ const getUsers = async (req, res, next) => {
         where,
         skip,
         take: parseInt(limit, 10),
-        select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+        },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.user.count({ where }),
     ]);
 
-    return sendPaginated(res, users, {
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
-      total,
-      totalPages: Math.ceil(total / parseInt(limit, 10)),
-    }, 'Users retrieved successfully');
+    return sendPaginated(
+      res,
+      users,
+      {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit, 10)),
+      },
+      'Users retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -599,14 +647,16 @@ const updateUserRole = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: `USER_ROLE_CHANGED_TO_${role}`,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          action: `USER_ROLE_CHANGED_TO_${role}`,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, updated, `User role updated to ${role}`);
   } catch (error) {
@@ -631,14 +681,16 @@ const toggleUserStatus = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: `USER_STATUS_CHANGED_TO_${isActive ? 'ACTIVE' : 'INACTIVE'}`,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          action: `USER_STATUS_CHANGED_TO_${isActive ? 'ACTIVE' : 'INACTIVE'}`,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, updated, `User status changed to ${isActive ? 'active' : 'inactive'}`);
   } catch (error) {
@@ -669,12 +721,17 @@ const getPayments = async (req, res, next) => {
       prisma.payment.count({ where }),
     ]);
 
-    return sendPaginated(res, payments, {
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
-      total,
-      totalPages: Math.ceil(total / parseInt(limit, 10)),
-    }, 'Payments retrieved successfully');
+    return sendPaginated(
+      res,
+      payments,
+      {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit, 10)),
+      },
+      'Payments retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -704,14 +761,16 @@ const verifyPayment = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'PAYMENT_VERIFIED',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          action: 'PAYMENT_VERIFIED',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, updated, 'Payment verified successfully');
   } catch (error) {
@@ -743,14 +802,16 @@ const processRefund = async (req, res, next) => {
     });
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'REFUND_PROCESSED',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-    }).catch(() => {});
+    await prisma.auditLog
+      .create({
+        data: {
+          userId: req.user.id,
+          action: 'REFUND_PROCESSED',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+        },
+      })
+      .catch(() => {});
 
     return sendSuccess(res, updated, 'Refund processed successfully');
   } catch (error) {
@@ -781,12 +842,17 @@ const getAuditLogs = async (req, res, next) => {
       prisma.auditLog.count({ where }),
     ]);
 
-    return sendPaginated(res, logs, {
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
-      total,
-      totalPages: Math.ceil(total / parseInt(limit, 10)),
-    }, 'Audit logs retrieved successfully');
+    return sendPaginated(
+      res,
+      logs,
+      {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit, 10)),
+      },
+      'Audit logs retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }

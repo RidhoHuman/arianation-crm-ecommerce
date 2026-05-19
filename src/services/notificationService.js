@@ -29,7 +29,14 @@ function createTransporter() {
  * @param {Object} params { orderId, userId, recipientEmail, type, title, message }
  * @returns {Promise<Object>} created notification
  */
-const queueNotification = async ({ orderId, userId = null, recipientEmail = null, type, title, message }) => {
+const queueNotification = async ({
+  orderId,
+  userId = null,
+  recipientEmail = null,
+  type,
+  title,
+  message,
+}) => {
   if (!orderId) {
     throw new Error('orderId is required to queue a notification');
   }

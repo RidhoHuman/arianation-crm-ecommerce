@@ -109,9 +109,15 @@ router.get('/audit-logs', getAuditLogs);
 // ============================================================
 // ORDER FULFILLMENT (Status History, Timeline, Notifications)
 // ============================================================
-router.get('/orders/:id/status-history', require('../controllers/orderController').getOrderStatusHistory);
+router.get(
+  '/orders/:id/status-history',
+  require('../controllers/orderController').getOrderStatusHistory
+);
 router.get('/orders/:id/timeline', require('../controllers/orderController').getOrderTimeline);
-router.get('/orders/:id/notifications', require('../controllers/orderController').getOrderNotifications);
+router.get(
+  '/orders/:id/notifications',
+  require('../controllers/orderController').getOrderNotifications
+);
 
 // ============================================================
 // ANALYTICS

@@ -24,7 +24,9 @@ function buildBaseTemplate({ title, message, orderNumber, customerName, ctaText,
     '',
     'Terima kasih,',
     'Tim Arianation',
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; max-width: 640px; margin: 0 auto; padding: 24px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px;">
@@ -45,7 +47,8 @@ function buildBaseTemplate({ title, message, orderNumber, customerName, ctaText,
 
 function renderOrderNotificationEmail({ notification, customer, order }) {
   const customerName = customer?.fullName || 'Pelanggan';
-  const orderNumber = order?.orderNumber || notification?.order?.orderNumber || notification?.orderId;
+  const orderNumber =
+    order?.orderNumber || notification?.order?.orderNumber || notification?.orderId;
 
   switch (notification?.type) {
     case 'CONFIRMED':
@@ -55,7 +58,9 @@ function renderOrderNotificationEmail({ notification, customer, order }) {
         orderNumber,
         customerName,
         ctaText: 'Lihat Pesanan',
-        ctaUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/orders/${notification.orderId}` : null,
+        ctaUrl: process.env.FRONTEND_URL
+          ? `${process.env.FRONTEND_URL}/orders/${notification.orderId}`
+          : null,
       });
     case 'PROCESSING':
       return buildBaseTemplate({
@@ -88,7 +93,8 @@ function renderOrderNotificationEmail({ notification, customer, order }) {
     case 'CANCELLED':
       return buildBaseTemplate({
         title: 'Pesanan Dibatalkan',
-        message: 'Pesanan Anda telah dibatalkan. Silakan hubungi tim kami jika Anda memerlukan bantuan.',
+        message:
+          'Pesanan Anda telah dibatalkan. Silakan hubungi tim kami jika Anda memerlukan bantuan.',
         orderNumber,
         customerName,
       });

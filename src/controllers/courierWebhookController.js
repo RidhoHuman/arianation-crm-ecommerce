@@ -8,7 +8,9 @@ const { MESSAGES } = require('../utils/constants');
 const orderFulfillmentService = require('../services/orderFulfillmentService');
 
 const normalizeTrackingStatus = (status) => {
-  const normalized = String(status || '').trim().toUpperCase();
+  const normalized = String(status || '')
+    .trim()
+    .toUpperCase();
 
   const mapping = {
     PROCESSING: 'PROCESSING',
@@ -32,12 +34,16 @@ const updateCourierWebhook = async (req, res, next) => {
     }
 
     const payload = req.body || {};
-    const orderId = payload.orderId || payload.order_id || payload.referenceId || payload.reference_id;
+    const orderId =
+      payload.orderId || payload.order_id || payload.referenceId || payload.reference_id;
     const trackingNumber = payload.trackingNumber || payload.tracking_number || null;
     const carrier = payload.carrier || payload.courier || payload.shippingProvider || null;
-    const status = normalizeTrackingStatus(payload.status || payload.trackingStatus || payload.event);
+    const status = normalizeTrackingStatus(
+      payload.status || payload.trackingStatus || payload.event
+    );
     const currentLocation = payload.currentLocation || payload.current_location || null;
-    const estimatedDeliveryDate = payload.estimatedDeliveryDate || payload.estimated_delivery_date || null;
+    const estimatedDeliveryDate =
+      payload.estimatedDeliveryDate || payload.estimated_delivery_date || null;
     const notes = payload.notes || payload.message || null;
 
     if (!orderId) {
@@ -58,7 +64,9 @@ const updateCourierWebhook = async (req, res, next) => {
       update: {
         status: status || order.tracking?.status || 'PROCESSING',
         currentLocation: currentLocation || order.tracking?.currentLocation || null,
-        estimatedDeliveryDate: estimatedDeliveryDate ? new Date(estimatedDeliveryDate) : order.tracking?.estimatedDeliveryDate || null,
+        estimatedDeliveryDate: estimatedDeliveryDate
+          ? new Date(estimatedDeliveryDate)
+          : order.tracking?.estimatedDeliveryDate || null,
         carrier: carrier || order.tracking?.carrier || null,
         trackingNumber: trackingNumber || order.tracking?.trackingNumber || null,
         lastUpdate: new Date(),
@@ -107,12 +115,16 @@ const updateCourierWebhook = async (req, res, next) => {
       );
     }
 
-    return sendSuccess(res, {
-      orderId,
-      trackingId: tracking.id,
-      status: tracking.status,
-      trackingNumber: tracking.trackingNumber,
-    }, 'Courier webhook processed successfully');
+    return sendSuccess(
+      res,
+      {
+        orderId,
+        trackingId: tracking.id,
+        status: tracking.status,
+        trackingNumber: tracking.trackingNumber,
+      },
+      'Courier webhook processed successfully'
+    );
   } catch (error) {
     next(error);
   }

@@ -28,37 +28,33 @@ describe('Batch Operations Service', () => {
 
   describe('batchCancelOrders', () => {
     test('throws error for empty orderIds array', async () => {
-      await expect(
-        batchOperationsService.batchCancelOrders([], 'user123')
-      ).rejects.toThrow(BadRequestError);
+      await expect(batchOperationsService.batchCancelOrders([], 'user123')).rejects.toThrow(
+        BadRequestError
+      );
     });
 
     test('throws error for more than 100 orders', async () => {
       const orderIds = Array(101).fill('order123');
-      await expect(
-        batchOperationsService.batchCancelOrders(orderIds, 'user123')
-      ).rejects.toThrow(BadRequestError);
+      await expect(batchOperationsService.batchCancelOrders(orderIds, 'user123')).rejects.toThrow(
+        BadRequestError
+      );
     });
   });
 
   describe('batchUpdateTracking', () => {
     test('throws error for empty updates array', async () => {
-      await expect(
-        batchOperationsService.batchUpdateTracking([])
-      ).rejects.toThrow(BadRequestError);
+      await expect(batchOperationsService.batchUpdateTracking([])).rejects.toThrow(BadRequestError);
     });
 
     test('throws error for more than 100 updates', async () => {
       const updates = Array(101).fill({ orderId: 'order123' });
-      await expect(
-        batchOperationsService.batchUpdateTracking(updates)
-      ).rejects.toThrow(BadRequestError);
+      await expect(batchOperationsService.batchUpdateTracking(updates)).rejects.toThrow(
+        BadRequestError
+      );
     });
 
     test('throws error for missing orderId in update', async () => {
-      const updates = [
-        { trackingNumber: 'JNE123', carrier: 'JNE' },
-      ];
+      const updates = [{ trackingNumber: 'JNE123', carrier: 'JNE' }];
       const result = await batchOperationsService.batchUpdateTracking(updates);
       expect(result.failed).toBeGreaterThan(0);
     });
@@ -66,16 +62,16 @@ describe('Batch Operations Service', () => {
 
   describe('batchSendNotifications', () => {
     test('throws error for empty orderIds array', async () => {
-      await expect(
-        batchOperationsService.batchSendNotifications([])
-      ).rejects.toThrow(BadRequestError);
+      await expect(batchOperationsService.batchSendNotifications([])).rejects.toThrow(
+        BadRequestError
+      );
     });
 
     test('throws error for more than 100 orders', async () => {
       const orderIds = Array(101).fill('order123');
-      await expect(
-        batchOperationsService.batchSendNotifications(orderIds)
-      ).rejects.toThrow(BadRequestError);
+      await expect(batchOperationsService.batchSendNotifications(orderIds)).rejects.toThrow(
+        BadRequestError
+      );
     });
   });
 
@@ -122,11 +118,16 @@ describe('Analytics Service', () => {
       const analytics = await analyticsService.getFulfillmentAnalytics();
       const { statusDistribution } = analytics;
       const expectedStatuses = [
-        'PENDING', 'CONFIRMED', 'PROCESSING',
-        'READY_FOR_DELIVERY', 'SHIPPED', 'DELIVERED',
-        'CANCELLED', 'FAILED'
+        'PENDING',
+        'CONFIRMED',
+        'PROCESSING',
+        'READY_FOR_DELIVERY',
+        'SHIPPED',
+        'DELIVERED',
+        'CANCELLED',
+        'FAILED',
       ];
-      expectedStatuses.forEach(status => {
+      expectedStatuses.forEach((status) => {
         expect(statusDistribution).toHaveProperty(status);
       });
     });

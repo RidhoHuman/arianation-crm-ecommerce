@@ -35,7 +35,10 @@ const validateBody = (schema) => {
 
       if (rules.type === 'string') {
         if (rules.minLength && value.length < rules.minLength) {
-          errors.push({ field, message: `${field} must be at least ${rules.minLength} characters` });
+          errors.push({
+            field,
+            message: `${field} must be at least ${rules.minLength} characters`,
+          });
         }
         if (rules.maxLength && value.length > rules.maxLength) {
           errors.push({ field, message: `${field} must not exceed ${rules.maxLength} characters` });

@@ -33,12 +33,17 @@ const getAllPayments = async (req, res, next) => {
       prisma.payment.count({ where }),
     ]);
 
-    return sendPaginated(res, payments, {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    }, MESSAGES.PAYMENTS_FOUND);
+    return sendPaginated(
+      res,
+      payments,
+      {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      MESSAGES.PAYMENTS_FOUND
+    );
   } catch (error) {
     next(error);
   }
@@ -219,4 +224,10 @@ const getPaymentByOrder = async (req, res, next) => {
   }
 };
 
-module.exports = { getAllPayments, getPaymentById, createPayment, verifyPayment, getPaymentByOrder };
+module.exports = {
+  getAllPayments,
+  getPaymentById,
+  createPayment,
+  verifyPayment,
+  getPaymentByOrder,
+};

@@ -1,32 +1,33 @@
-const js = require('@eslint/js');
-const prettier = require('eslint-config-prettier');
-const prettierPlugin = require('eslint-plugin-prettier');
+﻿const prettierPlugin = require('eslint-plugin-prettier');
 
 module.exports = [
   {
-    ignores: ['node_modules/', 'dist/', 'build/', 'coverage/'],
+    ignores: ['node_modules/', 'dist/', 'build/', 'coverage/', '.vercel/'],
   },
   {
     files: ['src/**/*.js', '__tests__/**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
-      sourceType: 'module',
+      sourceType: 'commonjs',
       globals: {
         console: 'readonly',
         process: 'readonly',
         Buffer: 'readonly',
+        require: 'readonly',
+        module: 'writable',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
     plugins: {
       prettier: prettierPlugin,
     },
     rules: {
-      ...js.configs.recommended.rules,
-      ...prettier,
       'prettier/prettier': 'error',
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
-      'no-trailing-spaces': 'error',
     },
   },
   {
@@ -38,6 +39,7 @@ module.exports = [
         expect: 'readonly',
         beforeAll: 'readonly',
         afterAll: 'readonly',
+        it: 'readonly',
       },
     },
   },

@@ -11,7 +11,6 @@ async function runQueue() {
       const job = queue.shift();
 
       try {
-        // eslint-disable-next-line no-await-in-loop
         const result = await job.handler();
         job.resolve(result);
       } catch (error) {

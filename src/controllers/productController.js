@@ -10,7 +10,8 @@ const getAllProducts = async (req, res, next) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
-    const { categoryId, businessType, productType, isActive, search, minPrice, maxPrice } = req.query;
+    const { categoryId, businessType, productType, isActive, search, minPrice, maxPrice } =
+      req.query;
 
     const where = {};
     if (categoryId) where.categoryId = categoryId;
@@ -43,12 +44,17 @@ const getAllProducts = async (req, res, next) => {
       prisma.product.count({ where }),
     ]);
 
-    return sendPaginated(res, products, {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    }, MESSAGES.PRODUCTS_FOUND);
+    return sendPaginated(
+      res,
+      products,
+      {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      MESSAGES.PRODUCTS_FOUND
+    );
   } catch (error) {
     next(error);
   }

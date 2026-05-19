@@ -109,7 +109,11 @@ const login = async (req, res, next) => {
 
     const { password: unusedPassword, ...userWithoutPassword } = user;
 
-    return sendSuccess(res, { user: userWithoutPassword, token, refreshToken }, MESSAGES.AUTH_LOGIN_SUCCESS);
+    return sendSuccess(
+      res,
+      { user: userWithoutPassword, token, refreshToken },
+      MESSAGES.AUTH_LOGIN_SUCCESS
+    );
   } catch (error) {
     next(error);
   }
@@ -148,9 +152,16 @@ const refreshToken = async (req, res, next) => {
     const newRefreshToken = generateRefreshToken({ id: user.id });
 
     res.cookie('accessToken', newToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-    res.cookie('refreshToken', newRefreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', newRefreshToken, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
-    return sendSuccess(res, { token: newToken, refreshToken: newRefreshToken }, 'Token refreshed successfully');
+    return sendSuccess(
+      res,
+      { token: newToken, refreshToken: newRefreshToken },
+      'Token refreshed successfully'
+    );
   } catch (error) {
     next(error);
   }
