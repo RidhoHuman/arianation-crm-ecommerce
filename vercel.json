@@ -3,10 +3,5 @@
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "framework": "express",
-  "regions": ["sin1"],
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "regions": ["sin1"]
 }
