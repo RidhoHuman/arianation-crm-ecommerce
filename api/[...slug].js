@@ -3,8 +3,31 @@
 
 require('dotenv').config();
 
-const app = require('../src/app');
+let app;
+try {
+  app = require('../src/app');
+} catch (error) {
+  console.error('Failed to load app:', error.message);
+  console.error('Stack:', error.stack);
+  module.exports = (req, res) => {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load application',
+      error: error.message,
+    });
+  };
+}
 
 module.exports = (req, res) => {
-  return app(req, res);
+  try {
+    return app(req, res);
+  } catch (error) {
+    console.error('Request error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'production' ? undefined : error.message,
+    });
+  }
 };
+
