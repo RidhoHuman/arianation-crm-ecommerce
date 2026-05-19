@@ -2,6 +2,6 @@
   "buildCommand": "npm run build || true",
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
-  "framework": "other",
+  "framework": "express",
   "regions": ["sin1"]
 }
