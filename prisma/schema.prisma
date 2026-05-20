@@ -5,10 +5,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
-  // Enable connection pooling for better resource management
-  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ============================================================
