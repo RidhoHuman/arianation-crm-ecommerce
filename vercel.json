@@ -4,38 +4,10 @@
   "installCommand": "npm ci",
   "framework": "express",
   "regions": ["sin1"],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/auth/:path*",
-      "destination": "/api/auth/index.js"
-    },
-    {
-      "source": "/api/cart/:path*",
-      "destination": "/api/cart/index.js"
-    },
-    {
-      "source": "/api/orders/:path*",
-      "destination": "/api/orders/index.js"
-    },
-    {
-      "source": "/api/payments/:path*",
-      "destination": "/api/payments/index.js"
-    },
-    {
-      "source": "/api/products/:path*",
-      "destination": "/api/products/index.js"
-    },
-    {
-      "source": "/api/users/:path*",
-      "destination": "/api/users/index.js"
-    },
-    {
-      "source": "/api/design-requests/:path*",
-      "destination": "/api/design-requests/index.js"
-    },
-    {
-      "source": "/api/admin/:path*",
-      "destination": "/api/admin/index.js"
+      "src": "^/api/(.*)$",
+      "dest": "/api/index.js"
     }
   ]
 }
