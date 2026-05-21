@@ -6,13 +6,17 @@ try {
   console.error('[HANDLER ERROR]', error.message);
 }
 module.exports = (req, res) => {
-  console.log('[AUTH/INDEX]', {
-    url: req.url,
-    path: req.path,
-    originalUrl: req.originalUrl,
-    baseUrl: req.baseUrl,
-    method: req.method
-  });
+  // First, test if this handler is even being called
+  if (req.method === 'GET' && req.url === '/') {
+    return res.status(200).json({
+      success: true,
+      message: 'Auth handler called successfully',
+      url: req.url,
+      method: req.method,
+      path: req.path,
+      originalUrl: req.originalUrl
+    });
+  }
   
   if (!app) return res.status(500).json({ success: false, message: 'App failed to load' });
   
