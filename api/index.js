@@ -21,5 +21,12 @@ module.exports = (req, res) => {
     });
   }
   
+  // Ensure Express receives the full original URL for proper routing
+  // Vercel's routes config passes the full /api/... path to this handler
+  // req.url should already be correct, but verify it's set
+  if (!req.url || req.url === '/') {
+    req.url = req.originalUrl || '/api';
+  }
+  
   app(req, res);
 };
