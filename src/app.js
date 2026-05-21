@@ -50,6 +50,17 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(logger);
 
+// Middleware untuk debug route matching
+app.use((req, res, next) => {
+  console.log('[EXPRESS ROUTE DEBUG] Incoming:', {
+    method: req.method,
+    path: req.path,
+    url: req.url,
+    originalUrl: req.originalUrl,
+  });
+  next();
+});
+
 // Health
 app.get('/api/health', (req, res) => {
   res.json({
@@ -113,8 +124,23 @@ app.use('/api/batch', batchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
+// Debug middleware - logs all 404s before they hit the handler
+app.use((req, res, next) => {
+  console.log('[ROUTE NOT MATCHED]', {
+    method: req.method,
+    path: req.path,
+    url: req.url,
+  });
+  next();
+});
+
 // 404
 app.use((req, res) => {
+  console.log('[404 HANDLER]', {
+    method: req.method,
+    path: req.path,
+    message: `Route ${req.method} ${req.path} not found`,
+  });
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
 });
 

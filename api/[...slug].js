@@ -39,6 +39,15 @@ module.exports = (req, res) => {
   }
 
   try {
+    // Debug logging
+    console.log('[REQUEST]', {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+      query: req.query,
+      originalUrl: req.originalUrl,
+    });
+
     // Wrap request/response to capture errors
     const originalJson = res.json.bind(res);
     res.json = function(data) {
@@ -46,6 +55,17 @@ module.exports = (req, res) => {
         console.log('[VALIDATION ERROR]', data.message, data.errors);
       }
       return originalJson(data);
+    };
+
+    // Wrap end to capture response
+    const originalEnd = res.end.bind(res);
+    res.end = function(...args) {
+      console.log('[RESPONSE]', {
+        statusCode: res.statusCode,
+        method: req.method,
+        path: req.path,
+      });
+      return originalEnd(...args);
     };
 
     app(req, res);
