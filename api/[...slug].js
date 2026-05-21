@@ -68,6 +68,17 @@ module.exports = (req, res) => {
       return originalEnd(...args);
     };
 
+    // CRITICAL FIX: Ensure req.url and req.path are consistent for Express routing
+    // Express expects the path to match its mounted routes
+    // If the request comes as /api/auth/login and Express has /api/auth mounted,
+    // Express will correctly handle the route matching
+    // However, we need to ensure req.path is properly set
+    if (!req.path || req.path === '/') {
+      // Re-parse the URL to get the path
+      const url = req.url || req.originalUrl || '';
+      req.url = url;
+    }
+
     app(req, res);
   } catch (error) {
     console.log('[HANDLER ERROR]', error.message);
