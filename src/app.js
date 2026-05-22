@@ -50,6 +50,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(logger);
 
+// Static file serving for uploads
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Middleware untuk debug route matching
 app.use((req, res, next) => {
   console.log('[EXPRESS ROUTE DEBUG] Incoming:', {

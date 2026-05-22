@@ -226,6 +226,82 @@ const createVariant = async (req, res, next) => {
   }
 };
 
+/**
+ * Upload product image
+ * POST /api/products/upload-image
+ * Requires: image file in 'image' field
+ * Returns: filename and URL
+ */
+const uploadProductImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded',
+        statusCode: 400,
+      });
+    }
+
+    const { getFileUrl } = require('../middleware/upload');
+    const fileUrl = getFileUrl(req.file.filename, 'products');
+
+    return sendSuccess(res, {
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      url: fileUrl,
+    }, 'Image uploaded successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Upload product image and update product
+ * POST /api/products/:id/upload-image
+ * Requires: productId and image file
+ * Returns: updated product with image
+ */
+const uploadProductImageAndUpdate = async (req, res, next) => {
+  try {
+    const { id: productId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded',
+        statusCode: 400,
+      });
+    }
+
+    // Verify product exists
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) {
+      // Delete uploaded file if product not found
+      const { deleteFile } = require('../middleware/upload');
+      deleteFile(req.file.filename, 'products');
+      throw new NotFoundError(MESSAGES.PRODUCT_NOT_FOUND);
+    }
+
+    const { getFileUrl } = require('../middleware/upload');
+    const fileUrl = getFileUrl(req.file.filename, 'products');
+
+    // Update product with image URL
+    const updatedProduct = await prisma.product.update({
+      where: { id: productId },
+      data: { imageUrl: fileUrl },
+      include: {
+        category: { select: { id: true, categoryName: true } },
+        variants: true,
+      },
+    });
+
+    return sendSuccess(res, updatedProduct, 'Product image updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
@@ -234,4 +310,6 @@ module.exports = {
   deleteProduct,
   getCategories,
   createVariant,
+  uploadProductImage,
+  uploadProductImageAndUpdate,
 };

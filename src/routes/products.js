@@ -11,9 +11,12 @@ const {
   deleteProduct,
   getCategories,
   createVariant,
+  uploadProductImage,
+  uploadProductImageAndUpdate,
 } = require('../controllers/productController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
+const { uploadProductImage: uploadProductImageMiddleware } = require('../middleware/upload');
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -45,6 +48,25 @@ router.post(
   authenticate,
   authorize('ADMIN', 'OWNER'),
   createVariant
+);
+
+// Upload routes
+router.post(
+  '/upload-image',
+  generalLimiter,
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  uploadProductImageMiddleware,
+  uploadProductImage
+);
+
+router.post(
+  '/:id/upload-image',
+  generalLimiter,
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  uploadProductImageMiddleware,
+  uploadProductImageAndUpdate
 );
 
 module.exports = router;

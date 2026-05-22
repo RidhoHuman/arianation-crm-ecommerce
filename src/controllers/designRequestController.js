@@ -320,6 +320,101 @@ const deleteDesignRequest = async (req, res, next) => {
   }
 };
 
+/**
+ * Upload design file
+ * POST /api/design-requests/upload-file
+ * Requires: design file in 'designFile' field
+ * Returns: filename and URL
+ */
+const uploadDesignFile = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded',
+        statusCode: 400,
+      });
+    }
+
+    const { getFileUrl } = require('../middleware/upload');
+    const fileUrl = getFileUrl(req.file.filename, 'designs');
+
+    return sendSuccess(res, {
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      url: fileUrl,
+    }, 'Design file uploaded successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Upload design file and update design request
+ * POST /api/design-requests/:id/upload-file
+ * Requires: designRequestId and design file
+ * Returns: updated design request with file
+ */
+const uploadDesignFileAndUpdate = async (req, res, next) => {
+  try {
+    const { id: designRequestId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded',
+        statusCode: 400,
+      });
+    }
+
+    // Verify design request exists
+    const designRequest = await prisma.designRequest.findUnique({
+      where: { id: designRequestId },
+      include: {
+        feedback: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!designRequest) {
+      // Delete uploaded file if request not found
+      const { deleteFile } = require('../middleware/upload');
+      deleteFile(req.file.filename, 'designs');
+      throw new NotFoundError(MESSAGES.DESIGN_REQUEST_NOT_FOUND);
+    }
+
+    // Check authorization
+    if (req.user.role === 'CUSTOMER' && designRequest.userId !== req.user.id) {
+      const { deleteFile } = require('../middleware/upload');
+      deleteFile(req.file.filename, 'designs');
+      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    }
+
+    const { getFileUrl } = require('../middleware/upload');
+    const fileUrl = getFileUrl(req.file.filename, 'designs');
+
+    // Update design request with file URL
+    const updatedDesignRequest = await prisma.designRequest.update({
+      where: { id: designRequestId },
+      data: { designFile: fileUrl },
+      include: {
+        feedback: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        order: { select: { id: true, orderNumber: true } },
+      },
+    });
+
+    return sendSuccess(res, updatedDesignRequest, 'Design file uploaded successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllDesignRequests,
   getDesignRequestById,
@@ -328,4 +423,6 @@ module.exports = {
   submitDesignRequest,
   addFeedback,
   deleteDesignRequest,
+  uploadDesignFile,
+  uploadDesignFileAndUpdate,
 };

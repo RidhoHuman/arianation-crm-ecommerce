@@ -11,6 +11,8 @@ const {
   submitDesignRequest,
   addFeedback,
   deleteDesignRequest,
+  uploadDesignFile,
+  uploadDesignFileAndUpdate,
 } = require('../controllers/designRequestController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
@@ -35,5 +37,18 @@ router.patch('/:id', updateDesignRequest);
 router.put('/:id/submit', submitDesignRequest);
 router.post('/:id/feedback', authorize('ADMIN', 'OWNER', 'DESIGN_STAFF'), addFeedback);
 router.delete('/:id', deleteDesignRequest);
+
+// Upload routes
+router.post(
+  '/upload-file',
+  uploadDesign,
+  uploadDesignFile
+);
+
+router.post(
+  '/:id/upload-file',
+  uploadDesign,
+  uploadDesignFileAndUpdate
+);
 
 module.exports = router;
