@@ -21,6 +21,7 @@ jobs:
   e2e-supabase:
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Run this job only when all required Supabase secrets are configured
     if: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY && secrets.SUPABASE_URL && secrets.SUPABASE_STORAGE_BUCKET }}
     env:
@@ -41,5 +42,3 @@ jobs:
           npm --version
       - name: Run Supabase E2E tests
         run: npm test -- __tests__/e2e/supabase.real.test.js --runInBand
-        # Increase timeout in case of network slowness
-        timeout-minutes: 10
