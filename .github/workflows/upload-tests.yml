@@ -1,0 +1,45 @@
+name: Upload Middleware Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test -- --runInBand
+
+  e2e-supabase:
+    needs: test
+    runs-on: ubuntu-latest
+    # Run this job only when all required Supabase secrets are configured
+    if: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY && secrets.SUPABASE_URL && secrets.SUPABASE_STORAGE_BUCKET }}
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_STORAGE_BUCKET: ${{ secrets.SUPABASE_STORAGE_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Show Node / npm versions
+        run: |
+          node --version
+          npm --version
+      - name: Run Supabase E2E tests
+        run: npm test -- __tests__/e2e/supabase.real.test.js --runInBand
+        # Increase timeout in case of network slowness
+        timeout-minutes: 10
