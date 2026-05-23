@@ -23,8 +23,39 @@ jobs:
             echo "run_e2e=false" >> "$GITHUB_OUTPUT"
           fi
 
+  check-database-url:
+    runs-on: ubuntu-latest
+    outputs:
+      run_db_tests: ${{ steps.check.outputs.run_db_tests }}
+    steps:
+      - name: Check DATABASE_URL
+        id: check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [[ "$DATABASE_URL" =~ ^postgres(ql)?:// ]]; then
+            echo "run_db_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_db_tests=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test -- --runInBand --testPathIgnorePatterns="__tests__/(batchAndAnalytics|orderFulfillment\.integration)\.spec\.js"
+
+  db-heavy-tests:
+    needs: [test, check-database-url]
+    runs-on: ubuntu-latest
+    if: ${{ needs.check-database-url.outputs.run_db_tests == 'true' }}
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
@@ -35,14 +66,8 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Run tests
-        run: |
-          if [[ "$DATABASE_URL" =~ ^postgres(ql)?:// ]]; then
-            npm test -- --runInBand
-          else
-            echo "DATABASE_URL is missing or not a valid Postgres URL; skipping DB-backed test suites"
-            npm test -- --runInBand --testPathIgnorePatterns="__tests__/(batchAndAnalytics|orderFulfillment\.integration)\.spec\.js"
-          fi
+      - name: Run DB-heavy tests
+        run: npm test -- --runInBand __tests__/batchAndAnalytics.spec.js __tests__/orderFulfillment.integration.spec.js
 
   e2e-supabase:
     needs: [test, check-supabase-secrets]
