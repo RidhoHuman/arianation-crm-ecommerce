@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  SUPABASE_STORAGE_BUCKET: ${{ secrets.SUPABASE_STORAGE_BUCKET }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,11 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Run this job only when all required Supabase secrets are configured
-    if: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY && secrets.SUPABASE_URL && secrets.SUPABASE_STORAGE_BUCKET }}
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SUPABASE_STORAGE_BUCKET: ${{ secrets.SUPABASE_STORAGE_BUCKET }}
+    if: ${{ env.SUPABASE_SERVICE_ROLE_KEY != '' && env.SUPABASE_URL != '' && env.SUPABASE_STORAGE_BUCKET != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
