@@ -92,4 +92,4 @@ jobs:
           node --version
           npm --version
       - name: Run Supabase E2E tests
-        run: npm test -- __tests__/e2e/supabase.real.test.js --runInBand
+        run: npm test -- --runInBand --runTestsByPath __tests__/e2e/supabase.real.test.js
