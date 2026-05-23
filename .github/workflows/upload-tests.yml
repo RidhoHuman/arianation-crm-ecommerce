@@ -4,12 +4,25 @@ on:
   push:
   pull_request:
 
-env:
-  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-  SUPABASE_STORAGE_BUCKET: ${{ secrets.SUPABASE_STORAGE_BUCKET }}
-
 jobs:
+  check-supabase-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      run_e2e: ${{ steps.check.outputs.run_e2e }}
+    steps:
+      - name: Check Supabase secrets
+        id: check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_STORAGE_BUCKET: ${{ secrets.SUPABASE_STORAGE_BUCKET }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -n "$SUPABASE_STORAGE_BUCKET" ]; then
+            echo "run_e2e=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_e2e=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -24,11 +37,15 @@ jobs:
         run: npm test -- --runInBand
 
   e2e-supabase:
-    needs: test
+    needs: [test, check-supabase-secrets]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Run this job only when all required Supabase secrets are configured
-    if: ${{ env.SUPABASE_SERVICE_ROLE_KEY != '' && env.SUPABASE_URL != '' && env.SUPABASE_STORAGE_BUCKET != '' }}
+    if: ${{ needs.check-supabase-secrets.outputs.run_e2e == 'true' }}
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_STORAGE_BUCKET: ${{ secrets.SUPABASE_STORAGE_BUCKET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
