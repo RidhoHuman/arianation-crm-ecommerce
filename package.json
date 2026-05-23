@@ -30,6 +30,7 @@
     "sharp": "^0.32.1",
     "@sentry/node": "^7.12.0",
     "tslib": "^2.6.0",
+    "ws": "^8.18.3",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

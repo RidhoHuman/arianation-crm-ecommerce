@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const WebSocket = require('ws');
 
 // Skip test if required env vars missing
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -13,6 +14,8 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_STORAGE_BUCKET) {
   });
 } else {
   describe('Supabase real upload (E2E)', () => {
+    global.WebSocket = WebSocket;
+
     // require supabase only when env vars present to avoid loading optional deps
     const { createClient } = require('@supabase/supabase-js');
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
