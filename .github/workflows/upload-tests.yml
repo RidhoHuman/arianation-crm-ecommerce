@@ -37,9 +37,10 @@ jobs:
         run: npm ci
       - name: Run tests
         run: |
-          if [ -n "$DATABASE_URL" ]; then
+          if [[ "$DATABASE_URL" =~ ^postgres(ql)?:// ]]; then
             npm test -- --runInBand
           else
+            echo "DATABASE_URL is missing or not a valid Postgres URL; skipping batchAndAnalytics.spec.js"
             npm test -- --runInBand --testPathIgnorePatterns="__tests__/batchAndAnalytics.spec.js"
           fi
 
