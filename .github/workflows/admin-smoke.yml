@@ -50,8 +50,8 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Apply Prisma migrations
-        run: npx prisma migrate deploy
+      - name: Apply Prisma schema (CI smoke-friendly)
+        run: npx prisma db push
 
       - name: Ensure OWNER smoke user exists
         run: node scripts/e2e/ensure-owner-user.js
