@@ -8,14 +8,17 @@ describe('orderFulfillmentService - integration', () => {
   let category;
   let product;
   let order;
+  const runId = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const testEmail = `test+order-${runId}@example.com`;
+  const testCategoryName = `Test Cat ${runId}`;
 
   beforeAll(async () => {
     // create minimal data
     user = await prisma.user.create({
-      data: { email: 'test+order@example.com', password: 'x', fullName: 'Test Order' },
+      data: { email: testEmail, password: 'x', fullName: 'Test Order' },
     });
     category = await prisma.productCategory.create({
-      data: { categoryName: 'Test Cat', businessType: 'FASHION_RETAIL' },
+      data: { categoryName: testCategoryName, businessType: 'FASHION_RETAIL' },
     });
     product = await prisma.product.create({
       data: {
@@ -51,10 +54,16 @@ describe('orderFulfillmentService - integration', () => {
   afterAll(async () => {
     // cleanup
     try {
-      await prisma.order.deleteMany({ where: { userId: user.id } });
-      await prisma.product.deleteMany({ where: { categoryId: category.id } });
-      await prisma.productCategory.delete({ where: { id: category.id } });
-      await prisma.user.delete({ where: { id: user.id } });
+      if (user?.id) {
+        await prisma.order.deleteMany({ where: { userId: user.id } });
+      }
+      if (category?.id) {
+        await prisma.product.deleteMany({ where: { categoryId: category.id } });
+        await prisma.productCategory.deleteMany({ where: { id: category.id } });
+      }
+      if (user?.id) {
+        await prisma.user.deleteMany({ where: { id: user.id } });
+      }
     } catch (err) {
       // ignore
     }
