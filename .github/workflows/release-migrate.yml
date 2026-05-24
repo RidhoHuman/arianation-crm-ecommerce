@@ -42,7 +42,7 @@ jobs:
             echo "prisma/migration_lock.toml not found — cannot verify migration provider. Aborting." >&2
             exit 1
           fi
-          SCHEMA_PROVIDER=$(sed -n 's/.*provider *= *"\([^"]*\)".*/\1/p' prisma/schema.prisma | head -n 1 || true)
+          SCHEMA_PROVIDER=$(awk 'BEGIN{p=0} /^datasource[ \t]+[a-zA-Z0-9_]+/ {p=1; next} p && /provider/ { match($0, /provider *= *"([^"]+)"/, m); if (m[1]) { print m[1]; exit } }' prisma/schema.prisma || true)
           LOCK_PROVIDER=$(sed -n 's/.*provider *= *"\([^"]*\)".*/\1/p' prisma/migration_lock.toml | head -n 1 || true)
           echo "Detected schema provider: ${SCHEMA_PROVIDER:-<none>}"
           echo "Detected migration_lock provider: ${LOCK_PROVIDER:-<none>}"
