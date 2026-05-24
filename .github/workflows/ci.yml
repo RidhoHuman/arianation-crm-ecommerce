@@ -74,8 +74,8 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Apply Prisma migrations
-        run: npx prisma migrate deploy
+      - name: Apply Prisma schema (CI-friendly)
+        run: npx prisma db push
 
       - name: Run tests
         run: npm test
