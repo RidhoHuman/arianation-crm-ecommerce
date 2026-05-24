@@ -30,7 +30,7 @@
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                 API Gateway / Load Balancer                  │
-│  (Optional: Nginx, Cloudflare, AWS ALB)                     │
+│  (Optional: Nginx, Cloudflare, managed load balancer)       │
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -43,7 +43,7 @@
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                      Data Layer                              │
-│  MySQL 8.0 Database (Laragon / Production RDS)              │
+│  PostgreSQL 16 Database (Local / Production Cloud)          │
 │  Database: arianation_db                                    │
 │  Migrations: Prisma                                         │
 └─────────────────────────────────────────────────────────────┘
@@ -52,7 +52,7 @@
 ### Technology Stack
 - **Frontend**: Next.js 16.2.4, React 19, TailwindCSS 3.4.1
 - **Backend**: Express 5.2.1, Node.js 20+
-- **Database**: MySQL 8.0
+- **Database**: PostgreSQL 16
 - **ORM**: Prisma 6.19.3
 - **Auth**: JWT + bcryptjs
 - **Testing**: Jest 30.3.0
@@ -67,7 +67,7 @@
 - **OS**: Ubuntu 20.04+ / Windows 10+ / macOS 10.15+
 - **Node.js**: v20 or higher
 - **npm**: v10 or higher
-- **MySQL**: 8.0 or higher
+- **PostgreSQL**: 16 or higher
 - **Disk Space**: 2GB minimum
 - **RAM**: 2GB minimum (4GB recommended)
 
@@ -76,7 +76,7 @@
 # Verify versions
 node --version       # v20.x.x
 npm --version        # 10.x.x
-mysql --version      # 8.0.x
+psql --version       # 16.x.x
 git --version        # 2.30+
 ```
 
@@ -112,23 +112,24 @@ cd ..
 ### Step 3: Setup Database
 
 #### Option A: Using Laragon (Windows Development)
-1. Start Laragon MySQL service
+1. Start your local PostgreSQL service
 2. Create database: `CREATE DATABASE arianation_db;`
-3. Note credentials: User `root`, Password `{your_password}`
+3. Note credentials: User `arianation_user`, Password `{your_password}`
 
 #### Option B: Using Docker
 ```bash
-docker run --name arianation-mysql \
-  -e MYSQL_ROOT_PASSWORD=password \
-  -e MYSQL_DATABASE=arianation_db \
-  -p 3306:3306 \
-  -d mysql:8.0
+docker run --name arianation-postgres \
+  -e POSTGRES_USER=arianation_user \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=arianation_db \
+  -p 5432:5432 \
+  -d postgres:16-alpine
 ```
 
-#### Option C: Cloud Database (AWS RDS)
+#### Option C: Managed Cloud Database
 ```bash
-# Create RDS instance with:
-# Engine: MySQL 8.0
+# Create a managed PostgreSQL instance with:
+# Engine: PostgreSQL 16
 # Storage: 20GB
 # Instance class: db.t3.micro (dev) / db.t3.small (prod)
 # Multi-AZ: No (dev) / Yes (prod)
@@ -139,8 +140,8 @@ docker run --name arianation-mysql \
 Create `.env` file in root directory:
 ```env
 # Database
-DATABASE_URL=mysql://root:password@localhost:3306/arianation_db
-DIRECT_DATABASE_URL=mysql://root:password@localhost:3306/arianation_db
+DATABASE_URL=postgresql://arianation_user:password@localhost:5432/arianation_db?schema=public
+DIRECT_DATABASE_URL=postgresql://arianation_user:password@localhost:5432/arianation_db?schema=public
 
 # Server
 PORT=3001
@@ -164,6 +165,14 @@ XENDIT_WEBHOOK_VERIFY_TOKEN=webhook_secret_token
 # File Upload
 UPLOAD_DIR=public/uploads
 MAX_FILE_SIZE=10485760
+ 
+# Supabase (optional - recommended for production storage)
+# Create a Supabase project and a storage bucket (e.g. 'uploads')
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key  # store securely (used server-side)
+SUPABASE_ANON_KEY=your_anon_key                   # used only for client SDKs if needed
+SUPABASE_STORAGE_BUCKET=uploads
+SUPABASE_PUBLIC_URL=https://your-cdn-or-supabase-url
 ```
 
 ### Step 5: Initialize Database
@@ -256,25 +265,26 @@ services:
     ports:
       - "3001:3001"
     environment:
-      DATABASE_URL: mysql://root:${MYSQL_PASSWORD}@mysql:3306/arianation_db
+      DATABASE_URL: postgresql://arianation_user:${POSTGRES_PASSWORD}@db:5432/arianation_db?schema=public
       NODE_ENV: production
     depends_on:
-      - mysql
+      - db
     restart: unless-stopped
 
-  mysql:
-    image: mysql:8.0
+  db:
+    image: postgres:16-alpine
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: arianation_db
+      POSTGRES_USER: arianation_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: arianation_db
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "3306:3306"
+      - "5432:5432"
     restart: unless-stopped
 
 volumes:
-  mysql_data:
+  postgres_data:
 ```
 
 #### Build & Deploy
@@ -292,14 +302,14 @@ docker-compose logs -f api
 docker-compose down
 ```
 
-### AWS Deployment (EC2 + RDS)
+### Generic VM Deployment (optional)
 
 ```bash
 # SSH into EC2
 ssh -i key.pem ec2-user@instance.ip
 
 # Install dependencies
-sudo yum install nodejs npm mysql
+sudo yum install nodejs npm postgresql16
 
 # Clone and setup
 git clone https://...
@@ -315,13 +325,81 @@ pm2 startup
 
 ### CI/CD Pipeline (GitHub Actions)
 
-GitHub Actions workflow automatically:
-1. Runs tests on push to `main`
-2. Checks code quality (ESLint, Prettier)
-3. Applies database migrations
-4. (Optional) Deploys to production
+The main upload workflow lives in [.github/workflows/upload-tests.yml](.github/workflows/upload-tests.yml) and is split into independent jobs:
 
-See `.github/workflows/ci.yml` for configuration.
+1. `test` runs the non-DB Jest suites on every push and pull request.
+2. `db-heavy-tests` runs only when `DATABASE_URL` is present and starts with `postgres://` or `postgresql://`.
+3. `e2e-supabase` runs only when all Supabase secrets are configured.
+
+Before enabling the E2E job in GitHub Actions, add these repository secrets:
+
+- `DATABASE_URL` - valid PostgreSQL connection string for the DB-heavy job
+- `SUPABASE_URL` - your Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key, server-side only
+- `SUPABASE_STORAGE_BUCKET` - bucket name used by the upload middleware
+
+The CI workflow checks for these secrets first, then skips the related jobs when they are not available.
+The gate jobs are named `check-database-url` and `check-supabase-secrets`, and the main jobs are `test`, `db-heavy-tests`, and `e2e-supabase`.
+If you update any secret values, re-run the workflow from the Actions tab or push a new commit so the checks are evaluated again.
+
+### Supabase Storage (Production file storage)
+
+If you choose Supabase Storage for persistent uploads in production, follow these quick steps:
+
+1. Create a Supabase project at https://app.supabase.com and note the Project URL.
+2. In the Supabase dashboard, go to **Storage** → **Create a new bucket** (e.g. `uploads`).
+  - For public product images, you can allow public access or create a policy that exposes only required objects.
+  - For private files, keep the bucket private and serve files via signed URLs generated server-side.
+3. Create folders `products/` and `designs/` inside the bucket (optional; middleware uploads with these prefixes).
+4. Store `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_URL` in your deployment secrets (service role key is server-only).
+5. Optionally set `SUPABASE_PUBLIC_URL` to a CDN or Supabase public URL and add it to `.env` so `getFileUrl()` returns CDN URLs.
+
+The backend middleware already supports uploading buffers to Supabase when the following environment variables are present:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_STORAGE_BUCKET`
+- `SUPABASE_PUBLIC_URL` (optional)
+
+Example: uploads will be stored under `products/{filename}` and `designs/{filename}` and `getFileUrl()` will return the public URL when configured.
+
+CI / E2E (GitHub Actions)
+
+Upload-test CI setup lives in [CI_SETUP.md](CI_SETUP.md). That guide covers the `upload-tests.yml` workflow, the required secrets, job gating, rerun guidance, and troubleshooting, so this runbook keeps the CI notes brief.
+
+Monitoring (Sentry)
+
+To capture upload errors and other runtime exceptions, we support Sentry integration.
+
+1. Create a Sentry project at https://sentry.io and get the DSN.
+2. Add `SENTRY_DSN` to your environment (in Vercel/GitHub Actions set `SENTRY_DSN` secret).
+3. The backend initializes Sentry automatically when `SENTRY_DSN` is present.
+
+Notes:
+- Sentry is initialized in `src/app.js` and will capture request errors and unhandled exceptions.
+- Upload-specific errors are reported in `src/middleware/upload.js` using `Sentry.captureException()`.
+- Adjust `tracesSampleRate` in `src/app.js` when you want transaction tracing (default is disabled).
+
+### Signed URLs (private files)
+
+For private files the backend exposes a signed-URL endpoint to generate temporary access links. Use it when your bucket is private and you need controlled access.
+
+- Endpoint: `GET /api/uploads/signed-url?type=products|designs&filename={filename}&expires={seconds}`
+- Authentication: required (token)
+
+Example request:
+```bash
+curl -H "Authorization: Bearer $TOKEN" "https://your-backend.example.com/api/uploads/signed-url?type=designs&filename=design_1716259200000_8765.pdf&expires=300"
+```
+
+Response:
+```json
+{
+  "success": true,
+  "data": { "url": "https://...signed-url..." },
+  "message": "Signed URL generated"
+}
+```
 
 ---
 
@@ -332,16 +410,16 @@ See `.github/workflows/ci.yml` for configuration.
 #### Manual Backup
 ```bash
 # Full database dump
-mysqldump -u root -p arianation_db > backup_$(date +%Y%m%d_%H%M%S).sql
+pg_dump -U arianation_user arianation_db > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Restore from backup
-mysql -u root -p arianation_db < backup_20260516_100000.sql
+psql "$DATABASE_URL" < backup_20260516_100000.sql
 ```
 
 #### Automated Backup (Cron Job)
 ```bash
 # Add to crontab (daily at 2 AM)
-0 2 * * * mysqldump -u root -p${MYSQL_PASSWORD} arianation_db > /backups/db_$(date +\%Y\%m\%d).sql
+0 2 * * * pg_dump -U arianation_user arianation_db > /backups/db_$(date +\%Y\%m\%d).sql
 
 # Cleanup old backups (keep 30 days)
 0 3 * * * find /backups -name "db_*.sql" -mtime +30 -delete
@@ -376,7 +454,7 @@ npx prisma migrate reset
 
 #### Check Connection
 ```bash
-mysql -h localhost -u root -p -e "SELECT 1"
+psql "$DATABASE_URL" -c "SELECT 1"
 ```
 
 #### View Database Stats
@@ -431,9 +509,10 @@ clinic doctor -- node src/index.js
 
 #### Database Query Performance
 ```bash
-# Enable query logging in MySQL
-SET GLOBAL log_queries_not_using_indexes = ON;
-tail -f /var/log/mysql/queries.log
+# Enable query logging in PostgreSQL
+ALTER SYSTEM SET log_min_duration_statement = 200;
+SELECT pg_reload_conf();
+tail -f /var/log/postgresql/postgresql-16-main.log
 ```
 
 ### Uptime Monitoring
@@ -456,7 +535,7 @@ curl http://localhost:3001/api/health
 - **Uptime Robot**: Free uptime monitoring
 - **New Relic**: Application performance monitoring
 - **Datadog**: Infrastructure monitoring
-- **CloudWatch**: AWS monitoring
+- **Platform logs**: Use your host's built-in logging/metrics
 
 ---
 
@@ -558,25 +637,24 @@ Content-Type: application/json
 
 #### 1. Database Connection Error
 ```
-error: Connection error: connect ECONNREFUSED 127.0.0.1:3306
+error: Connection error: connect ECONNREFUSED 127.0.0.1:5432
 ```
 
 **Solutions:**
 ```bash
-# Check MySQL is running
-sudo systemctl status mysql
+# Check your local PostgreSQL service is running
+pg_isready
 
 # Check credentials in .env
 cat .env | grep DATABASE_URL
 
 # Test connection
-mysql -h localhost -u root -p
+psql "$DATABASE_URL" -c "SELECT 1"
 
 # Check port
-netstat -an | grep 3306
+netstat -an | grep 5432
 
-# Restart MySQL
-sudo systemctl restart mysql
+# Restart your local database service if needed
 ```
 
 #### 2. Prisma Client Error
@@ -596,7 +674,27 @@ npx prisma generate
 echo $DATABASE_URL
 ```
 
-#### 3. Port Already in Use
+#### 3. `db-heavy-tests` Skipped in CI
+```
+db-heavy-tests was skipped because DATABASE_URL was missing or invalid
+```
+
+**Solutions:**
+- Add the repository secret `DATABASE_URL` in GitHub Actions.
+- Make sure it starts with `postgres://` or `postgresql://`.
+- Confirm the secret points to a database the runner can reach.
+
+#### 4. `e2e-supabase` Skipped or Failed in CI
+```
+e2e-supabase was skipped or failed during upload validation
+```
+
+**Solutions:**
+- Verify `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_STORAGE_BUCKET` are all added as repository secrets.
+- Confirm the Supabase bucket exists and the service role key has upload, signed-URL, and delete permissions.
+- If the job fails on Node 20 realtime initialization, ensure the `ws` dependency is present and the latest commit has been pushed.
+
+#### 5. Port Already in Use
 ```
 listen EADDRINUSE: address already in use :::3001
 ```
@@ -615,7 +713,7 @@ taskkill /PID <PID> /F
 PORT=3002 npm run dev
 ```
 
-#### 4. JWT Token Invalid
+#### 6. JWT Token Invalid
 ```
 error: Invalid token
 ```
@@ -627,7 +725,7 @@ error: Invalid token
 # Clear cookies and re-authenticate
 ```
 
-#### 5. CORS Error
+#### 7. CORS Error
 ```
 Access to XMLHttpRequest has been blocked by CORS policy
 ```
@@ -664,7 +762,7 @@ SELECT * FROM information_schema.processlist WHERE time > 5;
 SELECT * FROM information_schema.statistics WHERE table_schema = 'arianation_db';
 
 # 3. Analyze slow query log
-mysqldumpslow -s at /var/log/mysql/slow.log
+tail -f /var/log/postgresql/postgresql-16-main.log
 
 # 4. Monitor server resources
 htop
@@ -690,16 +788,16 @@ clinic doctor -- node src/index.js
 #!/bin/bash
 # backup.sh - Daily database backup
 
-BACKUP_DIR="/backups/mysql"
+BACKUP_DIR="/backups/postgres"
 DB_NAME="arianation_db"
-DB_USER="root"
+DB_USER="arianation_user"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/backup_${TIMESTAMP}.sql"
 
 mkdir -p $BACKUP_DIR
 
 # Backup
-mysqldump -u $DB_USER -p$DB_PASS $DB_NAME > $BACKUP_FILE
+pg_dump -U $DB_USER -d $DB_NAME > $BACKUP_FILE
 gzip $BACKUP_FILE
 
 # Keep only last 30 days
@@ -716,10 +814,10 @@ npm run stop
 docker-compose down
 
 # 2. Restore database
-mysql -u root -p arianation_db < backup_20260516_100000.sql
+psql "$DATABASE_URL" < backup_20260516_100000.sql
 
 # 3. Verify data
-mysql -u root -p -e "SELECT COUNT(*) FROM arianation_db.orders;"
+psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM orders;"
 
 # 4. Restart services
 npm run dev
@@ -738,10 +836,10 @@ npm run logs
 #### 1. Environment Variables
 ```bash
 # ✅ DO: Store in .env (gitignored)
-DATABASE_URL=mysql://...
+DATABASE_URL=postgresql://...
 
 # ❌ DON'T: Hardcode in source
-const db_url = "mysql://...";
+const db_url = "postgresql://...";
 ```
 
 #### 2. Authentication
@@ -848,6 +946,6 @@ pm2 start src/index.js        # With PM2
 
 ---
 
-**Last Updated**: May 16, 2026  
+**Last Updated**: May 23, 2026  
 **Maintained By**: DevOps Team  
 **Version**: 1.0.0

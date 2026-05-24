@@ -1,0 +1,79 @@
+name: Admin Smoke Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check-admin-smoke-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      run_smoke: ${{ steps.check.outputs.run_smoke }}
+    steps:
+      - name: Check smoke test secrets
+        id: check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          if [[ "$DATABASE_URL" =~ ^postgres(ql)?:// ]] && [ -n "$JWT_SECRET" ]; then
+            echo "run_smoke=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_smoke=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  admin-smoke:
+    needs: [check-admin-smoke-secrets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ needs.check-admin-smoke-secrets.outputs.run_smoke == 'true' }}
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      NODE_ENV: test
+      PORT: 3001
+      NODE_OPTIONS: --max-old-space-size=1024
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply Prisma migrations
+        run: npx prisma migrate deploy
+
+      - name: Ensure OWNER smoke user exists
+        run: node scripts/e2e/ensure-owner-user.js
+
+      - name: Start backend
+        run: |
+          node src/index.js > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      - name: Wait for backend health
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3001/api/health > /dev/null; then
+              echo "Backend is up";
+              exit 0
+            fi
+            echo "Waiting for backend...";
+            sleep 2
+          done
+          echo "Backend did not become ready";
+          cat backend.log
+          exit 1
+
+      - name: Run structured admin smoke test
+        run: npm run smoke:admin -- --json

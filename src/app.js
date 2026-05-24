@@ -6,6 +6,7 @@ if (process.env.NODE_ENV !== 'production') {
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const Sentry = require('@sentry/node');
 
 const prisma = require('./config/database');
 const { config, validateEnv } = require('./config/env');
@@ -25,6 +26,7 @@ const webhookRoutes = require('./routes/webhooks');
 const batchRoutes = require('./routes/batch');
 const analyticsRoutes = require('./routes/analytics');
 const checkoutRoutes = require('../routes/checkout');
+const uploadRoutes = require('./routes/uploads');
 
 // Validate environment variables (throws if invalid)
 try {
@@ -33,6 +35,15 @@ try {
   console.warn('Environment validation warning:', error.message);
   // Don't throw - allow app to load, but log warning
   // This handles cases where env vars come from Vercel
+}
+
+// Initialize Sentry if DSN provided
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.0, // disable tracing by default; adjust if needed
+  });
 }
 
 const app = express();
@@ -49,6 +60,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(logger);
+
+// Sentry request handler must be before routes (if enabled)
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.requestHandler());
+}
 
 // Static file serving for uploads
 const path = require('path');
@@ -126,6 +142,7 @@ app.use('/api/design-requests', designRequestRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/batch', batchRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/uploads', uploadRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 // Debug middleware - logs all 404s before they hit the handler
@@ -147,6 +164,10 @@ app.use((req, res) => {
   });
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
 });
+// Sentry error handler (if enabled) should be before custom error handler
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
 
 app.use(errorHandler);
 
