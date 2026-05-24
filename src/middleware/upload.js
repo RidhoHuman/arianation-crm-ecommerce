@@ -42,7 +42,9 @@ if (USE_SUPABASE) {
 } else if (process.env.NODE_ENV === 'production') {
   // Vercel uses /tmp for temporary files
   baseUploadsDir = path.join(os.tmpdir(), 'uploads');
-  console.warn('⚠️  Using temporary uploads directory on serverless platform. Consider implementing cloud storage (Supabase, etc.) for production.');
+  console.warn(
+    '⚠️  Using temporary uploads directory on serverless platform. Consider implementing cloud storage (Supabase, etc.) for production.'
+  );
 } else {
   // Local development - use uploads folder in project root
   baseUploadsDir = path.join(__dirname, '../../uploads');
@@ -53,7 +55,7 @@ const productsDir = baseUploadsDir ? path.join(baseUploadsDir, 'products') : nul
 const designsDir = baseUploadsDir ? path.join(baseUploadsDir, 'designs') : null;
 
 if (baseUploadsDir) {
-  [baseUploadsDir, productsDir, designsDir].forEach(dir => {
+  [baseUploadsDir, productsDir, designsDir].forEach((dir) => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
@@ -65,31 +67,35 @@ if (baseUploadsDir) {
 // ============================================================
 
 // Choose storage: if using Supabase, use memoryStorage so we can upload buffers
-const productImageStorage = USE_SUPABASE ? multer.memoryStorage() : multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, productsDir);
-  },
-  filename: (req, file, cb) => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    const ext = path.extname(file.originalname).toLowerCase();
-    const filename = `product_${timestamp}_${random}${ext}`;
-    cb(null, filename);
-  },
-});
+const productImageStorage = USE_SUPABASE
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, productsDir);
+      },
+      filename: (req, file, cb) => {
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 10000);
+        const ext = path.extname(file.originalname).toLowerCase();
+        const filename = `product_${timestamp}_${random}${ext}`;
+        cb(null, filename);
+      },
+    });
 
-const designFileStorage = USE_SUPABASE ? multer.memoryStorage() : multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, designsDir);
-  },
-  filename: (req, file, cb) => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    const ext = path.extname(file.originalname).toLowerCase();
-    const filename = `design_${timestamp}_${random}${ext}`;
-    cb(null, filename);
-  },
-});
+const designFileStorage = USE_SUPABASE
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, designsDir);
+      },
+      filename: (req, file, cb) => {
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 10000);
+        const ext = path.extname(file.originalname).toLowerCase();
+        const filename = `design_${timestamp}_${random}${ext}`;
+        cb(null, filename);
+      },
+    });
 
 // ============================================================
 // FILE FILTERS & VALIDATORS
@@ -113,7 +119,17 @@ const imageFileFilter = (req, file, cb) => {
 
 const designFileFilter = (req, file, cb) => {
   // Allow PNG, JPG, JPEG, PDF, AI, CDR, SVG, PSD
-  const allowedExtensions = ['.png', '.jpg', '.jpeg', '.pdf', '.ai', '.cdr', '.svg', '.psd', '.zip'];
+  const allowedExtensions = [
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.pdf',
+    '.ai',
+    '.cdr',
+    '.svg',
+    '.psd',
+    '.zip',
+  ];
   const fileExtension = path.extname(file.originalname).toLowerCase();
   if (!allowedExtensions.includes(fileExtension)) {
     return cb(new Error(`File type not allowed. Allowed: ${allowedExtensions.join(', ')}`));
@@ -174,55 +190,55 @@ const uploadProductImage = (req, res, next) => {
       });
     }
 
-        // If Supabase is enabled, upload the file buffer to Supabase Storage and populate req.file fields
-        if (USE_SUPABASE && supabase && req.file && req.file.buffer) {
+    // If Supabase is enabled, upload the file buffer to Supabase Storage and populate req.file fields
+    if (USE_SUPABASE && supabase && req.file && req.file.buffer) {
+      try {
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 10000);
+        const filename = `product_${timestamp}_${random}${ext}`;
+
+        const key = `products/${filename}`;
+        await uploadBufferToSupabase(key, req.file.buffer, req.file.mimetype);
+
+        // If image, generate optimized variants (webp, thumbnail)
+        if (req.file.mimetype && req.file.mimetype.startsWith('image/')) {
+          const basename = path.basename(filename, ext);
+
+          // WebP optimized
           try {
-            const ext = path.extname(req.file.originalname).toLowerCase();
-            const timestamp = Date.now();
-            const random = Math.floor(Math.random() * 10000);
-            const filename = `product_${timestamp}_${random}${ext}`;
+            const webpBuffer = await sharp(req.file.buffer)
+              .resize({ width: 1024, withoutEnlargement: true })
+              .webp({ quality: 80 })
+              .toBuffer();
+            const webpFilename = `${basename}.webp`;
+            await uploadBufferToSupabase(`products/${webpFilename}`, webpBuffer, 'image/webp');
 
-            const key = `products/${filename}`;
-            await uploadBufferToSupabase(key, req.file.buffer, req.file.mimetype);
+            // Thumbnail
+            const thumbBuffer = await sharp(req.file.buffer)
+              .resize(200, 200, { fit: 'cover' })
+              .webp({ quality: 75 })
+              .toBuffer();
+            const thumbFilename = `${basename}_thumb.webp`;
+            await uploadBufferToSupabase(`products/${thumbFilename}`, thumbBuffer, 'image/webp');
 
-            // If image, generate optimized variants (webp, thumbnail)
-            if (req.file.mimetype && req.file.mimetype.startsWith('image/')) {
-              const basename = path.basename(filename, ext);
-
-              // WebP optimized
-              try {
-                const webpBuffer = await sharp(req.file.buffer)
-                  .resize({ width: 1024, withoutEnlargement: true })
-                  .webp({ quality: 80 })
-                  .toBuffer();
-                const webpFilename = `${basename}.webp`;
-                await uploadBufferToSupabase(`products/${webpFilename}`, webpBuffer, 'image/webp');
-
-                // Thumbnail
-                const thumbBuffer = await sharp(req.file.buffer)
-                  .resize(200, 200, { fit: 'cover' })
-                  .webp({ quality: 75 })
-                  .toBuffer();
-                const thumbFilename = `${basename}_thumb.webp`;
-                await uploadBufferToSupabase(`products/${thumbFilename}`, thumbBuffer, 'image/webp');
-
-                req.file.optimized = { webp: webpFilename, thumb: thumbFilename };
-                  } catch (optErr) {
-                    console.warn('Image optimization failed:', optErr.message);
-                    sentryCapture(optErr, req, { stage: 'image_optimization', type: 'product' });
-                  }
-            }
-
-            req.file.filename = filename;
-            req.file.size = req.file.size || req.file.buffer.length;
-            req.file.url = getFileUrl(filename, 'products');
-            console.info(`Uploaded to Supabase: ${req.file.url}`);
-          } catch (uploadErr) {
-            console.error('Supabase upload error:', uploadErr.message);
-            sentryCapture(uploadErr, req, { stage: 'upload', type: 'product', key });
-            return res.status(500).json({ success: false, message: 'Failed to upload to Supabase' });
+            req.file.optimized = { webp: webpFilename, thumb: thumbFilename };
+          } catch (optErr) {
+            console.warn('Image optimization failed:', optErr.message);
+            sentryCapture(optErr, req, { stage: 'image_optimization', type: 'product' });
           }
         }
+
+        req.file.filename = filename;
+        req.file.size = req.file.size || req.file.buffer.length;
+        req.file.url = getFileUrl(filename, 'products');
+        console.info(`Uploaded to Supabase: ${req.file.url}`);
+      } catch (uploadErr) {
+        console.error('Supabase upload error:', uploadErr.message);
+        sentryCapture(uploadErr, req, { stage: 'upload', type: 'product', key });
+        return res.status(500).json({ success: false, message: 'Failed to upload to Supabase' });
+      }
+    }
     // If using disk storage, log local path/URL
     if (!USE_SUPABASE && req.file && req.file.filename) {
       const url = getFileUrl(req.file.filename, 'products');
@@ -274,7 +290,9 @@ const uploadDesign = (req, res, next) => {
       } catch (uploadErr) {
         console.error('Supabase design upload error:', uploadErr.message);
         sentryCapture(uploadErr, req, { stage: 'upload', type: 'design', key });
-        return res.status(500).json({ success: false, message: 'Failed to upload design to Supabase' });
+        return res
+          .status(500)
+          .json({ success: false, message: 'Failed to upload design to Supabase' });
       }
     }
 
@@ -301,12 +319,10 @@ const uploadBufferToSupabase = async (key, buffer, contentType) => {
     throw new Error('Supabase not configured');
   }
 
-  const { error } = await supabase.storage
-    .from(SUPABASE_STORAGE_BUCKET)
-    .upload(key, buffer, {
-      contentType,
-      upsert: false,
-    });
+  const { error } = await supabase.storage.from(SUPABASE_STORAGE_BUCKET).upload(key, buffer, {
+    contentType,
+    upsert: false,
+  });
 
   if (error) {
     throw error;
@@ -408,7 +424,6 @@ const createSignedUrl = async (key, expires = 60) => {
   return data.signedUrl;
 };
 
-
 /**
  * Get file URL based on environment
  * @param {string} filename - filename
@@ -417,7 +432,7 @@ const createSignedUrl = async (key, expires = 60) => {
  */
 const getFileUrl = (filename, type = 'products') => {
   if (!filename) return null;
-  
+
   if (USE_SUPABASE && SUPABASE_URL && SUPABASE_STORAGE_BUCKET) {
     if (SUPABASE_PUBLIC_URL) {
       return `${SUPABASE_PUBLIC_URL.replace(/\/$/, '')}/${type}/${filename}`;
@@ -429,7 +444,7 @@ const getFileUrl = (filename, type = 'products') => {
     const baseUrl = process.env.BACKEND_URL || 'https://arianation-crm-ecommerce.vercel.app';
     return `${baseUrl}/uploads/${type}/${filename}`;
   }
-  
+
   // For development
   const port = process.env.PORT || 3000;
   return `http://localhost:${port}/uploads/${type}/${filename}`;
@@ -443,11 +458,11 @@ const getFileUrl = (filename, type = 'products') => {
  */
 const deleteFile = (filename, type = 'products') => {
   if (!filename) return false;
-  
+
   try {
     const dir = type === 'products' ? productsDir : designsDir;
     const filePath = path.join(dir, filename);
-    
+
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       return true;
@@ -455,7 +470,7 @@ const deleteFile = (filename, type = 'products') => {
   } catch (error) {
     console.error(`Error deleting file ${filename}:`, error.message);
   }
-  
+
   return false;
 };
 
@@ -467,11 +482,11 @@ const deleteFile = (filename, type = 'products') => {
  */
 const getFileInfo = (filename, type = 'products') => {
   if (!filename) return null;
-  
+
   try {
     const dir = type === 'products' ? productsDir : designsDir;
     const filePath = path.join(dir, filename);
-    
+
     if (fs.existsSync(filePath)) {
       const stats = fs.statSync(filePath);
       return {
@@ -484,7 +499,7 @@ const getFileInfo = (filename, type = 'products') => {
   } catch (error) {
     console.error(`Error getting file info for ${filename}:`, error.message);
   }
-  
+
   return null;
 };
 

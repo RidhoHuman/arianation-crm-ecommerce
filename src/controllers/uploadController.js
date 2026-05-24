@@ -21,7 +21,9 @@ const getSignedUrl = async (req, res, next) => {
     // Ownership / role checks
     if (type === 'designs') {
       // Find design request that references this filename
-      const designRequest = await prisma.designRequest.findFirst({ where: { designFile: { contains: filename } } });
+      const designRequest = await prisma.designRequest.findFirst({
+        where: { designFile: { contains: filename } },
+      });
       if (!designRequest) {
         throw new NotFoundError('Design file not found');
       }
@@ -38,7 +40,9 @@ const getSignedUrl = async (req, res, next) => {
         throw new AuthorizationError('Only admin/owner can request product image URLs');
       }
 
-      const product = await prisma.product.findFirst({ where: { imageUrl: { contains: filename } } });
+      const product = await prisma.product.findFirst({
+        where: { imageUrl: { contains: filename } },
+      });
       if (!product) {
         throw new NotFoundError('Product image not found');
       }

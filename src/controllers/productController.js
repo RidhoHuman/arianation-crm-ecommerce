@@ -245,12 +245,16 @@ const uploadProductImage = async (req, res, next) => {
     const { getFileUrl } = require('../middleware/upload');
     const fileUrl = getFileUrl(req.file.filename, 'products');
 
-    return sendSuccess(res, {
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-      size: req.file.size,
-      url: fileUrl,
-    }, 'Image uploaded successfully');
+    return sendSuccess(
+      res,
+      {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        url: fileUrl,
+      },
+      'Image uploaded successfully'
+    );
   } catch (error) {
     next(error);
   }

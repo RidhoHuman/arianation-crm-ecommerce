@@ -96,21 +96,22 @@ app.get('/api/debug', async (req, res) => {
   try {
     const dbUrl = process.env.DATABASE_URL;
     const dbUrlMasked = dbUrl ? dbUrl.replace(/:[^@]*@/, ':***@') : 'NOT SET';
-    
+
     // Try a simple query
     let dbStatus = 'Unknown';
     let tables = [];
     try {
       const result = await prisma.$queryRaw`SELECT 1 as test`;
       dbStatus = 'Connected';
-      
+
       // Try to list tables
-      const tablesResult = await prisma.$queryRaw`SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'arianation_db'`;
-      tables = tablesResult.map(t => t.TABLE_NAME);
+      const tablesResult =
+        await prisma.$queryRaw`SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'arianation_db'`;
+      tables = tablesResult.map((t) => t.TABLE_NAME);
     } catch (dbError) {
       dbStatus = `Failed: ${dbError.message}`;
     }
-    
+
     res.json({
       success: true,
       debug: {

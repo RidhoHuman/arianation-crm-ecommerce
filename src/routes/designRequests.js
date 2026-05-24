@@ -39,16 +39,8 @@ router.post('/:id/feedback', authorize('ADMIN', 'OWNER', 'DESIGN_STAFF'), addFee
 router.delete('/:id', deleteDesignRequest);
 
 // Upload routes
-router.post(
-  '/upload-file',
-  uploadDesign,
-  uploadDesignFile
-);
+router.post('/upload-file', uploadDesign, uploadDesignFile);
 
-router.post(
-  '/:id/upload-file',
-  uploadDesign,
-  uploadDesignFileAndUpdate
-);
+router.post('/:id/upload-file', uploadDesign, uploadDesignFileAndUpdate);
 
 module.exports = router;

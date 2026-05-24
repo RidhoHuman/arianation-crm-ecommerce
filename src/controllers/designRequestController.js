@@ -339,12 +339,16 @@ const uploadDesignFile = async (req, res, next) => {
     const { getFileUrl } = require('../middleware/upload');
     const fileUrl = getFileUrl(req.file.filename, 'designs');
 
-    return sendSuccess(res, {
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-      size: req.file.size,
-      url: fileUrl,
-    }, 'Design file uploaded successfully');
+    return sendSuccess(
+      res,
+      {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        url: fileUrl,
+      },
+      'Design file uploaded successfully'
+    );
   } catch (error) {
     next(error);
   }
