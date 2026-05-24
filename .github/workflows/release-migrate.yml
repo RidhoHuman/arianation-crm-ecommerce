@@ -31,6 +31,36 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Check Prisma migration provider match
+        run: |
+          set -euo pipefail
+          if [ ! -f prisma/schema.prisma ]; then
+            echo "prisma/schema.prisma not found — aborting provider check." >&2
+            exit 1
+          fi
+          if [ ! -f prisma/migration_lock.toml ]; then
+            echo "prisma/migration_lock.toml not found — cannot verify migration provider. Aborting." >&2
+            exit 1
+          fi
+          SCHEMA_PROVIDER=$(sed -n 's/.*provider *= *"\([^"]*\)".*/\1/p' prisma/schema.prisma | head -n 1 || true)
+          LOCK_PROVIDER=$(sed -n 's/.*provider *= *"\([^"]*\)".*/\1/p' prisma/migration_lock.toml | head -n 1 || true)
+          echo "Detected schema provider: ${SCHEMA_PROVIDER:-<none>}"
+          echo "Detected migration_lock provider: ${LOCK_PROVIDER:-<none>}"
+          if [ -z "${LOCK_PROVIDER:-}" ]; then
+            echo "Could not determine provider from prisma/migration_lock.toml. This usually means migrations are missing or malformed." >&2
+            echo "Aborting to avoid running migrations against an unexpected provider. See RUNBOOK.md for reconciliation steps." >&2
+            exit 1
+          fi
+          if [ "${SCHEMA_PROVIDER}" != "${LOCK_PROVIDER}" ]; then
+            echo "Provider mismatch detected:" >&2
+            echo "  - prisma/schema.prisma: ${SCHEMA_PROVIDER}" >&2
+            echo "  - prisma/migration_lock.toml: ${LOCK_PROVIDER}" >&2
+            echo "Action: Do NOT run 'prisma migrate deploy' from this workflow until migration history is reconciled." >&2
+            echo "Recommended: backup DB, reconcile migrations for the target provider (see RUNBOOK.md / CI_SETUP.md), then re-run the release workflow." >&2
+            exit 1
+          fi
+          echo "Prisma provider check passed — schema and migration_lock match: ${SCHEMA_PROVIDER}"
+
       - name: Require backup confirmation
         run: |
           if [ "${{ github.event.inputs.force }}" != "true" ]; then
