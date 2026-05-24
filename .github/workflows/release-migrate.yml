@@ -1,0 +1,46 @@
+name: Release - Prisma Migrate Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Set to "true" to confirm DB backup and proceed with migrate deploy'
+        required: true
+        default: 'false'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Require backup confirmation
+        run: |
+          if [ "${{ github.event.inputs.force }}" != "true" ]; then
+            echo "This workflow requires you to confirm that a DB backup/snapshot has been taken." >&2
+            echo "Rerun and set input 'force' to 'true' after completing backups and maintenance window." >&2
+            exit 1
+          fi
+
+      - name: Run Prisma migrations (deploy)
+        run: npx prisma migrate deploy
+
+      - name: Run quick admin smoke test
+        run: npm run smoke:admin -- --json

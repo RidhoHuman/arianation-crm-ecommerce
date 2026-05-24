@@ -83,6 +83,16 @@ For the admin smoke workflow, you should see:
 
 If you add or update secrets later, re-run the workflow from the Actions tab or push a new commit to trigger fresh jobs.
 
+### Manual Release Migration Workflow
+
+When preparing a release that requires database migrations, use the `Release - Prisma Migrate Deploy` workflow (manual dispatch). This workflow will run `npx prisma migrate deploy` against the `DATABASE_URL` configured in repository secrets and then execute the admin smoke test. The workflow includes a safety check that requires the dispatch input `force=true` to proceed — use this only after you have taken a backup and scheduled a maintenance window.
+
+Steps:
+- Ensure `DATABASE_URL` points to the target environment and a backup has been taken.
+- From the Actions tab, open `Release - Prisma Migrate Deploy` and Run workflow with `force=true`.
+- Monitor migration logs; if migration fails, restore from backup and investigate.
+
+
 ## Workflow Features
 
 ✅ **Node Caching** - npm cache and node_modules cached using `package-lock.json` hash

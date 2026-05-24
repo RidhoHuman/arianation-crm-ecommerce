@@ -342,6 +342,19 @@ The CI workflow checks for these secrets first, then skips the related jobs when
 The gate jobs are named `check-database-url` and `check-supabase-secrets`, and the main jobs are `test`, `db-heavy-tests`, and `e2e-supabase`.
 If you update any secret values, re-run the workflow from the Actions tab or push a new commit so the checks are evaluated again.
 
+### Manual Release Migration (safe procedure)
+
+When you need to run authoritative migrations (`prisma migrate deploy`) against staging or production, use the manual release workflow `Release - Prisma Migrate Deploy` in GitHub Actions. This workflow requires an explicit confirmation input (`force=true`) to prevent accidental runs.
+
+Safe steps:
+- Take a full database backup/snapshot before running migrations (use `pg_dump` or your cloud provider snapshot for Postgres).
+- Confirm maintenance window and notify stakeholders.
+- Open Actions → `Release - Prisma Migrate Deploy` → Run workflow and set input `force` = `true`.
+- Monitor the run; check logs from the migrate step and the admin smoke test that follows.
+- If anything fails, restore the DB from the backup and debug locally.
+
+Note: CI smoke jobs use `prisma db push` for fast schema sync. That is convenient for tests but does not replace tracked migrations. Always run `prisma migrate deploy` during controlled releases.
+
 ### Supabase Storage (Production file storage)
 
 If you choose Supabase Storage for persistent uploads in production, follow these quick steps:
