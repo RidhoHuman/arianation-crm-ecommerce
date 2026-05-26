@@ -398,23 +398,6 @@ Frontend: Use URL for display/download
 
 2. **Image Optimization**
    - Automatic image resizing/compression
-
-  ---
-
-  ## 🚦 Deployment Readiness (actions performed)
-
-  - Fixed production blocker: removed deprecated `@sentry/tracing` import so backend starts reliably under Node 20.
-  - Ensured Prisma migration workflow: CI workflow (`.github/workflows/admin-smoke.yml`) runs `npx prisma migrate deploy` before starting the backend.
-  - Added and validated structured admin smoke test: `scripts/e2e/login_and_check_admin.js` (JSON mode supported) and CI job `admin-smoke.yml` to run it.
-  - Seeded local DB and ran smoke test locally: `npm run prisma:seed` then `npm run smoke:admin -- --json` — result: `ok: true`, `passed: 11/11`.
-
-  ## 🧾 Handoff / Next Steps
-
-  - CI requirements: set repository secrets `DATABASE_URL` and `JWT_SECRET` for the `admin-smoke.yml` workflow to run in Actions.
-  - Decide migration policy for production: this repo includes `db:deploy` (`npm run db:deploy` / `npx prisma migrate deploy`) and the CI job runs it for smoke; choose whether to keep automated deploys or run migrations manually as part of release procedures.
-  - Recommended: deploy to a staging environment, then run the `admin-smoke` workflow (or run `npm run smoke:admin -- --json` against the staging URL) before promoting to production.
-
-  If you want, I can: run the admin-smoke job in CI (requires secrets), add an explicit `prisma:migrate:deploy` npm script alias, or prepare a staging deployment script. Which would you like me to do next?
    - Thumbnail generation
    - WebP conversion
 

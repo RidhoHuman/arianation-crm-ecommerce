@@ -76,28 +76,12 @@ The workflow seeds or upserts only the OWNER smoke user it needs; it does not re
 
 For the admin smoke workflow, you should see:
 - Secret check for `DATABASE_URL` and `JWT_SECRET`
-- Prisma generate and `db push` schema sync step
+- Prisma generate and migrate steps
 - OWNER smoke user setup
 - Backend startup and health polling
 - Structured admin smoke test output
 
 If you add or update secrets later, re-run the workflow from the Actions tab or push a new commit to trigger fresh jobs.
-
-### Manual Release Migration Workflow
-
-When preparing a release that requires database migrations, use the `Release - Prisma Migrate Deploy` workflow (manual dispatch). This workflow will run `npx prisma migrate deploy` against the `DATABASE_URL` configured in repository secrets and then execute the admin smoke test. The workflow includes a safety check that requires the dispatch input `force=true` to proceed — use this only after you have taken a backup and scheduled a maintenance window.
-
-### Prisma Strategy (CI vs Release)
-
-- CI validation workflows (`CI`, `Code Analysis`, `Admin Smoke Tests`) use `npx prisma db push` so checks can run reliably even when migration history is being reconciled.
-- Manual release workflow (`Release - Prisma Migrate Deploy`) uses `npx prisma migrate deploy` and should be used only after migration history is reconciled for PostgreSQL.
-- `db push` is for CI schema sync and test readiness, not a replacement for tracked migration deployment.
-
-Steps:
-- Ensure `DATABASE_URL` points to the target environment and a backup has been taken.
-- From the Actions tab, open `Release - Prisma Migrate Deploy` and Run workflow with `force=true`.
-- Monitor migration logs; if migration fails, restore from backup and investigate.
-
 
 ## Workflow Features
 
@@ -139,9 +123,9 @@ npm run test:watch
 - If the E2E job fails on Node 20 realtime initialization, ensure the `ws` dependency is installed and committed
 
 ### Prisma Migration Fails
-- If CI uses `db push`, check `DATABASE_URL` validity and Prisma schema compatibility first.
-- If manual release (`migrate deploy`) fails with provider mismatch (for example `postgresql` vs `mysql`), reconcile migration history before rerunning release workflow.
-- Ensure `prisma/migrations/` and `prisma/migration_lock.toml` are consistent with your target provider.
+- Ensure migrations folder exists: `prisma/migrations/`
+- Run `npx prisma migrate dev` locally first to test
+- Check `.env` or CI environment has correct DATABASE_URL
 
 ### Tests Fail in CI but Pass Locally
 - Check node version: workflow uses Node 20, verify your local is compatible
@@ -158,4 +142,4 @@ Optional enhancements to CI:
 
 ---
 
-**Last updated**: May 24, 2026
+**Last updated**: May 23, 2026

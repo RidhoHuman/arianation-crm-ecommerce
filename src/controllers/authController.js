@@ -1,6 +1,7 @@
 // src/controllers/authController.js
 
-const prisma = require('../config/database');
+const userService = require('../services/userService');
+const knex = require('../config/knex');
 const { hashPassword, comparePassword } = require('../utils/password');
 const { generateToken, generateRefreshToken, verifyToken } = require('../utils/jwt');
 const { sendSuccess, sendCreated } = require('../utils/response');
@@ -18,43 +19,25 @@ const register = async (req, res, next) => {
   try {
     const { email, password, fullName, phone } = req.body;
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await userService.findByEmail(email);
     if (existingUser) {
       throw new ConflictError(MESSAGES.AUTH_EMAIL_EXISTS);
     }
 
     const hashedPassword = await hashPassword(password);
 
-    const user = await prisma.$transaction(async (tx) => {
-      const createdUser = await tx.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          fullName,
-          phone: phone || null,
-          role: 'CUSTOMER',
-        },
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          phone: true,
-          role: true,
-          createdAt: true,
-        },
+    // Use Knex transaction
+    const user = await knex.transaction(async (trx) => {
+      const createdUser = await userService.create({
+        email,
+        password: hashedPassword,
+        fullName,
+        phone: phone || null,
       });
 
-      await tx.customerProfile.create({
-        data: { userId: createdUser.id },
-      });
-
-      await tx.customerMetrics.create({
-        data: { userId: createdUser.id },
-      });
-
-      await tx.shoppingCart.create({
-        data: { userId: createdUser.id },
-      });
+      await trx('customerProfile').insert({ userId: createdUser.id });
+      await trx('customerMetrics').insert({ userId: createdUser.id });
+      await trx('shoppingCart').insert({ userId: createdUser.id });
 
       return createdUser;
     });
@@ -75,18 +58,7 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        phone: true,
-        role: true,
-        isActive: true,
-        password: true,
-      },
-    });
+    const user = await userService.findByEmail(email);
 
     if (!user) {
       throw new AuthenticationError(MESSAGES.AUTH_INVALID_CREDENTIALS);
@@ -139,10 +111,7 @@ const refreshToken = async (req, res, next) => {
 
     const decoded = verifyToken(token);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: { id: true, email: true, role: true, isActive: true },
-    });
+    const user = await userService.findById(decoded.id);
 
     if (!user || !user.isActive) {
       throw new AuthenticationError('User not found or account disabled');
@@ -169,22 +138,7 @@ const refreshToken = async (req, res, next) => {
 
 const getMe = async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        phone: true,
-        role: true,
-        isActive: true,
-        emailVerified: true,
-        createdAt: true,
-        updatedAt: true,
-        customerProfile: true,
-        designStaffInfo: true,
-      },
-    });
+    const user = await userService.findById(req.user.id);
 
     return sendSuccess(res, user, 'Profile retrieved successfully');
   } catch (error) {

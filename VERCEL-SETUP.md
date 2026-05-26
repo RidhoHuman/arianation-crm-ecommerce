@@ -25,7 +25,7 @@ Panduan lengkap untuk setup dan deploy aplikasi Arianation CRM ke Vercel dengan 
    - **Project Name:** `arianation-crm-ecommerce`
    - **Framework:** Other (Node.js)
    - **Root Directory:** `.` (default)
-   - **Build Command:** Leave empty (atau `npm run build`)
+     - **Build Command:** `npm run build`
 5. Click "Deploy"
 
 #### Option B: Via Vercel CLI
@@ -122,7 +122,7 @@ git push origin main
 
 ```json
 {
-  "buildCommand": "npm run build || true",
+     "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "framework": "other",
@@ -213,10 +213,10 @@ Preview URL:     https://[branch-name]-arianation.vercel.app
 **Test API:**
 ```bash
 # Health check
-curl https://arianation-crm-ecommerce.vercel.app/health
+curl https://arianation-crm-ecommerce.vercel.app/api/health
 
 # Or with API client (Postman, Insomnia)
-GET https://arianation-crm-ecommerce.vercel.app/health
+GET https://arianation-crm-ecommerce.vercel.app/api/health
 ```
 
 ---
