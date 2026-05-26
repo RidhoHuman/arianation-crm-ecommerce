@@ -70,16 +70,18 @@ if (process.env.SENTRY_DSN) {
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Middleware untuk debug route matching
-app.use((req, res, next) => {
-  console.log('[EXPRESS ROUTE DEBUG] Incoming:', {
-    method: req.method,
-    path: req.path,
-    url: req.url,
-    originalUrl: req.originalUrl,
+// Debug middleware - only in development
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log('[EXPRESS ROUTE DEBUG] Incoming:', {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+      originalUrl: req.originalUrl,
+    });
+    next();
   });
-  next();
-});
+}
 
 // Health
 app.get('/api/health', (req, res) => {
@@ -91,45 +93,47 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Debug endpoint
-app.get('/api/debug', async (req, res) => {
-  try {
-    const dbUrl = process.env.DATABASE_URL;
-    const dbUrlMasked = dbUrl ? dbUrl.replace(/:[^@]*@/, ':***@') : 'NOT SET';
-
-    // Try a simple query
-    let dbStatus = 'Unknown';
-    let tables = [];
+// Debug endpoint - only in development
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/debug', async (req, res) => {
     try {
-      const result = await prisma.$queryRaw`SELECT 1 as test`;
-      dbStatus = 'Connected';
+      const dbUrl = process.env.DATABASE_URL;
+      const dbUrlMasked = dbUrl ? dbUrl.replace(/:[^@]*@/, ':***@') : 'NOT SET';
 
-      // Try to list tables
-      const tablesResult =
-        await prisma.$queryRaw`SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'arianation_db'`;
-      tables = tablesResult.map((t) => t.TABLE_NAME);
-    } catch (dbError) {
-      dbStatus = `Failed: ${dbError.message}`;
+      // Try a simple query
+      let dbStatus = 'Unknown';
+      let tables = [];
+      try {
+        const result = await prisma.$queryRaw`SELECT 1 as test`;
+        dbStatus = 'Connected';
+
+        // Try to list tables
+        const tablesResult =
+          await prisma.$queryRaw`SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'arianation_db'`;
+        tables = tablesResult.map((t) => t.TABLE_NAME);
+      } catch (dbError) {
+        dbStatus = `Failed: ${dbError.message}`;
+      }
+
+      res.json({
+        success: true,
+        debug: {
+          NODE_ENV: process.env.NODE_ENV,
+          DATABASE_URL: dbUrlMasked,
+          Database_Status: dbStatus,
+          Tables: tables,
+          Timestamp: new Date(),
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : 'Not shown in production',
+      });
     }
-
-    res.json({
-      success: true,
-      debug: {
-        NODE_ENV: process.env.NODE_ENV,
-        DATABASE_URL: dbUrlMasked,
-        Database_Status: dbStatus,
-        Tables: tables,
-        Timestamp: new Date(),
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : 'Not shown in production',
-    });
-  }
-});
+  });
+}
 
 // API
 app.use('/api/auth', authRoutes);
@@ -146,15 +150,17 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
-// Debug middleware - logs all 404s before they hit the handler
-app.use((req, res, next) => {
-  console.log('[ROUTE NOT MATCHED]', {
-    method: req.method,
-    path: req.path,
-    url: req.url,
+// Debug middleware - logs all 404s before they hit the handler (development only)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log('[ROUTE NOT MATCHED]', {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+    });
+    next();
   });
-  next();
-});
+}
 
 // 404
 app.use((req, res) => {
