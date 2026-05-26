@@ -1,6 +1,7 @@
 // src/controllers/productController.js
 
-const prisma = require('../config/database');
+const productService = require('../services/productService');
+const knex = require('../config/knex');
 const { sendSuccess, sendCreated, sendPaginated } = require('../utils/response');
 const { NotFoundError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
@@ -13,36 +14,45 @@ const getAllProducts = async (req, res, next) => {
     const { categoryId, businessType, productType, isActive, search, minPrice, maxPrice } =
       req.query;
 
-    const where = {};
-    if (categoryId) where.categoryId = categoryId;
-    if (businessType) where.businessType = businessType;
-    if (productType) where.productType = productType;
-    if (isActive !== undefined) where.isActive = isActive === 'true';
-    if (search) {
-      where.OR = [
-        { productName: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-    if (minPrice || maxPrice) {
-      where.price = {};
-      if (minPrice) where.price.gte = parseFloat(minPrice);
-      if (maxPrice) where.price.lte = parseFloat(maxPrice);
-    }
+    // Build Knex query dengan filter
+    let query = knex('product');
 
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          category: { select: { id: true, categoryName: true, businessType: true } },
-          variants: true,
-        },
-      }),
-      prisma.product.count({ where }),
+    if (categoryId) query = query.where('categoryId', categoryId);
+    if (businessType) query = query.where('businessType', businessType);
+    if (productType) query = query.where('productType', productType);
+    if (isActive !== undefined) query = query.where('isActive', isActive === 'true' ? 1 : 0);
+    if (search) {
+      query = query.where((builder) => {
+        builder.where('productName', 'like', `%${search}%`)
+          .orWhere('description', 'like', `%${search}%`);
+      });
+    }
+    if (minPrice) query = query.where('price', '>=', parseFloat(minPrice));
+    if (maxPrice) query = query.where('price', '<=', parseFloat(maxPrice));
+
+    const [products, countResult] = await Promise.all([
+      query.clone()
+        .select(
+          'id',
+          'categoryId',
+          'productName',
+          'description',
+          'price',
+          'stockQuantity',
+          'productType',
+          'imageUrl',
+          'businessType',
+          'isActive',
+          'createdAt',
+          'updatedAt'
+        )
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .offset(skip),
+      query.clone().count('* as count').first(),
     ]);
+
+    const total = countResult.count;
 
     return sendPaginated(
       res,
@@ -64,13 +74,7 @@ const getProductById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const product = await prisma.product.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        variants: true,
-      },
-    });
+    const product = await productService.findById(id);
 
     if (!product) {
       throw new NotFoundError(MESSAGES.PRODUCT_NOT_FOUND);
@@ -96,37 +100,37 @@ const createProduct = async (req, res, next) => {
       variants,
     } = req.body;
 
-    const category = await prisma.productCategory.findUnique({ where: { id: categoryId } });
+    const category = await knex('productCategory').where('id', categoryId).first();
     if (!category) {
       throw new NotFoundError('Product category not found');
     }
 
-    const product = await prisma.product.create({
-      data: {
-        categoryId,
-        productName,
-        description: description || null,
-        price,
-        stockQuantity: stockQuantity || 0,
-        productType,
-        imageUrl: imageUrl || null,
-        businessType,
-        variants: variants
-          ? {
-              create: variants.map((v) => ({
-                variantName: v.variantName,
-                sku: v.sku,
-                additionalPrice: v.additionalPrice || 0,
-                stockQuantity: v.stockQuantity || 0,
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        category: true,
-        variants: true,
-      },
+    const product = await productService.create({
+      categoryId,
+      productName,
+      description: description || null,
+      price,
+      stockQuantity: stockQuantity || 0,
+      productType,
+      imageUrl: imageUrl || null,
+      businessType,
     });
+
+    // Create variants jika ada
+    if (variants && Array.isArray(variants)) {
+      const variantRecords = variants.map((v) => ({
+        id: require('cuid')(),
+        productId: product.id,
+        variantName: v.variantName,
+        sku: v.sku,
+        additionalPrice: v.additionalPrice || 0,
+        stockQuantity: v.stockQuantity || 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      await knex('productVariant').insert(variantRecords);
+    }
 
     return sendCreated(res, product, MESSAGES.PRODUCT_CREATED);
   } catch (error) {
@@ -139,7 +143,7 @@ const updateProduct = async (req, res, next) => {
     const { id } = req.params;
     const { productName, description, price, stockQuantity, imageUrl, isActive } = req.body;
 
-    const existing = await prisma.product.findUnique({ where: { id } });
+    const existing = await productService.findById(id);
     if (!existing) {
       throw new NotFoundError(MESSAGES.PRODUCT_NOT_FOUND);
     }
@@ -152,11 +156,7 @@ const updateProduct = async (req, res, next) => {
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
     if (isActive !== undefined) updateData.isActive = isActive;
 
-    const product = await prisma.product.update({
-      where: { id },
-      data: updateData,
-      include: { category: true, variants: true },
-    });
+    const product = await productService.update(id, updateData);
 
     return sendSuccess(res, product, MESSAGES.PRODUCT_UPDATED);
   } catch (error) {
@@ -168,15 +168,12 @@ const deleteProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.product.findUnique({ where: { id } });
+    const existing = await productService.findById(id);
     if (!existing) {
       throw new NotFoundError(MESSAGES.PRODUCT_NOT_FOUND);
     }
 
-    await prisma.product.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    await productService.deactivate(id);
 
     return sendSuccess(res, null, MESSAGES.PRODUCT_DELETED);
   } catch (error) {
@@ -187,12 +184,13 @@ const deleteProduct = async (req, res, next) => {
 const getCategories = async (req, res, next) => {
   try {
     const { businessType } = req.query;
-    const where = businessType ? { businessType } : {};
+    let query = knex('productCategory');
 
-    const categories = await prisma.productCategory.findMany({
-      where,
-      orderBy: { categoryName: 'asc' },
-    });
+    if (businessType) {
+      query = query.where('businessType', businessType);
+    }
+
+    const categories = await query.orderBy('categoryName', 'asc');
 
     return sendSuccess(res, categories, 'Categories retrieved successfully');
   } catch (error) {
@@ -205,20 +203,24 @@ const createVariant = async (req, res, next) => {
     const { id: productId } = req.params;
     const { variantName, sku, additionalPrice, stockQuantity } = req.body;
 
-    const product = await prisma.product.findUnique({ where: { id: productId } });
+    const product = await productService.findById(productId);
     if (!product) {
       throw new NotFoundError(MESSAGES.PRODUCT_NOT_FOUND);
     }
 
-    const variant = await prisma.productVariant.create({
-      data: {
-        productId,
-        variantName,
-        sku,
-        additionalPrice: additionalPrice || 0,
-        stockQuantity: stockQuantity || 0,
-      },
-    });
+    const variantId = require('cuid')();
+    const variant = {
+      id: variantId,
+      productId,
+      variantName,
+      sku,
+      additionalPrice: additionalPrice || 0,
+      stockQuantity: stockQuantity || 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await knex('productVariant').insert(variant);
 
     return sendCreated(res, variant, 'Variant created successfully');
   } catch (error) {
