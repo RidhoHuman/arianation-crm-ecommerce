@@ -1,5 +1,0 @@
-provider = "mysql"
-
-[migrations]
-# migration files present in prisma/migrations/ are MySQL SQL files
-# This lock file indicates the migration history was produced for MySQL.

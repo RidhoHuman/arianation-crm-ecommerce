@@ -1,4 +1,4 @@
-const prisma = require('../config/database');
+const knex = require('../config/knex');
 const nodemailer = require('nodemailer');
 const { enqueueNotification } = require('./notificationQueue');
 const { renderOrderNotificationEmail } = require('./emailTemplates');
@@ -41,33 +41,46 @@ const queueNotification = async ({
     throw new Error('orderId is required to queue a notification');
   }
 
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: { id: true, orderNumber: true, userId: true },
-  });
+  const order = await knex('order')
+    .select('id', 'orderNumber', 'userId')
+    .where('id', orderId)
+    .first();
 
   if (!order) {
     throw new Error(`Order not found for orderId: ${orderId}`);
   }
 
-  const customer = await prisma.user.findUnique({
-    where: { id: userId || order.userId },
-    select: { id: true, email: true, fullName: true },
+  const customer = await knex('user')
+    .select('id', 'email', 'fullName')
+    .where('id', userId || order.userId)
+    .first();
+
+  const cuid = require('cuid');
+  const notificationId = cuid();
+  
+  await knex('orderNotification').insert({
+    id: notificationId,
+    orderId,
+    userId: userId || order.userId || null,
+    recipientEmail: recipientEmail || customer?.email || null,
+    type,
+    title,
+    message,
+    emailSent: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
 
-  const notification = await prisma.orderNotification.create({
-    data: {
-      orderId,
-      userId: userId || order.userId || null,
-      recipientEmail: recipientEmail || customer?.email || null,
-      type,
-      title,
-      message,
-      emailSent: false,
-    },
-  });
-
-  return notification;
+  return {
+    id: notificationId,
+    orderId,
+    userId: userId || order.userId || null,
+    recipientEmail: recipientEmail || customer?.email || null,
+    type,
+    title,
+    message,
+    emailSent: false,
+  };
 };
 
 /**
@@ -76,27 +89,32 @@ const queueNotification = async ({
  */
 const sendOrderNotification = async (notificationId) => {
   return enqueueNotification(async () => {
-    const notification = await prisma.orderNotification.findUnique({
-      where: { id: notificationId },
-      include: { order: true },
-    });
+    const notification = await knex('orderNotification')
+      .select('id', 'orderId', 'userId', 'recipientEmail', 'type', 'title', 'message', 'emailSent')
+      .where('id', notificationId)
+      .first();
 
     if (!notification) throw new Error('Notification not found');
+
+    const order = await knex('order')
+      .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt')
+      .where('id', notification.orderId)
+      .first();
 
     const transporter = createTransporter();
 
     const customer = notification.userId
-      ? await prisma.user.findUnique({
-          where: { id: notification.userId },
-          select: { id: true, email: true, fullName: true },
-        })
+      ? await knex('user')
+          .select('id', 'email', 'fullName')
+          .where('id', notification.userId)
+          .first()
       : null;
 
     const to = notification.recipientEmail || customer?.email || null;
     const email = renderOrderNotificationEmail({
       notification,
       customer,
-      order: notification.order,
+      order,
     });
 
     if (!transporter) {
@@ -106,10 +124,12 @@ const sendOrderNotification = async (notificationId) => {
       console.log('Subject:', email.subject);
       console.log('Text:', email.text);
 
-      await prisma.orderNotification.update({
-        where: { id: notificationId },
-        data: { emailSent: false },
-      });
+      await knex('orderNotification')
+        .where('id', notificationId)
+        .update({
+          emailSent: false,
+          updatedAt: new Date(),
+        });
 
       return { success: true, logged: true, queued: true };
     }
@@ -124,10 +144,13 @@ const sendOrderNotification = async (notificationId) => {
 
     const info = await transporter.sendMail(mailOptions);
 
-    await prisma.orderNotification.update({
-      where: { id: notificationId },
-      data: { emailSent: true, sentAt: new Date() },
-    });
+    await knex('orderNotification')
+      .where('id', notificationId)
+      .update({
+        emailSent: true,
+        sentAt: new Date(),
+        updatedAt: new Date(),
+      });
 
     return { success: true, info, queued: true };
   });

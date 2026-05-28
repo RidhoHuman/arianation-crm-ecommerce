@@ -1,6 +1,6 @@
 // src/services/orderFulfillmentService.js
 
-const prisma = require('../config/database');
+const knex = require('../config/knex');
 const { BadRequestError } = require('../utils/errors');
 
 // Valid status transitions
@@ -71,62 +71,84 @@ const validateTransitionRules = async (order, newStatus) => {
  * @returns {Promise<Object>} Updated order with history
  */
 const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, notes = null) => {
-  return await prisma.$transaction(async (tx) => {
+  return await knex.transaction(async (trx) => {
     // Get current order
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      include: {
-        payment: true,
-        tracking: true,
-        items: true,
-      },
-    });
+    const order = await trx('order')
+      .select('id', 'status', 'userId')
+      .where('id', orderId)
+      .first();
 
     if (!order) {
       throw new BadRequestError('Order not found');
     }
 
+    // Get payment info for validation
+    const payment = await trx('payment')
+      .select('status')
+      .where('orderId', orderId)
+      .first();
+
+    // Get tracking info for validation
+    const tracking = await trx('orderTracking')
+      .select('trackingNumber')
+      .where('orderId', orderId)
+      .first();
+
+    // Create order object for validation
+    const orderWithRelations = {
+      ...order,
+      payment,
+      tracking,
+    };
+
     // Validate transition
     validateStatusTransition(order.status, newStatus);
 
     // Validate transition rules
-    await validateTransitionRules(order, newStatus);
+    await validateTransitionRules(orderWithRelations, newStatus);
 
     const previousStatus = order.status;
 
     // Update order status
-    const updatedOrder = await tx.order.update({
-      where: { id: orderId },
-      data: { status: newStatus },
-    });
+    await trx('order')
+      .where('id', orderId)
+      .update({
+        status: newStatus,
+        updatedAt: new Date(),
+      });
 
     // Create status history record
-    await tx.orderStatusHistory.create({
-      data: {
-        orderId,
-        previousStatus,
-        newStatus,
-        reason,
-        updatedBy,
-        notes,
-      },
+    const cuid = require('cuid');
+    await trx('orderStatusHistory').insert({
+      id: cuid(),
+      orderId,
+      previousStatus,
+      newStatus,
+      reason,
+      updatedBy,
+      notes,
+      createdAt: new Date(),
     });
 
     // Trigger notification
-    await triggerStatusNotification(tx, orderId, newStatus, order);
+    await triggerStatusNotification(trx, orderId, newStatus, orderWithRelations);
 
-    return updatedOrder;
+    // Return updated order
+    return await trx('order')
+      .select('id', 'orderNumber', 'status', 'totalAmount', 'createdAt')
+      .where('id', orderId)
+      .first();
   });
 };
 
 /**
  * Create notification for status change
- * @param {Object} tx - Prisma transaction client
+ * @param {Object} trx - Knex transaction client
  * @param {String} orderId - Order ID
  * @param {String} status - Order status
  * @param {Object} order - Order object
  */
-const triggerStatusNotification = async (tx, orderId, status, order) => {
+const triggerStatusNotification = async (trx, orderId, status, order) => {
   const notificationConfig = {
     CONFIRMED: {
       title: 'Order Confirmed! 🎉',
@@ -167,15 +189,16 @@ const triggerStatusNotification = async (tx, orderId, status, order) => {
 
   const config = notificationConfig[status];
   if (config) {
-    await tx.orderNotification.create({
-      data: {
-        orderId,
-        userId: order.userId || null,
-        type: config.type,
-        title: config.title,
-        message: config.message,
-        emailSent: false,
-      },
+    const cuid = require('cuid');
+    await trx('orderNotification').insert({
+      id: cuid(),
+      orderId,
+      userId: order.userId || null,
+      type: config.type,
+      title: config.title,
+      message: config.message,
+      emailSent: false,
+      createdAt: new Date(),
     });
   }
 };
@@ -186,10 +209,10 @@ const triggerStatusNotification = async (tx, orderId, status, order) => {
  * @returns {Promise<Array>} Status history records
  */
 const getOrderStatusHistory = async (orderId) => {
-  return await prisma.orderStatusHistory.findMany({
-    where: { orderId },
-    orderBy: { createdAt: 'desc' },
-  });
+  return await knex('orderStatusHistory')
+    .select('id', 'previousStatus', 'newStatus', 'reason', 'updatedBy', 'createdAt')
+    .where('orderId', orderId)
+    .orderBy('createdAt', 'desc');
 };
 
 /**
@@ -199,35 +222,37 @@ const getOrderStatusHistory = async (orderId) => {
  */
 const getOrderTimeline = async (orderId) => {
   const [statusHistory, tracking] = await Promise.all([
-    prisma.orderStatusHistory.findMany({
-      where: { orderId },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.orderTracking.findUnique({
-      where: { orderId },
-      include: {
-        history: {
-          orderBy: { timestamp: 'desc' },
-        },
-      },
-    }),
+    knex('orderStatusHistory')
+      .select('id', 'newStatus', 'createdAt as timestamp', 'reason', 'updatedBy')
+      .where('orderId', orderId)
+      .orderBy('createdAt', 'desc'),
+    knex('orderTracking')
+      .select('id', 'orderId', 'status', 'carrier', 'trackingNumber')
+      .where('orderId', orderId)
+      .first(),
   ]);
+
+  // Get tracking history
+  const trackingHistory = tracking ? await knex('trackingHistory')
+    .select('status', 'timestamp', 'location', 'notes')
+    .where('trackingId', tracking.id)
+    .orderBy('timestamp', 'desc') : [];
 
   // Merge and sort by timestamp
   const timeline = [
     ...statusHistory.map((h) => ({
       type: 'STATUS_CHANGE',
       status: h.newStatus,
-      timestamp: h.createdAt,
+      timestamp: h.timestamp,
       details: h,
     })),
-    ...(tracking?.history || []).map((h) => ({
+    ...trackingHistory.map((h) => ({
       type: 'TRACKING_UPDATE',
       status: h.status,
       timestamp: h.timestamp,
       details: h,
     })),
-  ].sort((a, b) => b.timestamp - a.timestamp);
+  ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   return {
     orderId,
@@ -243,10 +268,10 @@ const getOrderTimeline = async (orderId) => {
  * @returns {Promise<Array>} Notifications
  */
 const getOrderNotifications = async (orderId) => {
-  return await prisma.orderNotification.findMany({
-    where: { orderId },
-    orderBy: { createdAt: 'desc' },
-  });
+  return await knex('orderNotification')
+    .select('id', 'type', 'title', 'message', 'emailSent', 'createdAt')
+    .where('orderId', orderId)
+    .orderBy('createdAt', 'desc');
 };
 
 /**
@@ -313,13 +338,12 @@ const updateOrderTracking = async (orderId, payload = {}) => {
  * @returns {Promise<Object>} Updated notification
  */
 const markNotificationAsSent = async (notificationId) => {
-  return await prisma.orderNotification.update({
-    where: { id: notificationId },
-    data: {
+  return await knex('orderNotification')
+    .where('id', notificationId)
+    .update({
       emailSent: true,
       sentAt: new Date(),
-    },
-  });
+    });
 };
 
 module.exports = {

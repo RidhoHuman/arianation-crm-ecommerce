@@ -2,7 +2,7 @@
 
 const { verifyToken } = require('../utils/jwt');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
-const prisma = require('../config/database');
+const knex = require('../config/knex');
 
 const authenticate = async (req, res, next) => {
   try {
@@ -17,16 +17,10 @@ const authenticate = async (req, res, next) => {
       authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : cookieToken;
     const decoded = verifyToken(token);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        isActive: true,
-      },
-    });
+    const user = await knex('user')
+      .select('id', 'email', 'fullName', 'role', 'isActive')
+      .where('id', decoded.id)
+      .first();
 
     if (!user) {
       throw new AuthenticationError('User not found');
@@ -70,16 +64,10 @@ const optionalAuth = async (req, res, next) => {
       authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : cookieToken;
     const decoded = verifyToken(token);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        isActive: true,
-      },
-    });
+    const user = await knex('user')
+      .select('id', 'email', 'fullName', 'role', 'isActive')
+      .where('id', decoded.id)
+      .first();
 
     if (user && user.isActive) {
       req.user = user;

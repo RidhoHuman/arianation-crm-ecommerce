@@ -6,7 +6,7 @@ if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
 
-const prisma = require('./config/database');
+const knex = require('./config/knex');
 const app = require('./app');
 
 const PORT = process.env.PORT || 3001;
@@ -16,7 +16,7 @@ const startServer = async () => {
   try {
     // Only test DB connection in development
     if (process.env.NODE_ENV !== 'production') {
-      await prisma.$queryRaw`SELECT 1`;
+      await knex.raw('SELECT 1');
       console.log('✅ Database connection successful');
     }
 

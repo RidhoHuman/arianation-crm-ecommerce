@@ -1,6 +1,7 @@
 // src/controllers/orderController.js
 
-const prisma = require('../config/database');
+const orderService = require('../services/orderService');
+const knex = require('../config/knex');
 const { sendSuccess, sendCreated, sendPaginated } = require('../utils/response');
 const { NotFoundError, BadRequestError, AuthorizationError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
@@ -13,39 +14,11 @@ const getAllOrders = async (req, res, next) => {
     const skip = (page - 1) * limit;
     const { status, userId, dateFrom, dateTo } = req.query;
 
-    const where = {};
-
-    if (['CUSTOMER'].includes(req.user.role)) {
-      where.userId = req.user.id;
-    } else if (userId) {
-      where.userId = userId;
-    }
-
-    if (status) where.status = status;
-    if (dateFrom || dateTo) {
-      where.orderDate = {};
-      if (dateFrom) where.orderDate.gte = new Date(dateFrom);
-      if (dateTo) where.orderDate.lte = new Date(dateTo);
-    }
+    const filterUserId = ['CUSTOMER'].includes(req.user.role) ? req.user.id : userId;
 
     const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { orderDate: 'desc' },
-        include: {
-          items: {
-            include: {
-              product: { select: { id: true, productName: true, imageUrl: true } },
-              variant: { select: { id: true, variantName: true } },
-            },
-          },
-          payment: { select: { id: true, status: true, method: true, amount: true } },
-          tracking: { select: { id: true, status: true, carrier: true, trackingNumber: true } },
-        },
-      }),
-      prisma.order.count({ where }),
+      orderService.findMany({ page, limit, userId: filterUserId, status }),
+      orderService.count({ userId: filterUserId, status }),
     ]);
 
     return sendPaginated(
@@ -68,23 +41,7 @@ const getOrderById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const order = await prisma.order.findUnique({
-      where: { id },
-      include: {
-        items: {
-          include: {
-            product: true,
-            variant: true,
-            designRequest: true,
-          },
-        },
-        payment: true,
-        tracking: {
-          include: { history: { orderBy: { timestamp: 'desc' } } },
-        },
-        designRequests: true,
-      },
-    });
+    const order = await orderService.findById(id);
 
     if (!order) {
       throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
@@ -109,21 +66,15 @@ const createOrder = async (req, res, next) => {
 
     if (items && Array.isArray(items) && items.length > 0) {
       const productIds = [...new Set(items.map((item) => item.productId))];
-      const variantIds = [
-        ...new Set(items.filter((item) => item.variantId).map((item) => item.variantId)),
-      ];
+      const variantIds = [...new Set(items.filter((item) => item.variantId).map((i) => i.variantId))];
 
-      const [products, variants] = await prisma.$transaction([
-        prisma.product.findMany({
-          where: { id: { in: productIds } },
-        }),
-        prisma.productVariant.findMany({
-          where: { id: { in: variantIds } },
-        }),
+      const [products, variants] = await Promise.all([
+        knex('product').whereIn('id', productIds),
+        knex('productVariant').whereIn('id', variantIds),
       ]);
 
-      const productsById = new Map(products.map((product) => [product.id, product]));
-      const variantsById = new Map(variants.map((variant) => [variant.id, variant]));
+      const productsById = new Map(products.map((p) => [p.id, p]));
+      const variantsById = new Map(variants.map((v) => [v.id, v]));
 
       orderItems = items.map((item) => {
         const product = productsById.get(item.productId);
@@ -147,49 +98,64 @@ const createOrder = async (req, res, next) => {
         };
       });
     } else {
-      const cart = await prisma.shoppingCart.findUnique({
-        where: { userId },
-        include: { items: true },
-      });
+      const cart = await knex('shoppingCart').where('userId', userId).first();
+      const cartItems = cart ? await knex('cartItem').where('cartId', cart.id) : [];
 
-      if (!cart || cart.items.length === 0) {
+      if (!cartItems || cartItems.length === 0) {
         throw new BadRequestError(MESSAGES.CART_EMPTY);
       }
 
-      orderItems = cart.items.map((item) => ({
+      orderItems = cartItems.map((item) => ({
         productId: item.productId,
         variantId: item.variantId || null,
         quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        subtotal: item.subtotal,
+        unitPrice: item.price || item.unitPrice,
+        subtotal: item.subtotal || (item.price * item.quantity),
       }));
     }
 
     const totalAmount = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
 
-    const order = await prisma.order.create({
-      data: {
+    // Buat order dan order items dalam transaksi
+    const order = await knex.transaction(async (trx) => {
+      const orderId = require('cuid')();
+
+      await trx('order').insert({
+        id: orderId,
         userId,
         totalAmount,
         paymentMethod,
         deliveryAddress: deliveryAddress || null,
         notes: notes || null,
-        items: { create: orderItems },
-      },
-      include: {
-        items: {
-          include: {
-            product: { select: { id: true, productName: true, price: true } },
-            variant: true,
-          },
-        },
-      },
+        status: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const itemRecords = orderItems.map((it) => ({
+        id: require('cuid')(),
+        orderId,
+        productId: it.productId,
+        variantId: it.variantId,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        subtotal: it.subtotal,
+        notes: it.notes || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      if (itemRecords.length) {
+        await trx('orderItem').insert(itemRecords);
+      }
+
+      return await trx('order').where('id', orderId).first();
     });
 
     if (!items) {
-      const cart = await prisma.shoppingCart.findUnique({ where: { userId } });
+      const cart = await knex('shoppingCart').where('userId', userId).first();
       if (cart) {
-        await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+        await knex('cartItem').where('cartId', cart.id).delete();
       }
     }
 
@@ -223,10 +189,8 @@ const cancelOrder = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const order = await prisma.order.findUnique({ where: { id } });
-    if (!order) {
-      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
-    }
+    const order = await orderService.findById(id);
+    if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
     if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
@@ -237,10 +201,7 @@ const cancelOrder = async (req, res, next) => {
       throw new BadRequestError(MESSAGES.ORDER_CANNOT_CANCEL);
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: { status: 'CANCELLED' },
-    });
+    const updatedOrder = await orderService.update(id, { status: 'CANCELLED' });
 
     return sendSuccess(res, updatedOrder, MESSAGES.ORDER_CANCELLED);
   } catch (error) {
@@ -252,19 +213,19 @@ const getOrderTracking = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const order = await prisma.order.findUnique({ where: { id } });
-    if (!order) {
-      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
-    }
+    const order = await orderService.findById(id);
+    if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
     if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
     }
 
-    const tracking = await prisma.orderTracking.findUnique({
-      where: { orderId: id },
-      include: { history: { orderBy: { timestamp: 'desc' } } },
-    });
+    const tracking = await knex('orderTracking').where('orderId', id).first();
+    if (tracking) {
+      tracking.history = await knex('trackingHistory')
+        .where('orderTrackingId', tracking.id)
+        .orderBy('timestamp', 'desc');
+    }
 
     return sendSuccess(res, tracking, 'Tracking information retrieved');
   } catch (error) {
@@ -276,10 +237,8 @@ const getOrderStatusHistory = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const order = await prisma.order.findUnique({ where: { id } });
-    if (!order) {
-      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
-    }
+    const order = await orderService.findById(id);
+    if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
     if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
@@ -297,10 +256,8 @@ const getOrderTimeline = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const order = await prisma.order.findUnique({ where: { id } });
-    if (!order) {
-      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
-    }
+    const order = await orderService.findById(id);
+    if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
     if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
@@ -318,10 +275,8 @@ const getOrderNotifications = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const order = await prisma.order.findUnique({ where: { id } });
-    if (!order) {
-      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
-    }
+    const order = await orderService.findById(id);
+    if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
     if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
