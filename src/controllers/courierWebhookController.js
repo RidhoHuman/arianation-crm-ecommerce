@@ -1,6 +1,7 @@
 // src/controllers/courierWebhookController.js
 
-const prisma = require('../config/database');
+const orderService = require('../services/orderService');
+const knex = require('../config/knex');
 const { config } = require('../config/env');
 const { sendSuccess } = require('../utils/response');
 const { BadRequestError, NotFoundError } = require('../utils/errors');
@@ -50,29 +51,35 @@ const updateCourierWebhook = async (req, res, next) => {
       throw new BadRequestError('orderId is required');
     }
 
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: { tracking: true },
-    });
+    const order = await orderService.findById(orderId);
 
     if (!order) {
       throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
     }
 
-    const tracking = await prisma.orderTracking.upsert({
-      where: { orderId },
-      update: {
-        status: status || order.tracking?.status || 'PROCESSING',
-        currentLocation: currentLocation || order.tracking?.currentLocation || null,
+    // Get existing tracking if any
+    const existingTracking = await knex('orderTracking').where('orderId', orderId).first();
+
+    let tracking;
+    if (existingTracking) {
+      // Update existing tracking
+      await knex('orderTracking').where('orderId', orderId).update({
+        status: status || existingTracking.status || 'PROCESSING',
+        currentLocation: currentLocation || existingTracking.currentLocation || null,
         estimatedDeliveryDate: estimatedDeliveryDate
           ? new Date(estimatedDeliveryDate)
-          : order.tracking?.estimatedDeliveryDate || null,
-        carrier: carrier || order.tracking?.carrier || null,
-        trackingNumber: trackingNumber || order.tracking?.trackingNumber || null,
+          : existingTracking.estimatedDeliveryDate || null,
+        carrier: carrier || existingTracking.carrier || null,
+        trackingNumber: trackingNumber || existingTracking.trackingNumber || null,
         lastUpdate: new Date(),
-        notes: notes || order.tracking?.notes || null,
-      },
-      create: {
+        notes: notes || existingTracking.notes || null,
+      });
+      tracking = await knex('orderTracking').where('orderId', orderId).first();
+    } else {
+      // Create new tracking
+      const trackingId = require('cuid')();
+      await knex('orderTracking').insert({
+        id: trackingId,
         orderId,
         status: status || 'PROCESSING',
         currentLocation,
@@ -81,17 +88,21 @@ const updateCourierWebhook = async (req, res, next) => {
         trackingNumber,
         lastUpdate: new Date(),
         notes,
-      },
-    });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      tracking = await knex('orderTracking').where('id', trackingId).first();
+    }
 
     if (status) {
-      await prisma.trackingHistory.create({
-        data: {
-          trackingId: tracking.id,
-          status,
-          location: currentLocation,
-          notes,
-        },
+      await knex('trackingHistory').insert({
+        id: require('cuid')(),
+        trackingId: tracking.id,
+        status,
+        location: currentLocation,
+        notes,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
     }
 
