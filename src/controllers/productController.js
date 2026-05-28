@@ -281,7 +281,12 @@ const uploadProductImageAndUpdate = async (req, res, next) => {
     }
 
     // Verify product exists
-    const product = await prisma.product.findUnique({ where: { id: productId } });
+    const knex = require('../config/knex');
+    const product = await knex('product')
+      .where('id', productId)
+      .select('*')
+      .first();
+    
     if (!product) {
       // Delete uploaded file if product not found
       const { deleteFile } = require('../middleware/upload');
@@ -293,14 +298,18 @@ const uploadProductImageAndUpdate = async (req, res, next) => {
     const fileUrl = getFileUrl(req.file.filename, 'products');
 
     // Update product with image URL
-    const updatedProduct = await prisma.product.update({
-      where: { id: productId },
-      data: { imageUrl: fileUrl },
-      include: {
-        category: { select: { id: true, categoryName: true } },
-        variants: true,
-      },
-    });
+    await knex('product')
+      .where('id', productId)
+      .update({
+        imageUrl: fileUrl,
+        updatedAt: new Date(),
+      });
+
+    // Fetch updated product
+    const updatedProduct = await knex('product')
+      .where('id', productId)
+      .select('*')
+      .first();
 
     return sendSuccess(res, updatedProduct, 'Product image updated successfully');
   } catch (error) {

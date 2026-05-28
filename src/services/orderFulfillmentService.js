@@ -281,30 +281,35 @@ const getOrderNotifications = async (orderId) => {
  * @returns {Promise<Object>} Updated tracking record
  */
 const updateOrderTracking = async (orderId, payload = {}) => {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { tracking: true },
-  });
+  const order = await knex('order').where('id', orderId).select('id', 'status').first();
 
   if (!order) {
     throw new BadRequestError('Order not found');
   }
 
-  const nextStatus = payload.status || order.tracking?.status || 'PROCESSING';
-  const tracking = await prisma.orderTracking.upsert({
-    where: { orderId },
-    update: {
+  const tracking = await knex('orderTracking').where('orderId', orderId).first();
+  const nextStatus = payload.status || tracking?.status || 'PROCESSING';
+
+  let trackingRecord;
+  if (tracking) {
+    // Update existing
+    await knex('orderTracking').where('orderId', orderId).update({
       status: nextStatus,
-      currentLocation: payload.currentLocation ?? order.tracking?.currentLocation ?? null,
+      currentLocation: payload.currentLocation ?? tracking.currentLocation ?? null,
       estimatedDeliveryDate: payload.estimatedDeliveryDate
         ? new Date(payload.estimatedDeliveryDate)
-        : order.tracking?.estimatedDeliveryDate || null,
-      carrier: payload.carrier ?? order.tracking?.carrier ?? null,
-      trackingNumber: payload.trackingNumber ?? order.tracking?.trackingNumber ?? null,
+        : tracking.estimatedDeliveryDate || null,
+      carrier: payload.carrier ?? tracking.carrier ?? null,
+      trackingNumber: payload.trackingNumber ?? tracking.trackingNumber ?? null,
       lastUpdate: new Date(),
-      notes: payload.notes ?? order.tracking?.notes ?? null,
-    },
-    create: {
+      notes: payload.notes ?? tracking.notes ?? null,
+    });
+    trackingRecord = await knex('orderTracking').where('orderId', orderId).first();
+  } else {
+    // Create new
+    const cuid = require('cuid');
+    const newTracking = {
+      id: cuid(),
       orderId,
       status: nextStatus,
       currentLocation: payload.currentLocation || null,
@@ -315,21 +320,27 @@ const updateOrderTracking = async (orderId, payload = {}) => {
       trackingNumber: payload.trackingNumber || null,
       lastUpdate: new Date(),
       notes: payload.notes || null,
-    },
-  });
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await knex('orderTracking').insert(newTracking);
+    trackingRecord = newTracking;
+  }
 
   if (payload.status || payload.currentLocation || payload.notes) {
-    await prisma.trackingHistory.create({
-      data: {
-        trackingId: tracking.id,
-        status: nextStatus,
-        location: payload.currentLocation || null,
-        notes: payload.notes || null,
-      },
+    const cuid = require('cuid');
+    await knex('trackingHistory').insert({
+      id: cuid(),
+      trackingId: trackingRecord.id,
+      status: nextStatus,
+      location: payload.currentLocation || null,
+      notes: payload.notes || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
   }
 
-  return tracking;
+  return trackingRecord;
 };
 
 /**

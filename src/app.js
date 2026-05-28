@@ -8,7 +8,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const Sentry = require('@sentry/node');
 
-const prisma = require('./config/database');
+const knex = require('./config/knex');
 const { config, validateEnv } = require('./config/env');
 const logger = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
@@ -104,13 +104,14 @@ if (process.env.NODE_ENV !== 'production') {
       let dbStatus = 'Unknown';
       let tables = [];
       try {
-        const result = await prisma.$queryRaw`SELECT 1 as test`;
+        const result = await knex.raw('SELECT 1 as test');
         dbStatus = 'Connected';
 
         // Try to list tables
-        const tablesResult =
-          await prisma.$queryRaw`SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'arianation_db'`;
-        tables = tablesResult.map((t) => t.TABLE_NAME);
+        const tablesResult = await knex.raw(
+          "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'arianation_db'"
+        );
+        tables = tablesResult[0].map((t) => t.TABLE_NAME);
       } catch (dbError) {
         dbStatus = `Failed: ${dbError.message}`;
       }

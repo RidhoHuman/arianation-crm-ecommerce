@@ -334,15 +334,11 @@ const uploadDesignFileAndUpdate = async (req, res, next) => {
     }
 
     // Verify design request exists
-    const designRequest = await prisma.designRequest.findUnique({
-      where: { id: designRequestId },
-      include: {
-        feedback: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
-    });
+    const knex = require('../config/knex');
+    const designRequest = await knex('designRequest')
+      .where('id', designRequestId)
+      .select('*')
+      .first();
 
     if (!designRequest) {
       // Delete uploaded file if request not found
@@ -362,19 +358,20 @@ const uploadDesignFileAndUpdate = async (req, res, next) => {
     const fileUrl = getFileUrl(req.file.filename, 'designs');
 
     // Update design request with file URL
-    const updatedDesignRequest = await prisma.designRequest.update({
-      where: { id: designRequestId },
-      data: { designFile: fileUrl },
-      include: {
-        feedback: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-        order: { select: { id: true, orderNumber: true } },
-      },
-    });
+    const updatedDesignRequest = await knex('designRequest')
+      .where('id', designRequestId)
+      .update({
+        designFile: fileUrl,
+        updatedAt: new Date(),
+      });
 
-    return sendSuccess(res, updatedDesignRequest, 'Design file uploaded successfully');
+    // Fetch updated record
+    const updated = await knex('designRequest')
+      .where('id', designRequestId)
+      .select('*')
+      .first();
+
+    return sendSuccess(res, updated, 'Design file uploaded successfully');
   } catch (error) {
     next(error);
   }
