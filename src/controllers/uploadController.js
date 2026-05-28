@@ -1,5 +1,5 @@
 const { createSignedUrl } = require('../middleware/upload');
-const prisma = require('../config/database');
+const knex = require('../config/knex');
 const { AuthenticationError, AuthorizationError, NotFoundError } = require('../utils/errors');
 const sendSuccess = (res, data, message) => res.json({ success: true, data, message });
 
@@ -21,9 +21,9 @@ const getSignedUrl = async (req, res, next) => {
     // Ownership / role checks
     if (type === 'designs') {
       // Find design request that references this filename
-      const designRequest = await prisma.designRequest.findFirst({
-        where: { designFile: { contains: filename } },
-      });
+      const designRequest = await knex('designRequest')
+        .where('designFile', 'like', `%${filename}%`)
+        .first();
       if (!designRequest) {
         throw new NotFoundError('Design file not found');
       }
@@ -40,9 +40,9 @@ const getSignedUrl = async (req, res, next) => {
         throw new AuthorizationError('Only admin/owner can request product image URLs');
       }
 
-      const product = await prisma.product.findFirst({
-        where: { imageUrl: { contains: filename } },
-      });
+      const product = await knex('product')
+        .where('imageUrl', 'like', `%${filename}%`)
+        .first();
       if (!product) {
         throw new NotFoundError('Product image not found');
       }
