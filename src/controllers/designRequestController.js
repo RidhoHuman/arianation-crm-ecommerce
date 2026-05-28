@@ -1,6 +1,7 @@
 // src/controllers/designRequestController.js
 
-const prisma = require('../config/database');
+const designRequestService = require('../services/designRequestService');
+const knex = require('../config/knex');
 const { sendSuccess, sendCreated, sendPaginated } = require('../utils/response');
 const { NotFoundError, AuthorizationError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
@@ -9,34 +10,19 @@ const getAllDesignRequests = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
-    const skip = (page - 1) * limit;
     const { status, userId } = req.query;
 
-    const where = {};
-
+    const filters = {};
     if (req.user.role === 'CUSTOMER') {
-      where.userId = req.user.id;
+      filters.userId = req.user.id;
     } else if (userId) {
-      where.userId = userId;
+      filters.userId = userId;
     }
-
-    if (status) where.status = status;
+    if (status) filters.status = status;
 
     const [requests, total] = await Promise.all([
-      prisma.designRequest.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          feedback: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
-          order: { select: { id: true, orderNumber: true } },
-        },
-      }),
-      prisma.designRequest.count({ where }),
+      designRequestService.findMany({ page, limit, ...filters }),
+      designRequestService.count(filters),
     ]);
 
     return sendPaginated(
@@ -59,14 +45,7 @@ const getDesignRequestById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const request = await prisma.designRequest.findUnique({
-      where: { id },
-      include: {
-        feedback: { orderBy: { createdAt: 'desc' } },
-        order: true,
-        orderItems: true,
-      },
-    });
+    const request = await designRequestService.findById(id);
 
     if (!request) {
       throw new NotFoundError(MESSAGES.DESIGN_REQUEST_NOT_FOUND);
@@ -113,47 +92,35 @@ const createDesignRequest = async (req, res, next) => {
       throw new Error('Either design file upload or reference image URL is required');
     }
 
-    if (orderId) {
-      const order = await prisma.order.findUnique({ where: { id: orderId } });
-      if (!order) {
-        throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
-      }
-    }
+    const requestData = {
+      userId,
+      orderId: orderId || null,
+      designTitle,
+      designDescription: designDescription || null,
+      referenceImageUrl: referenceImageUrl || null,
+      designFileUrl,
+      fileType,
+      quantity: parseInt(quantity, 10),
+      productTypeForSablon: productTypeForSablon || null,
+      colorPreferences: colorPreferences || null,
+      deadline: deadline ? new Date(deadline) : null,
+      status: 'SUBMITTED',
+      submittedAt: new Date(),
+    };
 
-    const request = await prisma.designRequest.create({
-      data: {
-        userId,
-        orderId: orderId || null,
-        designTitle,
-        designDescription: designDescription || null,
-        referenceImageUrl: referenceImageUrl || null,
-        designFileUrl,
-        fileType,
-        quantity: parseInt(quantity, 10),
-        productTypeForSablon: productTypeForSablon || null,
-        colorPreferences: colorPreferences || null,
-        deadline: deadline ? new Date(deadline) : null,
-        status: 'SUBMITTED',
-        submittedAt: new Date(),
-      },
-      include: {
-        feedback: true,
-        order: {
-          select: { id: true, orderNumber: true, status: true },
-        },
-      },
-    });
+    const request = await designRequestService.create(requestData);
 
     // Audit log
-    await prisma.auditLog
-      .create({
-        data: {
-          userId,
-          action: 'DESIGN_REQUEST_CREATED',
-          orderId: orderId || null,
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-        },
+    await knex('auditLog')
+      .insert({
+        id: require('cuid')(),
+        userId,
+        action: 'DESIGN_REQUEST_CREATED',
+        orderId: orderId || null,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
       .catch(() => {}); // Don't fail if audit log fails
 
@@ -179,7 +146,7 @@ const updateDesignRequest = async (req, res, next) => {
       status,
     } = req.body;
 
-    const existing = await prisma.designRequest.findUnique({ where: { id } });
+    const existing = await designRequestService.findById(id);
     if (!existing) {
       throw new NotFoundError(MESSAGES.DESIGN_REQUEST_NOT_FOUND);
     }
@@ -208,10 +175,7 @@ const updateDesignRequest = async (req, res, next) => {
       }
     }
 
-    const request = await prisma.designRequest.update({
-      where: { id },
-      data: updateData,
-    });
+    const request = await designRequestService.update(id, updateData);
 
     return sendSuccess(res, request, MESSAGES.DESIGN_REQUEST_UPDATED);
   } catch (error) {
@@ -223,7 +187,7 @@ const submitDesignRequest = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.designRequest.findUnique({ where: { id } });
+    const existing = await designRequestService.findById(id);
     if (!existing) {
       throw new NotFoundError(MESSAGES.DESIGN_REQUEST_NOT_FOUND);
     }
@@ -232,10 +196,7 @@ const submitDesignRequest = async (req, res, next) => {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
     }
 
-    const request = await prisma.designRequest.update({
-      where: { id },
-      data: { status: 'SUBMITTED', submittedAt: new Date() },
-    });
+    const request = await designRequestService.update(id, { status: 'SUBMITTED', submittedAt: new Date() });
 
     return sendSuccess(res, request, 'Design request submitted successfully');
   } catch (error) {
@@ -248,20 +209,22 @@ const addFeedback = async (req, res, next) => {
     const { id } = req.params;
     const { feedbackText, feedbackType, revisionNotes, suggestedChangesUrl } = req.body;
 
-    const designRequest = await prisma.designRequest.findUnique({ where: { id } });
+    const designRequest = await designRequestService.findById(id);
     if (!designRequest) {
       throw new NotFoundError(MESSAGES.DESIGN_REQUEST_NOT_FOUND);
     }
 
-    const feedback = await prisma.designFeedback.create({
-      data: {
-        designRequestId: id,
-        designStaffId: req.user.id,
-        feedbackText,
-        feedbackType,
-        revisionNotes: revisionNotes || null,
-        suggestedChangesUrl: suggestedChangesUrl || null,
-      },
+    const feedbackId = require('cuid')();
+    await knex('designFeedback').insert({
+      id: feedbackId,
+      designRequestId: id,
+      designStaffId: req.user.id,
+      feedbackText,
+      feedbackType,
+      revisionNotes: revisionNotes || null,
+      suggestedChangesUrl: suggestedChangesUrl || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     let newStatus = designRequest.status;
@@ -269,10 +232,9 @@ const addFeedback = async (req, res, next) => {
     else if (feedbackType === 'REVISION_NEEDED') newStatus = 'REVISION_REQUESTED';
     else if (feedbackType === 'REJECTED') newStatus = 'REJECTED';
 
-    await prisma.designRequest.update({
-      where: { id },
-      data: { status: newStatus },
-    });
+    await designRequestService.update(id, { status: newStatus });
+
+    const feedback = await knex('designFeedback').where('id', feedbackId).first();
 
     return sendCreated(res, feedback, MESSAGES.DESIGN_FEEDBACK_ADDED);
   } catch (error) {
@@ -284,7 +246,7 @@ const deleteDesignRequest = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const designRequest = await prisma.designRequest.findUnique({ where: { id } });
+    const designRequest = await designRequestService.findById(id);
     if (!designRequest) {
       throw new NotFoundError(MESSAGES.DESIGN_REQUEST_NOT_FOUND);
     }
@@ -298,19 +260,18 @@ const deleteDesignRequest = async (req, res, next) => {
       throw new Error(`Cannot delete design request with status ${designRequest.status}`);
     }
 
-    await prisma.designRequest.delete({
-      where: { id },
-    });
+    await designRequestService.delete(id);
 
     // Audit log
-    await prisma.auditLog
-      .create({
-        data: {
-          userId: req.user.id,
-          action: 'DESIGN_REQUEST_DELETED',
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-        },
+    await knex('auditLog')
+      .insert({
+        id: require('cuid')(),
+        userId: req.user.id,
+        action: 'DESIGN_REQUEST_DELETED',
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
       .catch(() => {});
 
