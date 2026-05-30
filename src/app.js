@@ -5,6 +5,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const Sentry = require('@sentry/node');
 
@@ -27,6 +28,7 @@ const batchRoutes = require('./routes/batch');
 const analyticsRoutes = require('./routes/analytics');
 const checkoutRoutes = require('../routes/checkout');
 const uploadRoutes = require('./routes/uploads');
+const sitemapRoutes = require('./routes/sitemap');
 
 // Validate environment variables (throws if invalid)
 try {
@@ -47,6 +49,9 @@ if (process.env.SENTRY_DSN) {
 }
 
 const app = express();
+
+// Compression middleware for Gzip (reduces response size 20-30%)
+app.use(compression());
 
 // CORS
 app.use(
@@ -150,6 +155,9 @@ app.use('/api/batch', batchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/webhooks', webhookRoutes);
+
+// SEO Routes (Sitemap)
+app.use('/api', sitemapRoutes);
 
 // Debug middleware - logs all 404s before they hit the handler (development only)
 if (process.env.NODE_ENV !== 'production') {

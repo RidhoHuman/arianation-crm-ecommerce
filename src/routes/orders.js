@@ -7,6 +7,7 @@ const {
   getAllOrders,
   getOrderById,
   createOrder,
+  createGuestOrder,
   updateOrderStatus,
   cancelOrder,
   getOrderTracking,
@@ -98,7 +99,18 @@ const validateCreateOrderRequest = (req, res, next) => {
   return next();
 };
 
-// All order routes require authentication
+// GUEST CHECKOUT ROUTE - NO AUTHENTICATION REQUIRED
+const guestCheckoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many checkout attempts. Please try again later.' },
+});
+
+router.post('/guest', guestCheckoutLimiter, createGuestOrder);
+
+// All other order routes require authentication
 router.use(generalLimiter, authenticate);
 
 router.get('/', getAllOrders);

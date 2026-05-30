@@ -1,9 +1,41 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import SEOHead from '../components/SEOHead';
+import LocalBusinessSchema from '../components/LocalBusinessSchema';
+import Breadcrumb from '../components/Breadcrumb';
 
 export default function HomePage() {
+  const homeStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Arianation',
+    url: 'https://arianation.com',
+    logo: 'https://arianation.com/logo.png',
+    description: 'Toko sablon dan fashion online berkualitas dengan custom design dan harga terjangkau',
+    sameAs: [
+      'https://www.instagram.com/arianation',
+      'https://www.facebook.com/arianation',
+    ],
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'Customer Support',
+      email: 'support@arianation.com',
+    },
+  };
+
   return (
-    <div className="flex flex-col w-full">
+    <>
+      <SEOHead
+        title="Arianation - Sablon & Fashion E-Commerce Terpercaya"
+        description="Toko sablon dan fashion online dengan custom design berkualitas tinggi. Produk original, harga terjangkau, dan pengiriman cepat ke seluruh Indonesia."
+        image="https://arianation.com/og-hero.png"
+        url="https://arianation.com"
+        type="website"
+        structuredData={homeStructuredData}
+      />
+      <LocalBusinessSchema />
+      <Breadcrumb />
+      <div className="flex flex-col w-full">
       {/* HERO SECTION */}
       <section className="relative w-full h-[85vh] bg-white flex items-center justify-center overflow-hidden">
         <div 
@@ -60,5 +92,6 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+    </>
   );
 }

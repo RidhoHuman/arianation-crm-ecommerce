@@ -7,6 +7,8 @@ import CheckoutPage from './pages/Checkout';
 import DashboardPage from './pages/Dashboard';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
+import ProductDetail from './pages/ProductDetail';
+import ProductsListing from './pages/ProductsListing';
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
+          <Route path="/products" element={<ProductsListing />} />
+          <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/admin/*" element={<AdminPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
