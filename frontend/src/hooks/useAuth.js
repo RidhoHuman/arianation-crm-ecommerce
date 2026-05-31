@@ -12,14 +12,20 @@ export function useAuth() {
       const response = await authService.login(credentials);
       console.log('📨 authService.login response:', response);
       
-      if (response?.data?.token) {
+      // response struktur: { success, message, data: { user, token } }
+      // Jadi cek yang benar adalah response.data.token
+      const userData = response?.data?.user;
+      const token = response?.data?.token;
+      
+      if (userData && token) {
         console.log('💾 Menyimpan auth ke store...');
-        setAuth(response.data.user, response.data.token);
-        console.log('✅ Auth tersimpan. User:', response.data.user?.email);
-        return response.data;
+        setAuth(userData, token);
+        console.log('✅ Auth tersimpan. User:', userData?.email);
+        // Return { user, token } untuk Login.jsx
+        return { user: userData, token };
       } else {
-        console.log('⚠️ Response tidak punya data.token');
-        return response;
+        console.log('⚠️ Response tidak punya data lengkap. userData:', !!userData, 'token:', !!token);
+        return null;
       }
     } catch (error) {
       console.error('❌ useAuth.login error:', error);
@@ -28,11 +34,27 @@ export function useAuth() {
   }, [setAuth]);
 
   const register = useCallback(async (payload) => {
-    const response = await authService.register(payload);
-    if (response?.data?.token) {
-      setAuth(response.data.user, response.data.token);
+    try {
+      console.log('🔐 useAuth.register() called');
+      const response = await authService.register(payload);
+      console.log('📨 authService.register response:', response);
+      
+      const userData = response?.data?.user;
+      const token = response?.data?.token;
+      
+      if (userData && token) {
+        console.log('💾 Menyimpan auth ke store...');
+        setAuth(userData, token);
+        console.log('✅ Auth tersimpan. User:', userData?.email);
+        return { user: userData, token };
+      } else {
+        console.log('⚠️ Response tidak punya data lengkap');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ useAuth.register error:', error);
+      throw error;
     }
-    return response?.data;
   }, [setAuth]);
 
   const logout = useCallback(async () => {
