@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,20 +12,21 @@
 
 html {
   scroll-behavior: smooth;
+  --font-poppins: 'Poppins', sans-serif;
 }
 
 body {
-  font-family: var(--font-geist-sans), sans-serif;
-  background-color: #ffffff;
+  font-family: 'Poppins', sans-serif;
+  background-color: #FFFFFF;
   color: #000000;
 }
 
-html, body, #__next {
+html, body, #root {
   height: 100%;
   width: 100%;
 }
 
-#__next {
+#root {
   display: flex;
   flex-direction: column;
 }

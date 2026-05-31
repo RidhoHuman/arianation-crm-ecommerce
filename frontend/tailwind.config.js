@@ -11,9 +11,14 @@ module.exports = {
         'aria-black': '#000000',
         'aria-white': '#FFFFFF',
         'aria-red': '#FF0000',
+        'aria-charcoal': '#2A2A2A',
+        'aria-cream': '#FAF9F6',
+        'aria-lightgray': '#F5F5F5',
+        'aria-maroon': '#8B0000',
+        'aria-darkgray': '#1A1A1A',
       },
       fontFamily: {
-        sans: ['var(--font-geist-sans)', 'sans-serif'],
+        sans: ['var(--font-poppins)', 'sans-serif'],
         mono: ['var(--font-geist-mono)', 'monospace'],
       },
       maxWidth: {
