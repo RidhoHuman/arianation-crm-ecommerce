@@ -54,9 +54,29 @@ const app = express();
 app.use(compression());
 
 // CORS
+const defaultFrontendOrigin =
+  process.env.NODE_ENV === 'production'
+    ? 'https://arianation-crm-ecommerce.vercel.app'
+    : 'http://localhost:3000';
+
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || process.env.FRONTEND_URL || defaultFrontendOrigin)
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin) {
+        return callback(null, allowedOrigins[0]);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   })
 );
@@ -74,6 +94,10 @@ if (process.env.SENTRY_DSN) {
 // Static file serving for uploads
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Serve the Vite frontend build when present (Vercel production)
+const frontendDistPath = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendDistPath));
 
 // Debug middleware - only in development
 if (process.env.NODE_ENV !== 'production') {
@@ -141,6 +165,260 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
+// Setup database endpoint - protected with secret key
+// Usage: POST /api/setup?secret=YOUR_JWT_SECRET
+app.post('/api/setup-db', async (req, res) => {
+  try {
+    const secret = req.query.secret;
+    const expectedSecret = process.env.JWT_SECRET;
+
+    if (!secret || secret !== expectedSecret) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const bcrypt = require('bcryptjs');
+
+    // 1. Create schema
+    console.log('🔄 Creating database schema...');
+    const tables = [
+      {
+        name: 'user',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('email').unique();
+          t.string('password');
+          t.string('fullName');
+          t.string('role');
+          t.boolean('isActive').defaultTo(true);
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+          t.timestamp('updatedAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'productCategory',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('categoryName');
+          t.string('businessType');
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+          t.timestamp('updatedAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'product',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('categoryId');
+          t.string('productName');
+          t.decimal('price', 10, 2).defaultTo(0);
+          t.integer('stockQuantity').defaultTo(0);
+          t.string('productType');
+          t.string('businessType');
+          t.string('imageUrl').nullable();
+          t.text('description').nullable();
+          t.boolean('isActive').defaultTo(true);
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+          t.timestamp('updatedAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'order',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('orderNumber').unique();
+          t.string('userId').nullable();
+          t.string('guestEmail').nullable();
+          t.decimal('totalAmount', 10, 2).defaultTo(0);
+          t.string('paymentMethod').nullable();
+          t.string('status').defaultTo('pending');
+          t.text('shippingAddress').nullable();
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+          t.timestamp('updatedAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'orderItem',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('orderId');
+          t.string('productId');
+          t.integer('quantity').defaultTo(1);
+          t.decimal('unitPrice', 10, 2).defaultTo(0);
+          t.decimal('subtotal', 10, 2).defaultTo(0);
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'payment',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('orderId');
+          t.decimal('amount', 10, 2).defaultTo(0);
+          t.string('method');
+          t.string('status');
+          t.string('transactionId').nullable();
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+          t.timestamp('updatedAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'orderStatusHistory',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('orderId');
+          t.string('previousStatus').nullable();
+          t.string('newStatus');
+          t.string('reason').nullable();
+          t.string('updatedBy').nullable();
+          t.text('notes').nullable();
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'orderTracking',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('orderId');
+          t.string('trackingNumber').nullable();
+          t.string('courier').nullable();
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'orderNotification',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('orderId');
+          t.string('userId').nullable();
+          t.string('recipientEmail').nullable();
+          t.string('type');
+          t.string('title');
+          t.text('message');
+          t.boolean('emailSent').defaultTo(false);
+          t.text('payload').nullable();
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+        },
+      },
+    ];
+
+    for (const table of tables) {
+      const hasTable = await knex.schema.hasTable(table.name);
+      if (!hasTable) {
+        console.log(`📝 Creating ${table.name}...`);
+        await knex.schema.createTable(table.name, table.create);
+      }
+    }
+
+    // 2. Seed sample data
+    console.log('🌱 Seeding sample data...');
+
+    // Check if users exist
+    const existingUser = await knex('user').first();
+    if (!existingUser) {
+      const users = [
+        {
+          id: 'owner-001',
+          email: 'owner@arianation.com',
+          password: await bcrypt.hash('owner123', 10),
+          fullName: 'Owner Arianation',
+          role: 'OWNER',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'admin-001',
+          email: 'admin@arianation.com',
+          password: await bcrypt.hash('admin123', 10),
+          fullName: 'Admin Staff',
+          role: 'ADMIN',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'customer-001',
+          email: 'customer1@example.com',
+          password: await bcrypt.hash('password123', 10),
+          fullName: 'Customer One',
+          role: 'CUSTOMER',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      await knex('user').insert(users);
+      console.log(`✅ ${users.length} users created`);
+    }
+
+    // Check if products exist
+    const existingProduct = await knex('product').first();
+    if (!existingProduct) {
+      const categories = [
+        {
+          id: 'cat-001',
+          categoryName: 'Casual T-Shirt',
+          businessType: 'retail',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'cat-002',
+          categoryName: 'Hoodie',
+          businessType: 'retail',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      await knex('productCategory').insert(categories);
+
+      const products = [
+        {
+          id: 'prod-001',
+          categoryId: 'cat-001',
+          productName: 'Basic White T-Shirt',
+          price: 99000,
+          stockQuantity: 100,
+          productType: 'casual',
+          businessType: 'retail',
+          description: 'Comfortable white t-shirt',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'prod-002',
+          categoryId: 'cat-002',
+          productName: 'Grey Hoodie',
+          price: 249000,
+          stockQuantity: 50,
+          productType: 'casual',
+          businessType: 'retail',
+          description: 'Premium grey hoodie',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      await knex('product').insert(products);
+      console.log(`✅ ${products.length} products and categories created`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Database setup completed',
+      credentials: {
+        owner: { email: 'owner@arianation.com', password: 'owner123' },
+        admin: { email: 'admin@arianation.com', password: 'admin123' },
+        customer: { email: 'customer1@example.com', password: 'password123' },
+      },
+    });
+  } catch (error) {
+    console.error('❌ Setup failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // API
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -173,6 +451,17 @@ if (process.env.NODE_ENV !== 'production') {
 
 // 404
 app.use((req, res) => {
+  const isSpaRequest = req.method === 'GET' && (req.path === '/' || req.path === '/api' || !req.path.startsWith('/api/'));
+
+  if (isSpaRequest) {
+    const indexPath = path.join(frontendDistPath, 'index.html');
+    return res.sendFile(indexPath, (err) => {
+      if (err) {
+        res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
+      }
+    });
+  }
+
   console.log('[404 HANDLER]', {
     method: req.method,
     path: req.path,

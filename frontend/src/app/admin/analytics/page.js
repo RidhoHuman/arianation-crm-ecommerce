@@ -34,11 +34,11 @@ export default function AnalyticsPage() {
         };
 
         const [salesRes, revenueRes, ordersRes, customersRes, designsRes] = await Promise.all([
-          fetch(`http://localhost:3001/api/admin/analytics/sales?days=${days}`, headers),
-          fetch(`http://localhost:3001/api/admin/analytics/revenue?days=${days}`, headers),
-          fetch(`http://localhost:3001/api/admin/analytics/orders?days=${days}`, headers),
-          fetch(`http://localhost:3001/api/admin/analytics/customers?days=${days}`, headers),
-          fetch(`http://localhost:3001/api/admin/analytics/designs?days=${days}`, headers),
+          fetch(`/api/admin/analytics/sales?days=${days}`, headers),
+          fetch(`/api/admin/analytics/revenue?days=${days}`, headers),
+          fetch(`/api/admin/analytics/orders?days=${days}`, headers),
+          fetch(`/api/admin/analytics/customers?days=${days}`, headers),
+          fetch(`/api/admin/analytics/designs?days=${days}`, headers),
         ]);
 
         const data = {

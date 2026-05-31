@@ -20,7 +20,7 @@ export default function UsersPage() {
         ...(role && { role })
       });
 
-      const response = await fetch(`http://localhost:3001/api/admin/users?${params}`, {
+      const response = await fetch(`/api/admin/users?${params}`, {
         credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -46,7 +46,7 @@ export default function UsersPage() {
 
   const handleRoleChange = async (userId, newRole) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/role`, {
+      const response = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -65,7 +65,7 @@ export default function UsersPage() {
 
   const handleStatusToggle = async (userId, currentStatus) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/status`, {
+      const response = await fetch(`/api/admin/users/${userId}/status`, {
         method: 'PUT',
         credentials: 'include',
         headers: {

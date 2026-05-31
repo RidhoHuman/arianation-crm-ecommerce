@@ -7,6 +7,10 @@
     "dev": "set NODE_OPTIONS=--max-old-space-size=1024 && nodemon src/index.js",
     "dev:debug": "set NODE_OPTIONS=--max-old-space-size=512 --inspect && nodemon src/index.js",
     "start": "set NODE_OPTIONS=--max-old-space-size=1024 && node src/index.js",
+    "build": "cd frontend && npm run build",
+    "setup:db": "node scripts/setup-production-schema.js",
+    "seed:db": "node scripts/seed-production.js",
+    "setup:prod": "npm run setup:db && npm run seed:db",
     "smoke:admin": "node scripts/e2e/login_and_check_admin.js",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -26,12 +30,14 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "cuid": "^3.0.0",
+    "compression": "^1.8.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
     "jsonwebtoken": "^9.0.3",
     "knex": "^3.2.10",
     "multer": "^1.4.5-lts.1",
+    "pg": "^8.16.3",
     "mysql2": "^3.22.3",
     "nodemailer": "^6.9.3",
     "sharp": "^0.32.1",
@@ -47,6 +53,7 @@
     "jest": "^30.3.0",
     "nodemon": "^3.1.14",
     "prettier": "^3.8.3",
-    "supertest": "^7.2.2"
+    "supertest": "^7.2.2",
+    "sqlite3": "^5.1.6"
   }
 }

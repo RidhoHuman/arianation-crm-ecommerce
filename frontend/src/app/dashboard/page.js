@@ -77,7 +77,7 @@ export default function CustomerDashboardPage() {
   }, [selectedOrder]);
 
   const fetchMe = async () => {
-    const response = await fetch('http://localhost:3001/api/auth/me', {
+    const response = await fetch('/api/auth/me', {
       credentials: 'include',
       headers: authHeaders(),
     });
@@ -89,7 +89,7 @@ export default function CustomerDashboardPage() {
   };
 
   const fetchOrders = async () => {
-    const response = await fetch('http://localhost:3001/api/orders?limit=20&page=1', {
+    const response = await fetch('/api/orders?limit=20&page=1', {
       credentials: 'include',
       headers: authHeaders(),
     });
@@ -102,11 +102,11 @@ export default function CustomerDashboardPage() {
 
   const fetchOrderDetail = async (orderId) => {
     const [detailRes, timelineRes] = await Promise.all([
-      fetch(`http://localhost:3001/api/orders/${orderId}`, {
+      fetch(`/api/orders/${orderId}`, {
         credentials: 'include',
         headers: authHeaders(),
       }),
-      fetch(`http://localhost:3001/api/orders/${orderId}/timeline`, {
+      fetch(`/api/orders/${orderId}/timeline`, {
         credentials: 'include',
         headers: authHeaders(),
       }),

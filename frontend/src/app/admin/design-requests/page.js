@@ -22,7 +22,7 @@ export default function DesignRequestsPage() {
         ...(status && { status })
       });
 
-      const response = await fetch(`http://localhost:3001/api/admin/design-requests?${params}`, {
+      const response = await fetch(`/api/admin/design-requests?${params}`, {
         credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -48,7 +48,7 @@ export default function DesignRequestsPage() {
 
   const handleStatusChange = async (designId, newStatus) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/design-requests/${designId}/status`, {
+      const response = await fetch(`/api/admin/design-requests/${designId}/status`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
@@ -131,7 +131,7 @@ export default function DesignRequestsPage() {
             label: 'View',
             color: '#3b82f6',
             onClick: async (row) => {
-              const res = await fetch(`http://localhost:3001/api/admin/design-requests/${row.id}`, {
+              const res = await fetch(`/api/admin/design-requests/${row.id}`, {
                 credentials: 'include',
                 headers: {
                   'Authorization': `Bearer ${localStorage.getItem('accessToken')}`

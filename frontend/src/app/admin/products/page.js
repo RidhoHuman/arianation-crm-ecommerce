@@ -38,7 +38,7 @@ export default function ProductsPage() {
         ...(search && { search })
       });
 
-      const response = await fetch(`http://localhost:3001/api/admin/products?${params}`, {
+      const response = await fetch(`/api/admin/products?${params}`, {
         credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -66,8 +66,8 @@ export default function ProductsPage() {
     e.preventDefault();
     try {
       const url = editingId
-        ? `http://localhost:3001/api/admin/products/${editingId}`
-        : 'http://localhost:3001/api/admin/products';
+        ? `/api/admin/products/${editingId}`
+        : '/api/admin/products';
 
       const method = editingId ? 'PUT' : 'POST';
 
@@ -106,7 +106,7 @@ export default function ProductsPage() {
   const handleDelete = async (id) => {
     if (!confirm('Are you sure?')) return;
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/products/${id}`, {
+      const response = await fetch(`/api/admin/products/${id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {

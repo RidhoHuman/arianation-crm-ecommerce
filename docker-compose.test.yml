@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  mysql-test:
+    image: mysql:8.0
+    container_name: arianation_mysql_test
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: arianation_db
+      MYSQL_USER: arianation_user
+      MYSQL_PASSWORD: AriaNation@2024
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12

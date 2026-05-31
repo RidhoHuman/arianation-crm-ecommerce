@@ -5,8 +5,8 @@
  */
 
 export const cloudinaryConfig = {
-  cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'your-cloud-name',
-  uploadPreset: process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || 'your-preset',
+  cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'your-cloud-name',
+  uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'your-preset',
 };
 
 /**
@@ -70,7 +70,14 @@ export const getResponsiveImage = (publicId, sizes = '100vw') => {
  * @returns {JSX}
  */
 export const generatePictureElement = (publicId, alt, options = {}) => {
-  if (!publicId) return <img src="/placeholder.png" alt={alt} />;
+  if (!publicId) {
+    return {
+      webpSrcSet: '/placeholder.png',
+      jpgSrcSet: '/placeholder.png',
+      src: '/placeholder.png',
+      alt,
+    };
+  }
 
   const webpSrcSet = getResponsiveImage(publicId, options.sizes).srcSet;
   const jpgSrcSet = [

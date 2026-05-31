@@ -1,0 +1,45 @@
+# robots.txt - Arianation SEO Configuration
+# Last Updated: May 2026
+
+# Default rules for all bots
+User-agent: *
+Allow: /
+Allow: /products/
+Allow: /products/*
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /*.json$
+Disallow: /?*
+Disallow: /*?*sort=
+Disallow: /*?*filter=
+Disallow: /checkout/
+Disallow: /cart/
+Crawl-delay: 1
+Request-rate: 30/60
+
+# Google-specific
+User-agent: Googlebot
+Allow: /
+Allow: /admin/robots.txt
+Disallow: /admin/
+Disallow: /dashboard/
+Crawl-delay: 0
+
+# Bing-specific
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /dashboard/
+Crawl-delay: 1
+
+# Block bad bots
+User-agent: MJ12bot
+User-agent: AhrefsBot
+User-agent: SemrushBot
+Disallow: /
+
+# Sitemap reference
+Sitemap: https://arianation.com/sitemap.xml
+Sitemap: https://arianation.com/sitemap-products.xml
+Sitemap: https://arianation.com/sitemap-pages.xml

@@ -1,9 +1,9 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const cuid = require('cuid');
+const knex = require('../src/config/knex');
 
 const router = express.Router();
-// Use shared Prisma instance instead of creating duplicate
-const prisma = require('../src/config/database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -72,74 +72,21 @@ router.post('/checkout', verifyAuth, async (req, res) => {
       phone: sanitizeInput(phone),
     };
 
-    let order;
+    const orderId = cuid();
+    const orderNumber = `ORDER-${Date.now()}`;
 
-    if (req.isGuest) {
-      // GUEST CHECKOUT
-      // Create guest order
-      const guestOrder = await prisma.guestOrder.create({
-        data: {
-          firstName: sanitizedData.firstName,
-          lastName: sanitizedData.lastName,
-          email: req.body.email, // Email provided in guest form
-          address: sanitizedData.address,
-          apartment: sanitizedData.apartment,
-          city: sanitizedData.city,
-          province: sanitizedData.province,
-          postalCode: sanitizedData.postalCode,
-          country: sanitizedData.country,
-          phone: sanitizedData.phone,
-          status: 'PENDING', // Payment pending
-          total: 249000, // Should calculate from cart
-        },
-      });
+    await knex('order').insert({
+      id: orderId,
+      orderNumber,
+      userId: req.isGuest ? null : req.user.id,
+      totalAmount: 249000,
+      paymentMethod: req.isGuest ? 'GUEST_CHECKOUT' : 'COD',
+      status: 'PENDING',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
-      order = guestOrder;
-
-      // Audit log
-      await prisma.auditLog.create({
-        data: {
-          action: 'GUEST_CHECKOUT_STARTED',
-          guestOrderId: guestOrder.id,
-          ipAddress: req.ip,
-          userAgent: req.get('user-agent'),
-        },
-      });
-    } else {
-      // AUTHENTICATED CUSTOMER CHECKOUT
-      const customerOrder = await prisma.order.create({
-        data: {
-          userId: req.user.id,
-          totalAmount: 249000, // Should calculate from cart
-          status: 'PENDING',
-          paymentMethod: 'COD',
-          deliveryAddress: [
-            `${sanitizedData.firstName} ${sanitizedData.lastName}`,
-            sanitizedData.address,
-            sanitizedData.apartment,
-            sanitizedData.city,
-            sanitizedData.province,
-            sanitizedData.postalCode,
-            sanitizedData.country,
-            sanitizedData.phone,
-          ].filter(Boolean).join(', '),
-          notes: req.body.notes || null,
-        },
-      });
-
-      order = customerOrder;
-
-      // Audit log
-      await prisma.auditLog.create({
-        data: {
-          userId: req.user.id,
-          action: 'CUSTOMER_CHECKOUT_STARTED',
-          orderId: customerOrder.id,
-          ipAddress: req.ip,
-          userAgent: req.get('user-agent'),
-        },
-      });
-    }
+    const order = await knex('order').where('id', orderId).first();
 
     res.status(201).json({
       message: 'Checkout successful. Proceed to payment.',
@@ -160,26 +107,14 @@ router.get('/checkout/:orderId', verifyAuth, async (req, res) => {
   try {
     const { orderId } = req.params;
 
-    let order;
-
-    if (req.isGuest) {
-      order = await prisma.guestOrder.findUnique({
-        where: { id: orderId },
-      });
-    } else {
-      order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { user: true },
-      });
-
-      // Check ownership
-      if (order && order.userId !== req.user.id) {
-        return res.status(403).json({ message: 'Access denied' });
-      }
-    }
+    const order = await knex('order').where('id', orderId).first();
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (!req.isGuest && order.userId && order.userId !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     res.json({

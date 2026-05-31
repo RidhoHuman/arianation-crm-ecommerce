@@ -43,7 +43,7 @@ export default function OrdersPage() {
         ...(status && { status })
       });
 
-      const response = await fetch(`http://localhost:3001/api/admin/orders?${params}`, {
+      const response = await fetch(`/api/admin/orders?${params}`, {
         credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -68,7 +68,7 @@ export default function OrdersPage() {
   });
 
   const fetchOrderDetail = async (orderId) => {
-    const res = await fetch(`http://localhost:3001/api/admin/orders/${orderId}`, {
+    const res = await fetch(`/api/admin/orders/${orderId}`, {
       credentials: 'include',
       headers: authHeaders(),
     });
@@ -93,11 +93,11 @@ export default function OrdersPage() {
   const fetchFulfillmentData = async (orderId) => {
     try {
       const [historyRes, timelineRes] = await Promise.all([
-        fetch(`http://localhost:3001/api/admin/orders/${orderId}/status-history`, {
+        fetch(`/api/admin/orders/${orderId}/status-history`, {
           credentials: 'include',
           headers: authHeaders(),
         }),
-        fetch(`http://localhost:3001/api/admin/orders/${orderId}/timeline`, {
+        fetch(`/api/admin/orders/${orderId}/timeline`, {
           credentials: 'include',
           headers: authHeaders(),
         }),
@@ -129,7 +129,7 @@ export default function OrdersPage() {
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/orders/${orderId}/status`, {
+      const response = await fetch(`/api/admin/orders/${orderId}/status`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -152,7 +152,7 @@ export default function OrdersPage() {
 
     try {
       setSavingTracking(true);
-      const response = await fetch(`http://localhost:3001/api/admin/orders/${selectedOrder.id}/tracking`, {
+      const response = await fetch(`/api/admin/orders/${selectedOrder.id}/tracking`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -179,7 +179,7 @@ export default function OrdersPage() {
   const handleCancel = async (orderId) => {
     if (!confirm('Cancel this order?')) return;
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/orders/${orderId}/cancel`, {
+      const response = await fetch(`/api/admin/orders/${orderId}/cancel`, {
         method: 'PUT',
         credentials: 'include',
         headers: {

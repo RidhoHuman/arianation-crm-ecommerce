@@ -1,13 +1,10 @@
-import React from 'react';
-
-export default function LoginPage() {
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import useUIStore from '../store/uiStore';
 
-export default function Login() {
+export default function LoginPage() {
   const { login } = useAuth();
   const setLoading = useUIStore((s) => s.setLoading);
   const navigate = useNavigate();
@@ -32,7 +29,7 @@ export default function Login() {
     }
   };
 
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  const apiBase = import.meta.env.VITE_API_URL || '/api';
 
   function redirectOAuth(provider) {
     // Backend should provide OAuth endpoints: /auth/oauth/:provider
@@ -99,5 +96,4 @@ export default function Login() {
       </p>
     </div>
   );
-}
 }

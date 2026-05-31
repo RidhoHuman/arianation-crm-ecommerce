@@ -28,7 +28,7 @@ export default function PaymentsPage() {
         ...(status && { status })
       });
 
-      const response = await fetch(`http://localhost:3001/api/admin/payments?${params}`, {
+      const response = await fetch(`/api/admin/payments?${params}`, {
         credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -54,7 +54,7 @@ export default function PaymentsPage() {
 
   const handleVerify = async (paymentId) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/payments/${paymentId}/verify`, {
+      const response = await fetch(`/api/admin/payments/${paymentId}/verify`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -72,7 +72,7 @@ export default function PaymentsPage() {
   const handleRefund = async (paymentId) => {
     if (!confirm('Process refund?')) return;
     try {
-      const response = await fetch(`http://localhost:3001/api/admin/payments/${paymentId}/refund`, {
+      const response = await fetch(`/api/admin/payments/${paymentId}/refund`, {
         method: 'POST',
         credentials: 'include',
         headers: {

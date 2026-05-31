@@ -13,7 +13,7 @@ export default function AdminLayout({ children }) {
     // Check if user is logged in and has admin role
     const checkAuth = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/users/me', {
+        const response = await fetch('/api/users/me', {
           credentials: 'include',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`

@@ -20,7 +20,7 @@ export default function AuditLogsPage() {
         ...(action && { action })
       });
 
-      const response = await fetch(`http://localhost:3001/api/admin/audit-logs?${params}`, {
+      const response = await fetch(`/api/admin/audit-logs?${params}`, {
         credentials: 'include',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`

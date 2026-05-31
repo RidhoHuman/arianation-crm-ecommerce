@@ -1,12 +1,16 @@
 {
-  "buildCommand": "npm run build",
+  "version": 2,
+  "installCommand": "npm ci && cd frontend && npm ci",
+  "buildCommand": "cd frontend && npm run build",
   "devCommand": "npm run dev",
-  "installCommand": "npm ci",
-  "framework": "express",
   "regions": ["sin1"],
   "routes": [
     {
       "src": "^/api/.*",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "^/(.*)$",
       "dest": "/api/index.js"
     }
   ]
