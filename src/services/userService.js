@@ -26,7 +26,7 @@ const userService = {
     }
 
     const users = await query
-      .select('id', 'email', 'fullName', 'phone', 'role', 'isActive', 'createdAt', 'updatedAt')
+      .select('id', 'email', 'fullName', 'role', 'isActive', 'createdAt', 'updatedAt')
       .orderBy('createdAt', 'desc')
       .limit(limit)
       .offset(skip);
@@ -60,7 +60,7 @@ const userService = {
   // Cari user berdasarkan ID
   async findById(id) {
     const user = await knex('user')
-      .select('id', 'email', 'fullName', 'phone', 'role', 'isActive', 'emailVerified', 'createdAt', 'updatedAt')
+      .select('id', 'email', 'fullName', 'role', 'isActive', 'emailVerified', 'createdAt', 'updatedAt')
       .where('id', id)
       .first();
 

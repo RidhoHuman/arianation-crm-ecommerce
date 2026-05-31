@@ -40,8 +40,14 @@ async function setupSchema() {
         t.string('email').unique();
         t.string('password');
         t.string('fullName');
+        t.string('phone').nullable();
         t.string('role');
         t.boolean('isActive').defaultTo(true);
+        t.text('address').nullable();
+        t.string('city').nullable();
+        t.string('postalCode').nullable();
+        t.string('province').nullable();
+        t.boolean('emailVerified').defaultTo(false);
         t.timestamp('createdAt').defaultTo(db.fn.now());
         t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
