@@ -7,11 +7,24 @@ export function useAuth() {
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
   const login = useCallback(async (credentials) => {
-    const response = await authService.login(credentials);
-    if (response?.data?.token) {
-      setAuth(response.data.user, response.data.token);
+    try {
+      console.log('🔐 useAuth.login() called');
+      const response = await authService.login(credentials);
+      console.log('📨 authService.login response:', response);
+      
+      if (response?.data?.token) {
+        console.log('💾 Menyimpan auth ke store...');
+        setAuth(response.data.user, response.data.token);
+        console.log('✅ Auth tersimpan. User:', response.data.user?.email);
+        return response.data;
+      } else {
+        console.log('⚠️ Response tidak punya data.token');
+        return response;
+      }
+    } catch (error) {
+      console.error('❌ useAuth.login error:', error);
+      throw error;
     }
-    return response?.data;
   }, [setAuth]);
 
   const register = useCallback(async (payload) => {

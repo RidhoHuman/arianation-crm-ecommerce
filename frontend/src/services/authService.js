@@ -1,7 +1,10 @@
 import api from './api';
 
 export async function login(credentials) {
+  console.log('📤 authService.login() POST ke /auth/login');
   const res = await api.post('/auth/login', credentials);
+  console.log('📥 Raw axios response:', res);
+  console.log('📦 res.data:', res.data);
   return res.data;
 }
 

@@ -16,15 +16,22 @@ export default function LoginPage() {
     setError(null);
     try {
       setLoading(true);
+      console.log('📝 Mengirim login request:', data.email);
       const res = await login({ email: data.email, password: data.password });
+      console.log('✅ Response dari login:', res);
       setLoading(false);
+      
       if (res?.user && res?.token) {
+        console.log('🎉 Login berhasil! User:', res.user.email, 'Token ada:', !!res.token);
         navigate('/');
       } else {
+        console.log('❌ Response tidak lengkap. User:', !!res?.user, 'Token:', !!res?.token);
         setError('Login gagal. Periksa kredensial Anda.');
       }
     } catch (e) {
       setLoading(false);
+      console.error('❌ Error saat login:', e);
+      console.error('Error response:', e?.response?.data);
       setError(e?.response?.data?.message || 'Terjadi kesalahan saat login');
     }
   };
