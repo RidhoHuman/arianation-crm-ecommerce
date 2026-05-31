@@ -58,9 +58,15 @@ export function useAuth() {
   }, [setAuth]);
 
   const logout = useCallback(async () => {
-    await authService.logout();
+    console.log('🔓 useAuth.logout() called');
+    try {
+      await authService.logout();
+    } catch (e) {
+      console.warn('Logout API call failed, but clearing auth anyway:', e);
+    }
     clearAuth();
+    console.log('✅ Auth cleared');
   }, [clearAuth]);
 
-  return { login, register, logout };
+  return { login, register, logout, clearAuth };
 }

@@ -1,7 +1,28 @@
-import React from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Layout() {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { clearAuth } = useAuth();
+
+  // Rehydrate dari localStorage on mount
+  useEffect(() => {
+    console.log('🏠 Layout mounted');
+    const rehydrate = useAuthStore.getState().rehydrate;
+    const state = rehydrate();
+    console.log('✅ Rehydrated - Token:', !!state.token, 'User:', state.user?.email);
+  }, []);
+
+  const handleLogout = () => {
+    console.log('🔓 Logout dipanggil');
+    clearAuth();
+    navigate('/login');
+  };
+
   return (
     <>
       <header className="bg-white text-black sticky top-0 z-50 border-b border-gray-200">
@@ -23,7 +44,19 @@ export default function Layout() {
             <Link to="/sablon" className="text-black hover:text-gray-600 transition-colors">Custom Sablon</Link>
           </nav>
           <div className="flex gap-6 text-xs font-semibold tracking-wide uppercase items-center">
-            <Link to="/login" className="text-black hover:text-gray-600 transition-colors">Login</Link>
+            {isAuthenticated && user ? (
+              <>
+                <span className="text-sm text-gray-600">👤 {user.email}</span>
+                <button
+                  onClick={handleLogout}
+                  className="text-black hover:text-gray-600 transition-colors cursor-pointer"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link to="/login" className="text-black hover:text-gray-600 transition-colors">Login</Link>
+            )}
             <Link to="/checkout" className="text-black hover:text-gray-600 transition-colors text-xl">🛒</Link>
           </div>
         </div>
