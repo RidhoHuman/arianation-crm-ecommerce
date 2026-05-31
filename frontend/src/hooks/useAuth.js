@@ -7,19 +7,19 @@ export function useAuth() {
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
   const login = useCallback(async (credentials) => {
-    const data = await authService.login(credentials);
-    if (data?.token) {
-      setAuth(data.user, data.token);
+    const response = await authService.login(credentials);
+    if (response?.data?.token) {
+      setAuth(response.data.user, response.data.token);
     }
-    return data;
+    return response?.data;
   }, [setAuth]);
 
   const register = useCallback(async (payload) => {
-    const data = await authService.register(payload);
-    if (data?.token) {
-      setAuth(data.user, data.token);
+    const response = await authService.register(payload);
+    if (response?.data?.token) {
+      setAuth(response.data.user, response.data.token);
     }
-    return data;
+    return response?.data;
   }, [setAuth]);
 
   const logout = useCallback(async () => {

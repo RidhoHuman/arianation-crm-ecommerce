@@ -18,7 +18,7 @@ export default function LoginPage() {
       setLoading(true);
       const res = await login({ email: data.email, password: data.password });
       setLoading(false);
-      if (res && res.token) {
+      if (res?.user && res?.token) {
         navigate('/');
       } else {
         setError('Login gagal. Periksa kredensial Anda.');
