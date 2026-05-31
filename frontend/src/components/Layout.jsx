@@ -5,16 +5,22 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function Layout() {
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
+  const user = useAuthStore((s) => {
+    console.log('📊 Zustand selector user:', s.user?.email, 'isAuth:', s.isAuthenticated);
+    return s.user;
+  });
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { clearAuth } = useAuth();
 
-  // Rehydrate dari localStorage on mount
+  // Log setiap kali component render
   useEffect(() => {
-    console.log('🏠 Layout mounted');
-    const rehydrate = useAuthStore.getState().rehydrate;
-    const state = rehydrate();
-    console.log('✅ Rehydrated - Token:', !!state.token, 'User:', state.user?.email);
+    console.log('🎨 Layout rendered - user:', user?.email, 'isAuth:', isAuthenticated);
+  }, [user, isAuthenticated]);
+
+  // Hydrate dari localStorage on mount
+  useEffect(() => {
+    console.log('🏠 Layout mounted - call hydrate()...');
+    useAuthStore.getState().hydrate();
   }, []);
 
   const handleLogout = () => {
@@ -22,6 +28,8 @@ export default function Layout() {
     clearAuth();
     navigate('/login');
   };
+
+  console.log('🔍 Current render state - user:', user?.email, 'isAuth:', isAuthenticated);
 
   return (
     <>

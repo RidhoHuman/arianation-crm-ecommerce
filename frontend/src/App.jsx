@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
+import useAuthStore from './store/authStore';
 import HomePage from './pages/Home';
 import AdminPage from './pages/Admin';
 import CheckoutPage from './pages/Checkout';
@@ -11,6 +12,12 @@ import ProductDetail from './pages/ProductDetail';
 import ProductsListing from './pages/ProductsListing';
 
 export default function App() {
+  // Hydrate auth store dari localStorage on app init
+  useEffect(() => {
+    console.log('🚀 App init - hydrate authStore');
+    useAuthStore.getState().hydrate();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>

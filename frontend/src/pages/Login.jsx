@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import useUIStore from '../store/uiStore';
+import useAuthStore from '../store/authStore';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -23,6 +24,8 @@ export default function LoginPage() {
       
       if (res?.user && res?.token) {
         console.log('🎉 Login berhasil! User:', res.user.email, 'Token ada:', !!res.token);
+        console.log('📊 Current authStore state:', useAuthStore.getState());
+        console.log('➡️ Navigating ke home...');
         navigate('/');
       } else {
         console.log('❌ Response tidak lengkap. User:', !!res?.user, 'Token:', !!res?.token);
