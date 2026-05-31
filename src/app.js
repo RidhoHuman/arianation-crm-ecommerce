@@ -166,14 +166,27 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Setup database endpoint - protected with secret key
-// Usage: POST /api/setup?secret=YOUR_JWT_SECRET
+// Usage: POST /api/setup-db?secret=SETUP_SECRET or POST /api/setup-db with X-Setup-Token header
+// Only requires auth if users already exist (prevent re-initialization)
 app.post('/api/setup-db', async (req, res) => {
   try {
-    const secret = req.query.secret;
-    const expectedSecret = process.env.JWT_SECRET;
+    // Check if users already exist
+    const existingUsers = await knex('user').first().catch(() => null);
+    
+    // If users exist, require authentication
+    if (existingUsers) {
+      const secret = req.query.secret || req.headers['x-setup-token'];
+      const expectedSecret = process.env.SETUP_SECRET || process.env.JWT_SECRET;
 
-    if (!secret || secret !== expectedSecret) {
-      return res.status(401).json({ success: false, error: 'Unauthorized' });
+      if (!secret || secret !== expectedSecret) {
+        console.log('⚠️  Setup endpoint unauthorized attempt (database already initialized)');
+        return res.status(401).json({ 
+          success: false, 
+          error: 'Database already initialized. Authorization required for reset.' 
+        });
+      }
+    } else {
+      console.log('✅ First setup detected - proceeding without authentication');
     }
 
     const bcrypt = require('bcryptjs');
