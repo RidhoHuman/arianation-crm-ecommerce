@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import {
-  TrendingUp, TrendingDown, ShoppingBag, Users, Gift, Eye, Clock, Calendar
+  TrendingUp, TrendingDown, ShoppingBag, Users, Gift, Eye, Clock, Calendar, AlertTriangle
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -22,7 +22,8 @@ export default function Dashboard() {
       revenueChange: 0,
       newOrders: 0,
       newCustomers: 0,
-      crmPerformance: 0
+      crmPerformance: 0,
+      lowStockProducts: 0
     },
     revenueTrends: [],
     salesProportion: [
@@ -50,15 +51,17 @@ export default function Dashboard() {
       };
 
       // Fetch parallel
-      const [fulfillmentRes, revenueRes, usersRes] = await Promise.all([
+      const [fulfillmentRes, revenueRes, usersRes, inventoryRes] = await Promise.all([
         api.get('/analytics/fulfillment', { params: dateParams }).catch(() => ({ data: { data: {} } })),
         api.get('/analytics/revenue', { params: dateParams }).catch(() => ({ data: { data: { data: [] } } })),
-        api.get('/users').catch(() => ({ data: { data: [] } }))
+        api.get('/users').catch(() => ({ data: { data: [] } })),
+        api.get('/admin/inventory/analytics').catch(() => ({ data: { data: {} } }))
       ]);
 
       const fulfillment = fulfillmentRes?.data?.data || {};
       const revenue = revenueRes?.data?.data || {};
       const users = usersRes?.data?.data || [];
+      const inventoryAnalytics = inventoryRes?.data?.data || {};
 
       // Transform revenue data for chart
       const chartData = (revenue.data || []).map(item => ({
@@ -82,7 +85,8 @@ export default function Dashboard() {
           revenueChange: 0, // Pending backend support for comparative data
           newOrders: pendingOrders,
           newCustomers: users.length,
-          crmPerformance: 0 // Pending backend support for explicit CRM metrics
+          crmPerformance: 0, // Pending backend support for explicit CRM metrics
+          lowStockProducts: inventoryAnalytics?.inventory?.lowStockProducts || 0
         },
         revenueTrends: chartData,
         salesProportion: [
@@ -138,6 +142,27 @@ export default function Dashboard() {
           </select>
         </div>
       </div>
+
+      {/* Inventory Stock Warning Banner */}
+      {!loading && dashboardData.summary.lowStockProducts > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 shadow-sm animate-pulse-slow">
+          <div className="bg-red-100 p-2 rounded-full shrink-0">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-red-800 font-bold text-sm">Peringatan Stok Menipis!</h3>
+            <p className="text-red-600 text-sm mt-0.5">
+              Terdapat <strong>{dashboardData.summary.lowStockProducts} produk</strong> dengan stok di bawah batas aman (kurang dari 10). 
+              Segera periksa inventaris dan lakukan restock untuk menghindari kehilangan potensi penjualan.
+            </p>
+          </div>
+          <div className="ml-auto pl-3">
+            <Link to="/admin/inventory" className="text-sm font-semibold text-red-700 bg-red-100 hover:bg-red-200 px-4 py-2 rounded-lg transition-colors whitespace-nowrap inline-block">
+              Cek Inventoris
+            </Link>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-20">
@@ -224,25 +249,29 @@ export default function Dashboard() {
             {/* Sales Trend (70%) */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm lg:col-span-2">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Tren Penjualan</h3>
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dashboardData.revenueTrends} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
-                    <YAxis 
-                      yAxisId="left" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 12, fill: '#6b7280' }} 
-                      tickFormatter={(value) => `Rp${value / 1000000}M`}
-                    />
-                    <Tooltip 
-                      formatter={(value) => formatCurrency(value)}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Line yAxisId="left" type="monotone" dataKey="pendapatan" stroke="#1f2937" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+              <div className="h-[300px] w-full flex items-center justify-center relative">
+                {dashboardData.revenueTrends.length === 0 ? (
+                  <p className="text-gray-400 text-sm absolute">Belum ada data transaksi untuk rentang waktu ini</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={dashboardData.revenueTrends} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
+                      <YAxis 
+                        yAxisId="left" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 12, fill: '#6b7280' }} 
+                        tickFormatter={(value) => `Rp${value / 1000000}M`}
+                      />
+                      <Tooltip 
+                        formatter={(value) => formatCurrency(value)}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Line yAxisId="left" type="monotone" dataKey="pendapatan" stroke="#1f2937" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
 
@@ -266,7 +295,12 @@ export default function Dashboard() {
                       ))}
                     </Pie>
                     <Tooltip />
-                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36} 
+                      iconType="circle" 
+                      formatter={(value) => <span className="ml-1.5 text-gray-700 text-sm">{value}</span>}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -298,8 +332,8 @@ export default function Dashboard() {
                   <tbody className="divide-y divide-gray-100">
                     {dashboardData.recentOrders.map((order) => (
                       <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-gray-900">
-                          {order.orderNumber || `#${order.id}`}
+                        <td className="px-6 py-4 font-medium text-gray-900 text-xs">
+                          {order.orderNumber || (order.id.length > 20 ? `#${order.id.substring(0, 8)}...${order.id.slice(-4)}` : `#${order.id}`)}
                         </td>
                         <td className="px-6 py-4 text-gray-600">
                           {order.customerName || 'Kustomer Guest'}

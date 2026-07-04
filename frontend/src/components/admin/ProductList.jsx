@@ -19,13 +19,16 @@ export default function ProductList({ businessType }) {
     try {
       setLoading(true);
       setError(null);
-      // Fetch data without using mock fallback
-      const response = await api.get('/products', {
-        params: {
-          businessType: businessType,
-          limit: 100 // Fetch all for simple client-side search for now
-        }
-      });
+      const params = { limit: 100 };
+      
+      // Sinkronisasi dengan logika frontend: produk sablon = SABLON_TEMPLATE
+      if (businessType === 'SABLON_SERVICE') {
+        params.productType = 'SABLON_TEMPLATE';
+      } else {
+        params.businessType = businessType;
+      }
+
+      const response = await api.get('/products', { params });
       setProducts(response.data?.data || []);
     } catch (err) {
       console.error('Failed to fetch products', err);
@@ -132,11 +135,22 @@ export default function ProductList({ businessType }) {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                          {product.imageUrl ? (
-                            <img src={product.imageUrl} alt={product.productName} className="h-full w-full object-cover" />
-                          ) : (
-                            <ImageIcon className="w-5 h-5 text-gray-400" />
-                          )}
+                          {(() => {
+                            let imgSrc = product.imageUrl;
+                            if (!imgSrc && product.imageUrls) {
+                              try {
+                                const parsed = typeof product.imageUrls === 'string' ? JSON.parse(product.imageUrls) : product.imageUrls;
+                                if (Array.isArray(parsed) && parsed.length > 0) imgSrc = parsed[0];
+                              } catch(e) {}
+                            }
+                            if (imgSrc) {
+                              if (imgSrc.startsWith('/')) {
+                                imgSrc = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') + imgSrc : imgSrc;
+                              }
+                              return <img src={imgSrc} alt={product.productName} className="h-full w-full object-cover" />;
+                            }
+                            return <ImageIcon className="w-5 h-5 text-gray-400" />;
+                          })()}
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">{product.productName}</div>

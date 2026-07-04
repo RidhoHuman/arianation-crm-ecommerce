@@ -57,24 +57,10 @@ const getAllProducts = async (req, res, next) => {
       }
     }
     
-    // Map URL type (e.g., 't-shirts', 'hoodies') to product names since productType is an ENUM (KAOS/ATRIBUT)
+    // Map URL type (e.g., 't-shirts', 'hoodies') using product_type_master slug
     if (type) {
-      if (type === 'hoodies') {
-        query = query.where('product.productName', 'like', '%hoodie%');
-      } else if (type === 't-shirts') {
-        query = query.where(builder => {
-          builder.where('product.productName', 'like', '%tee%')
-                 .orWhere('product.productName', 'like', '%shirt%');
-        });
-      } else if (type === 'pants') {
-        query = query.where('product.productName', 'like', '%pants%');
-      } else if (type === 'accessories') {
-        query = query.where(builder => {
-          builder.where('product.productName', 'like', '%cap%')
-                 .orWhere('product.productName', 'like', '%scarf%')
-                 .orWhere('product.productName', 'like', '%badge%');
-        });
-      }
+      query = query.leftJoin('product_type_master', 'product.productTypeId', 'product_type_master.id')
+                   .where('product_type_master.slug', type);
     }
 
     if (businessType) query = query.where('product.businessType', businessType);
