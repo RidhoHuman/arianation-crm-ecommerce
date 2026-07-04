@@ -44,11 +44,11 @@ export default function FAQ({ faqs = [], title = 'Frequently Asked Questions' })
           {faqs.map((item, index) => (
             <div
               key={index}
-              className="border rounded-lg overflow-hidden"
+              className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden transition-colors"
             >
               <button
                 onClick={() => setExpanded(expanded === index ? -1 : index)}
-                className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex justify-between items-center font-semibold text-left"
+                className="w-full px-6 py-4 bg-gray-50 dark:bg-black hover:bg-gray-100 dark:hover:bg-gray-900 flex justify-between items-center font-semibold text-left text-gray-900 dark:text-white transition-colors"
                 aria-expanded={expanded === index}
               >
                 <span>{item.question}</span>
@@ -58,7 +58,7 @@ export default function FAQ({ faqs = [], title = 'Frequently Asked Questions' })
               </button>
 
               {expanded === index && (
-                <div className="px-6 py-4 bg-white border-t text-gray-700 leading-relaxed">
+                <div className="px-6 py-4 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 leading-relaxed transition-colors">
                   {item.answer}
                 </div>
               )}

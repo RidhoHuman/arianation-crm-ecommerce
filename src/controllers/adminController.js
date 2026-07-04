@@ -16,6 +16,7 @@ const paymentService = require('../services/paymentService');
 
 const getDashboard = async (req, res, next) => {
   try {
+    const daysParam = parseInt(req.query.days, 10) || 7;
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -88,6 +89,43 @@ const getDashboard = async (req, res, next) => {
       })
     );
 
+    // Calculate dynamic days revenue
+    const daysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (daysParam - 1));
+    const chartOrders = await knex('order')
+      .select('createdAt', 'totalAmount')
+      .where('createdAt', '>=', daysAgo)
+      .andWhereNot('status', 'in', ['CANCELLED', 'RETURNED']);
+
+    const revenueChart = Array(daysParam).fill(0).map((_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((daysParam - 1) - i));
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+
+      const sum = chartOrders.reduce((acc, order) => {
+        const od = new Date(order.createdAt);
+        const o_yyyy = od.getFullYear();
+        const o_mm = String(od.getMonth() + 1).padStart(2, '0');
+        const o_dd = String(od.getDate()).padStart(2, '0');
+        const o_dateStr = `${o_yyyy}-${o_mm}-${o_dd}`;
+
+        if (o_dateStr === dateStr) {
+          return acc + Number(order.totalAmount || 0);
+        }
+        return acc;
+      }, 0);
+      
+      let label = `H-${(daysParam - 1) - i}`;
+      if (i === (daysParam - 1)) label = 'H-0';
+      if (daysParam > 14) {
+        // Just show date for long ranges
+        label = `${dd}/${mm}`;
+      }
+      
+      return { date: dateStr, total: sum, label };
+    });
+
     const dashboard = {
       orders: {
         today: todayOrders,
@@ -104,6 +142,7 @@ const getDashboard = async (req, res, next) => {
       designs: {
         pending: pendingDesigns,
       },
+      revenueChart,
       topProducts: topProductDetails,
       recentOrders: recentOrdersWithItems,
     };
@@ -158,11 +197,16 @@ const createProduct = async (req, res, next) => {
       categoryId,
       productName,
       description,
+      descriptionEn,
       price,
       stockQuantity,
       productType,
       imageUrl,
+      imageUrls,
       businessType,
+      variants,
+      productTypeId,
+      allowedPrintAreas,
     } = req.body;
 
     if (!categoryId || !productName || !price || !productType || !businessType) {
@@ -171,16 +215,38 @@ const createProduct = async (req, res, next) => {
       );
     }
 
+    let finalImageUrl = imageUrl || null;
+    if (req.file) {
+      finalImageUrl = req.file.url || `/uploads/products/${req.file.filename}`;
+    }
+
     const product = await productService.create({
       categoryId,
       productName,
       description: description || null,
+      descriptionEn: descriptionEn || null,
       price: parseFloat(price),
       stockQuantity: parseInt(stockQuantity, 10) || 0,
       productType,
-      imageUrl: imageUrl || null,
+      imageUrl: finalImageUrl,
+      imageUrls: imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null,
       businessType,
+      productTypeId: productTypeId === '' ? null : productTypeId,
+      tags: req.body.tags || null,
+      isSale: req.body.isSale === 'true' || req.body.isSale === true || req.body.isSale === '1' || req.body.isSale === 1,
+      isActive: req.body.isActive === undefined ? true : (req.body.isActive === 'true' || req.body.isActive === true || req.body.isActive === '1' || req.body.isActive === 1),
+      variants: variants ? (typeof variants === 'string' ? JSON.parse(variants) : variants) : [],
+      allowedPrintAreas: allowedPrintAreas ? (typeof allowedPrintAreas === 'string' ? JSON.parse(allowedPrintAreas) : allowedPrintAreas) : null,
     });
+
+    let colIds = req.body.collectionIds;
+    if (colIds !== undefined) {
+      if (!Array.isArray(colIds)) colIds = [colIds];
+      if (colIds.length > 0) {
+        const colRecords = colIds.map(cId => ({ productId: product.id, collectionId: cId }));
+        await knex('product_collection').insert(colRecords);
+      }
+    }
 
     // Audit log
     await knex('auditLog')
@@ -197,6 +263,7 @@ const createProduct = async (req, res, next) => {
 
     return sendCreated(res, product, 'Product created successfully');
   } catch (error) {
+    console.error("CREATE PRODUCT ERROR:", error);
     next(error);
   }
 };
@@ -204,21 +271,46 @@ const createProduct = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { productName, description, price, stockQuantity, productType, imageUrl, isActive } =
+    const { productName, description, descriptionEn, price, stockQuantity, productType, imageUrl, imageUrls, isActive, variants, categoryId, productTypeId, allowedPrintAreas } =
       req.body;
 
     const product = await productService.findById(id);
     if (!product) throw new NotFoundError('Product not found');
 
+    let finalImageUrl = imageUrl;
+    if (req.file) {
+      finalImageUrl = req.file.url || `/uploads/products/${req.file.filename}`;
+    }
+
     const updated = await productService.update(id, {
       ...(productName && { productName }),
       ...(description !== undefined && { description }),
+      ...(descriptionEn !== undefined && { descriptionEn }),
       ...(price && { price: parseFloat(price) }),
       ...(stockQuantity !== undefined && { stockQuantity: parseInt(stockQuantity, 10) }),
       ...(productType && { productType }),
-      ...(imageUrl !== undefined && { imageUrl }),
-      ...(isActive !== undefined && { isActive }),
+      ...(finalImageUrl !== undefined && { imageUrl: finalImageUrl }),
+      ...(imageUrls !== undefined && { imageUrls: imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null }),
+      ...(isActive !== undefined && { isActive: isActive === 'true' || isActive === true || isActive === '1' || isActive === 1 }),
+      ...(req.body.isSale !== undefined && { isSale: req.body.isSale === 'true' || req.body.isSale === true || req.body.isSale === '1' || req.body.isSale === 1 }),
+      ...(req.body.businessType && { businessType: req.body.businessType }),
+      ...(req.body.tags !== undefined && { tags: req.body.tags }),
+      ...(variants !== undefined && { variants: typeof variants === 'string' ? JSON.parse(variants) : variants }),
+      ...(categoryId !== undefined && { categoryId }),
+      ...(productTypeId !== undefined && { productTypeId: productTypeId === '' ? null : productTypeId }),
+      ...(allowedPrintAreas !== undefined && { allowedPrintAreas: typeof allowedPrintAreas === 'string' ? JSON.parse(allowedPrintAreas) : allowedPrintAreas }),
     });
+
+    // Save collectionIds jika ada
+    let colIds = req.body.collectionIds;
+    if (colIds !== undefined) {
+      if (!Array.isArray(colIds)) colIds = [colIds];
+      await knex('product_collection').where('productId', id).del();
+      if (colIds.length > 0) {
+        const colRecords = colIds.map(cId => ({ productId: id, collectionId: cId }));
+        await knex('product_collection').insert(colRecords);
+      }
+    }
 
     // Audit log
     await knex('auditLog')
@@ -291,8 +383,18 @@ const getOrders = async (req, res, next) => {
 
     const [orders, countResult] = await Promise.all([
       query
-        .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt')
-        .orderBy('createdAt', 'desc')
+        .select(
+          'order.id', 
+          'order.orderNumber', 
+          'order.totalAmount', 
+          'order.status', 
+          'order.createdAt',
+          'order.userId',
+          'user.fullName as customerName',
+          'user.email as customerEmail'
+        )
+        .leftJoin('user', 'order.userId', 'user.id')
+        .orderBy('order.createdAt', 'desc')
         .limit(parseInt(limit, 10))
         .offset(skip),
       knex('order')
@@ -315,7 +417,7 @@ const getOrders = async (req, res, next) => {
       orders.map(async (order) => {
         const items = await knex('orderItem')
           .select('orderItem.id', 'orderItem.quantity', 'product.productName')
-          .join('product', 'orderItem.productId', 'product.id')
+          .leftJoin('product', 'orderItem.productId', 'product.id')
           .where('orderItem.orderId', order.id);
         return { ...order, items };
       })
@@ -366,7 +468,7 @@ const getOrderDetail = async (req, res, next) => {
         'product.productName',
         'product.price'
       )
-      .join('product', 'orderItem.productId', 'product.id')
+      .leftJoin('product', 'orderItem.productId', 'product.id')
       .where('orderItem.orderId', id);
 
     // Get payment info
@@ -665,7 +767,7 @@ const getDesignRequestDetail = async (req, res, next) => {
 const updateDesignRequestStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, comments, estimatedPrice } = req.body;
 
     if (!status) throw new ValidationError('Status is required');
 
@@ -673,6 +775,60 @@ const updateDesignRequestStatus = async (req, res, next) => {
     if (!request) throw new NotFoundError('Design request not found');
 
     const updated = await designRequestService.updateStatus(id, status);
+
+    // Save feedback if provided
+    let fullComment = comments || '';
+    if (estimatedPrice) {
+      fullComment += `\n\nEstimasi Biaya: Rp ${parseInt(estimatedPrice).toLocaleString('id-ID')}`;
+    }
+
+    if (fullComment) {
+      await knex('designFeedback').insert({
+        id: require('cuid')(),
+        designRequestId: id,
+        designStaffId: req.user.id,
+        feedbackType: status === 'APPROVED' ? 'PRICE_ESTIMATE' : 'REVISION_REQUIRED',
+        feedbackText: fullComment,
+        createdAt: new Date(),
+      });
+    }
+
+    // Try to send email notification to customer
+    try {
+      const user = await knex('user').where('id', request.userId).first();
+      if (user && user.email) {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+          port: process.env.SMTP_PORT || 587,
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+          }
+        });
+        
+        const subjectStatus = status === 'APPROVED' ? 'Desain Disetujui' : (status === 'REVISION_NEEDED' ? 'Desain Perlu Direvisi' : 'Status Desain Diupdate');
+        await transporter.sendMail({
+          from: `"Arianation CRM" <${process.env.SMTP_USER || 'no-reply@arianation.com'}>`,
+          to: user.email,
+          subject: `Status Request Desain Anda: ${subjectStatus}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2 style="color: #2563eb;">Halo ${user.fullName},</h2>
+              <p>Status permintaan desain sablon Anda (<strong>${request.designTitle}</strong>) telah diubah menjadi <strong>${status}</strong>.</p>
+              ${fullComment ? `<div style="background-color: #f3f4f6; padding: 15px; border-left: 4px solid #3b82f6; margin-top: 15px;">
+                <strong>Catatan dari Admin:</strong><br/>
+                ${fullComment.replace(/\n/g, '<br/>')}
+              </div>` : ''}
+              <p style="margin-top: 20px;">Silakan cek dashboard akun Anda untuk melihat detailnya.</p>
+            </div>
+          `
+        });
+      }
+    } catch (emailErr) {
+      console.error('Failed to send design notification email:', emailErr);
+    }
 
     // Audit log
     await knex('auditLog')
@@ -1034,12 +1190,25 @@ const getAuditLogs = async (req, res, next) => {
   }
 };
 
+const uploadImageHandler = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    const url = req.file.url || `/uploads/products/${req.file.filename}`;
+    return res.status(200).json({ success: true, url });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboard,
   getProducts,
   createProduct,
   updateProduct,
   deleteProduct,
+  uploadImageHandler,
   getOrders,
   getOrderDetail,
   updateOrderStatus,

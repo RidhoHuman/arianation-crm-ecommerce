@@ -8,27 +8,29 @@ const orderService = {
     let query = knex('order');
 
     if (userId) {
-      query = query.where('userId', userId);
+      query = query.where('order.userId', userId);
     }
 
     if (status) {
-      query = query.where('status', status);
+      query = query.where('order.status', status);
     }
 
     const orders = await query
+      .leftJoin('payment', 'order.id', 'payment.orderId')
+      .leftJoin('orderTracking', 'order.id', 'orderTracking.orderId')
       .select(
-        'id',
-        'userId',
-        'orderNumber',
-        'status',
-        'totalPrice',
-        'paymentStatus',
-        'shippingAddress',
-        'trackingNumber',
-        'createdAt',
-        'updatedAt'
+        'order.id',
+        'order.userId',
+        'order.orderNumber',
+        'order.status',
+        'order.totalAmount as totalPrice',
+        'payment.status as paymentStatus',
+        'order.deliveryAddress',
+        'orderTracking.trackingNumber',
+        'order.createdAt',
+        'order.updatedAt'
       )
-      .orderBy('createdAt', 'desc')
+      .orderBy('order.createdAt', 'desc')
       .limit(limit)
       .offset(skip);
 
@@ -54,20 +56,30 @@ const orderService = {
   // Cari order berdasarkan ID
   async findById(id) {
     const order = await knex('order')
+      .leftJoin('payment', 'order.id', 'payment.orderId')
+      .leftJoin('orderTracking', 'order.id', 'orderTracking.orderId')
       .select(
-        'id',
-        'userId',
-        'orderNumber',
-        'status',
-        'totalPrice',
-        'paymentStatus',
-        'shippingAddress',
-        'trackingNumber',
-        'createdAt',
-        'updatedAt'
+        'order.id',
+        'order.userId',
+        'order.orderNumber',
+        'order.status',
+        'order.totalAmount as totalPrice',
+        'payment.status as paymentStatus',
+        'order.deliveryAddress',
+        'orderTracking.trackingNumber',
+        'order.createdAt',
+        'order.updatedAt'
       )
-      .where('id', id)
+      .where('order.id', id)
       .first();
+
+    if (order && typeof order.deliveryAddress === 'string') {
+      try {
+        order.deliveryAddress = JSON.parse(order.deliveryAddress);
+      } catch (e) {
+        // fail silently if not valid JSON
+      }
+    }
 
     return order || null;
   },
@@ -75,7 +87,21 @@ const orderService = {
   // Cari order berdasarkan orderNumber
   async findByOrderNumber(orderNumber) {
     const order = await knex('order')
-      .where('orderNumber', orderNumber)
+      .leftJoin('payment', 'order.id', 'payment.orderId')
+      .leftJoin('orderTracking', 'order.id', 'orderTracking.orderId')
+      .select(
+        'order.id',
+        'order.userId',
+        'order.orderNumber',
+        'order.status',
+        'order.totalAmount as totalPrice',
+        'payment.status as paymentStatus',
+        'order.deliveryAddress',
+        'orderTracking.trackingNumber',
+        'order.createdAt',
+        'order.updatedAt'
+      )
+      .where('order.orderNumber', orderNumber)
       .first();
 
     return order || null;
@@ -88,39 +114,93 @@ const orderService = {
     status = 'PENDING',
     totalPrice,
     paymentStatus = 'UNPAID',
-    shippingAddress,
+    deliveryAddress,
     trackingNumber = null,
   }) {
     const id = require('cuid')();
 
-    const order = {
-      id,
-      userId,
-      orderNumber,
-      status,
-      totalPrice,
-      paymentStatus,
-      shippingAddress,
-      trackingNumber,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    await knex.transaction(async (trx) => {
+      // Insert into order
+      await trx('order').insert({
+        id,
+        userId: userId || null,
+        orderNumber,
+        totalAmount: totalPrice,
+        status,
+        deliveryAddress: deliveryAddress || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-    await knex('order').insert(order);
+      // Insert into payment
+      await trx('payment').insert({
+        id: require('cuid')(),
+        orderId: id,
+        amount: totalPrice,
+        method: 'BANK_TRANSFER',
+        status: paymentStatus,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-    return order;
+      // Insert into orderTracking if tracking number is provided
+      if (trackingNumber) {
+        await trx('orderTracking').insert({
+          id: require('cuid')(),
+          orderId: id,
+          trackingNumber,
+          createdAt: new Date(),
+        });
+      }
+    });
+
+    return this.findById(id);
   },
 
   // Update order
   async update(id, data) {
-    const updateData = {
-      ...data,
-      updatedAt: new Date(),
-    };
+    const updateData = {};
+    if (data.status) updateData.status = data.status;
+    if (data.totalPrice !== undefined) updateData.totalAmount = data.totalPrice;
+    if (data.deliveryAddress !== undefined) updateData.deliveryAddress = data.deliveryAddress;
+    if (data.orderNumber !== undefined) updateData.orderNumber = data.orderNumber;
+    
+    updateData.updatedAt = new Date();
 
-    await knex('order')
-      .where('id', id)
-      .update(updateData);
+    await knex.transaction(async (trx) => {
+      if (Object.keys(updateData).length > 1) { // includes updatedAt
+        await trx('order')
+          .where('id', id)
+          .update(updateData);
+      }
+
+      if (data.paymentStatus) {
+        await trx('payment')
+          .where('orderId', id)
+          .update({
+            status: data.paymentStatus,
+            updatedAt: new Date(),
+          });
+      }
+
+      if (data.trackingNumber !== undefined) {
+        const hasTracking = await trx('orderTracking').where('orderId', id).first();
+        if (hasTracking) {
+          await trx('orderTracking')
+            .where('orderId', id)
+            .update({
+              trackingNumber: data.trackingNumber,
+            });
+        } else if (data.trackingNumber) {
+          await trx('orderTracking').insert({
+            id: require('cuid')(),
+            orderId: id,
+            trackingNumber: data.trackingNumber,
+            createdAt: new Date(),
+          });
+        }
+      }
+    });
 
     return this.findById(id);
   },
@@ -139,10 +219,10 @@ const orderService = {
 
   // Update payment status
   async updatePaymentStatus(id, paymentStatus) {
-    await knex('order')
-      .where('id', id)
+    await knex('payment')
+      .where('orderId', id)
       .update({
-        paymentStatus,
+        status: paymentStatus,
         updatedAt: new Date(),
       });
 
@@ -151,43 +231,57 @@ const orderService = {
 
   // Update tracking number
   async updateTracking(id, trackingNumber) {
-    await knex('order')
-      .where('id', id)
-      .update({
+    const hasTracking = await knex('orderTracking').where('orderId', id).first();
+    if (hasTracking) {
+      await knex('orderTracking')
+        .where('orderId', id)
+        .update({
+          trackingNumber,
+        });
+    } else {
+      await knex('orderTracking').insert({
+        id: require('cuid')(),
+        orderId: id,
         trackingNumber,
-        updatedAt: new Date(),
+        createdAt: new Date(),
       });
+    }
 
     return this.findById(id);
   },
 
   // Hapus order
   async delete(id) {
-    await knex('order')
-      .where('id', id)
-      .delete();
+    await knex.transaction(async (trx) => {
+      await trx('payment').where('orderId', id).delete();
+      await trx('orderTracking').where('orderId', id).delete();
+      await trx('orderItem').where('orderId', id).delete();
+      await trx('order').where('id', id).delete();
+    });
 
     return true;
   },
 
   // Ambil order untuk user tertentu dengan status tertentu
   async findUserOrders(userId, status = null) {
-    let query = knex('order').where('userId', userId);
+    let query = knex('order')
+      .leftJoin('payment', 'order.id', 'payment.orderId')
+      .where('order.userId', userId);
 
     if (status) {
-      query = query.where('status', status);
+      query = query.where('order.status', status);
     }
 
     const orders = await query
       .select(
-        'id',
-        'orderNumber',
-        'status',
-        'totalPrice',
-        'paymentStatus',
-        'createdAt'
+        'order.id',
+        'order.orderNumber',
+        'order.status',
+        'order.totalAmount as totalPrice',
+        'payment.status as paymentStatus',
+        'order.createdAt'
       )
-      .orderBy('createdAt', 'desc');
+      .orderBy('order.createdAt', 'desc');
 
     return orders;
   },
@@ -197,8 +291,8 @@ const orderService = {
     const stats = await knex('order')
       .select(
         knex.raw('COUNT(*) as totalOrders'),
-        knex.raw('SUM(totalPrice) as totalRevenue'),
-        knex.raw('COUNT(CASE WHEN status = "COMPLETED" THEN 1 END) as completedOrders')
+        knex.raw('SUM(totalAmount) as totalRevenue'),
+        knex.raw('COUNT(CASE WHEN status = "DELIVERED" THEN 1 END) as completedOrders')
       )
       .first();
 

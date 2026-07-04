@@ -73,6 +73,17 @@ const createDesignRequest = async (req, res, next) => {
       productTypeForSablon,
       colorPreferences,
       deadline,
+      purpose,
+      sizeBreakdown,
+      printPosition,
+      printTechnique,
+      numberOfColors,
+      picName,
+      whatsappNumber,
+      shippingAddress,
+      shippingNotes,
+      designFileUrl: bodyDesignFileUrl,
+      fileType: bodyFileType
     } = req.body;
 
     // Validation
@@ -81,8 +92,8 @@ const createDesignRequest = async (req, res, next) => {
     }
 
     // Handle file upload
-    let designFileUrl = referenceImageUrl; // Default to reference image if no file uploaded
-    let fileType = 'EXTERNAL_URL';
+    let designFileUrl = bodyDesignFileUrl || referenceImageUrl;
+    let fileType = bodyFileType || 'EXTERNAL_URL';
 
     if (req.file) {
       designFileUrl = `/uploads/${req.file.filename}`;
@@ -104,6 +115,15 @@ const createDesignRequest = async (req, res, next) => {
       productTypeForSablon: productTypeForSablon || null,
       colorPreferences: colorPreferences || null,
       deadline: deadline ? new Date(deadline) : null,
+      purpose: purpose || null,
+      sizeBreakdown: sizeBreakdown || null,
+      printPosition: printPosition || null,
+      printTechnique: printTechnique || null,
+      numberOfColors: numberOfColors ? parseInt(numberOfColors, 10) : null,
+      picName: picName || null,
+      whatsappNumber: whatsappNumber || null,
+      shippingAddress: shippingAddress || null,
+      shippingNotes: shippingNotes || null,
       status: 'SUBMITTED',
       submittedAt: new Date(),
     };

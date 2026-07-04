@@ -116,7 +116,54 @@ function renderOrderNotificationEmail({ notification, customer, order }) {
   }
 }
 
+function renderPromoEmail({ subject, message, useTemplate = true }) {
+  const safeSubject = subject || 'Promo Spesial Arianation';
+  const safeMessage = message || '';
+
+  // Parse newlines to <br> for HTML rendering if user inputs manual text
+  const htmlMessage = safeMessage.replace(/\n/g, '<br/>');
+
+  let html;
+  if (useTemplate) {
+    html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <!-- Header -->
+        <div style="background: #000000; padding: 24px; text-align: center;">
+          <img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="AriaNation Banner" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 16px;" />
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 2px;">ARIANATION</h1>
+        </div>
+        
+        <!-- Body -->
+        <div style="padding: 32px 24px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
+          <p style="font-size: 16px;">${htmlMessage}</p>
+          <div style="text-align: center; margin-top: 32px;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" style="background-color: #8c1515; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">BELANJA SEKARANG</a>
+          </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background: #f3f4f6; padding: 24px; text-align: center; font-size: 12px; color: #6b7280; border: 1px solid #e5e7eb; border-top: none;">
+          <p>Anda menerima email ini karena berlangganan newsletter AriaNation.</p>
+          <p>&copy; ${new Date().getFullYear()} AriaNation. All rights reserved.</p>
+        </div>
+      </div>
+    `;
+  } else {
+    // Plain HTML without wrapper, just basic formatting
+    html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; max-width: 600px; margin: 0 auto;">
+        ${htmlMessage}
+      </div>
+    `;
+  }
+
+  const text = safeMessage;
+
+  return { subject: safeSubject, text, html };
+}
+
 module.exports = {
   formatCurrency,
   renderOrderNotificationEmail,
+  renderPromoEmail,
 };

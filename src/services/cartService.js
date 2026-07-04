@@ -17,8 +17,6 @@ const cartService = {
       .select(
         'id',
         'userId',
-        'totalItems',
-        'totalPrice',
         'createdAt',
         'updatedAt'
       )
@@ -35,8 +33,6 @@ const cartService = {
     const cart = {
       id,
       userId,
-      totalItems: 0,
-      totalPrice: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -46,18 +42,9 @@ const cartService = {
     return cart;
   },
 
-  // Update cart total items dan harga
+  // Update cart
   async updateTotals(id, { totalItems, totalPrice }) {
-    const updateData = {
-      totalItems,
-      totalPrice,
-      updatedAt: new Date(),
-    };
-
-    await knex('shoppingCart')
-      .where('id', id)
-      .update(updateData);
-
+    // Legacy function, shoppingCart no longer stores totals directly
     return this.findById(id);
   },
 
@@ -80,8 +67,6 @@ const cartService = {
     await knex('shoppingCart')
       .where('id', id)
       .update({
-        totalItems: 0,
-        totalPrice: 0,
         updatedAt: new Date(),
       });
 

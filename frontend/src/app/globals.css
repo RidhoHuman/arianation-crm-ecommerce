@@ -1,8 +1,45 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans bg-aria-cream text-aria-charcoal overflow-x-hidden transition-colors duration-300;
+  }
+  .dark body {
+    @apply bg-aria-charcoal text-white;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
+  button, input, select, textarea {
+    @apply rounded-none outline-none;
+  }
+}
+
+@layer components {
+  .btn-minimal {
+    @apply border border-aria-charcoal bg-white text-aria-charcoal font-medium uppercase tracking-[0.15em] px-8 py-3 
+           hover:bg-aria-charcoal hover:text-white active:scale-95 transition-all duration-300
+           dark:border-white dark:bg-transparent dark:text-white dark:hover:bg-white dark:hover:text-black;
+  }
+  .btn-minimal-primary {
+    @apply border border-aria-maroon bg-aria-maroon text-white font-medium uppercase tracking-[0.15em] px-8 py-3 
+           hover:bg-white hover:text-aria-maroon hover:border-aria-maroon active:scale-95 transition-all duration-300
+           dark:hover:bg-transparent dark:hover:text-aria-maroon dark:hover:border-aria-maroon;
+  }
+  .btn-minimal-dark {
+    @apply border border-aria-charcoal bg-aria-charcoal text-white font-medium uppercase tracking-[0.15em] px-8 py-3 
+           hover:bg-white hover:text-aria-charcoal active:scale-95 transition-all duration-300
+           dark:border-white dark:bg-white dark:text-black dark:hover:bg-transparent dark:hover:text-white;
+  }
+  .minimal-card {
+    @apply bg-white transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)]
+           dark:bg-gray-900 dark:hover:shadow-[0_20px_40px_rgba(255,255,255,0.05)];
+  }
+}
 
 * {
   margin: 0;
@@ -12,17 +49,10 @@
 
 html {
   scroll-behavior: smooth;
-  --font-poppins: 'Poppins', sans-serif;
-}
-
-body {
-  font-family: 'Poppins', sans-serif;
-  background-color: #FFFFFF;
-  color: #000000;
 }
 
 html, body, #root {
-  height: 100%;
+  min-height: 100vh;
   width: 100%;
 }
 
@@ -38,11 +68,4 @@ main {
 a {
   color: inherit;
   text-decoration: none;
-}
-
-button {
-  cursor: pointer;
-  border: none;
-  outline: none;
-  background: none;
 }

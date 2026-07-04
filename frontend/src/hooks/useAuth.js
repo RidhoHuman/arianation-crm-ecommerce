@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import useAuthStore from '../store/authStore';
 import * as authService from '../services/authService';
+import useCartStore from '../store/cartStore';
 
 export function useAuth() {
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -21,6 +22,10 @@ export function useAuth() {
         console.log('💾 Menyimpan auth ke store...');
         setAuth(userData, token);
         console.log('✅ Auth tersimpan. User:', userData?.email);
+        
+        // Fetch cart to merge local and pull remote
+        useCartStore.getState().fetchCart();
+        
         // Return { user, token } untuk Login.jsx
         return { user: userData, token };
       } else {
@@ -57,6 +62,8 @@ export function useAuth() {
     }
   }, [setAuth]);
 
+
+
   const logout = useCallback(async () => {
     console.log('🔓 useAuth.logout() called');
     try {
@@ -64,9 +71,10 @@ export function useAuth() {
     } catch (e) {
       console.warn('Logout API call failed, but clearing auth anyway:', e);
     }
+    useCartStore.getState().clearCart(false);
     clearAuth();
     console.log('✅ Auth cleared');
   }, [clearAuth]);
 
-  return { login, register, logout, clearAuth };
+  return { login, register, logout };
 }

@@ -32,6 +32,10 @@ export default function OptimizedImage({
         loading={loading}
         className={className}
         onLoad={onLoad}
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.style.display = 'none';
+        }}
       />
     );
   }
@@ -68,6 +72,10 @@ export default function OptimizedImage({
         className={className}
         onLoad={onLoad}
         decoding="async"
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.style.display = 'none';
+        }}
       />
     </picture>
   );

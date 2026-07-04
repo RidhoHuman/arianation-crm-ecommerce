@@ -1,40 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import useUIStore from '../store/uiStore';
 import useAuthStore from '../store/authStore';
+import { FcGoogle } from 'react-icons/fc';
+import { FaFacebook } from 'react-icons/fa';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const setLoading = useUIStore((s) => s.setLoading);
   const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [error, setError] = useState(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  useEffect(() => {
+    if (isAuthenticated) {
+      const user = useAuthStore.getState().user;
+      if (user && (user.role === 'ADMIN' || user.role === 'OWNER')) {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/account', { replace: true });
+      }
+    }
+  }, [isAuthenticated, navigate]);
+
+  const { register, handleSubmit, watch, formState: { errors } } = useForm();
 
   const onSubmit = async (data) => {
     setError(null);
     try {
       setLoading(true);
-      console.log('📝 Mengirim login request:', data.email);
       const res = await login({ email: data.email, password: data.password });
-      console.log('✅ Response dari login:', res);
       setLoading(false);
-      
       if (res?.user && res?.token) {
-        console.log('🎉 Login berhasil! User:', res.user.email, 'Token ada:', !!res.token);
-        console.log('📊 Current authStore state:', useAuthStore.getState());
-        console.log('➡️ Navigating ke home...');
-        navigate('/');
+        if (res.user.role === 'ADMIN' || res.user.role === 'OWNER') {
+          navigate('/admin');
+        } else {
+          navigate('/account');
+        }
       } else {
-        console.log('❌ Response tidak lengkap. User:', !!res?.user, 'Token:', !!res?.token);
         setError('Login gagal. Periksa kredensial Anda.');
       }
     } catch (e) {
       setLoading(false);
-      console.error('❌ Error saat login:', e);
-      console.error('Error response:', e?.response?.data);
       setError(e?.response?.data?.message || 'Terjadi kesalahan saat login');
     }
   };
@@ -73,37 +82,45 @@ export default function LoginPage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded">
+        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-medium hover:bg-blue-700 transition-colors">
           Masuk
         </button>
       </form>
 
-      <div className="my-4 text-center text-sm text-gray-500">atau masuk dengan</div>
+      <div className="my-6 flex items-center">
+        <div className="flex-grow border-t border-gray-300"></div>
+        <span className="flex-shrink-0 mx-4 text-sm text-gray-500">atau masuk dengan</span>
+        <div className="flex-grow border-t border-gray-300"></div>
+      </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
         <button
+          type="button"
           onClick={() => redirectOAuth('google')}
-          className="py-2 px-3 border rounded flex items-center justify-center"
+          className="py-2.5 px-3 border border-gray-300 rounded flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
         >
-          Google
+          <FcGoogle className="text-xl" />
+          <span className="text-sm font-medium">Google</span>
         </button>
         <button
-          onClick={() => redirectOAuth('apple')}
-          className="py-2 px-3 border rounded flex items-center justify-center"
+          type="button"
+          onClick={() => redirectOAuth('facebook')}
+          className="py-2.5 px-3 border border-gray-300 rounded flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
         >
-          Apple
-        </button>
-        <button
-          onClick={() => redirectOAuth('instagram')}
-          className="py-2 px-3 border rounded flex items-center justify-center"
-        >
-          Instagram
+          <FaFacebook className="text-xl text-[#1877F2]" />
+          <span className="text-sm font-medium">Facebook</span>
         </button>
       </div>
 
-      <p className="mt-4 text-sm text-center">
-        Belum punya akun? <a href="/register" className="text-blue-600">Daftar</a>
-      </p>
+      <div className="mt-6 border-t pt-6 text-center">
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Belum punya akun?</p>
+        <p className="text-xs text-gray-500 mb-4">
+          Buat akun sekarang dan dapatkan bonus <strong>10 Aria Points</strong> (setara Rp 10.000) untuk transaksi pertamamu!
+        </p>
+        <a href="/register" className="inline-block w-full bg-aria-charcoal text-white py-3 rounded-sm text-sm uppercase tracking-widest font-medium hover:bg-aria-maroon transition-colors">
+          Daftar Sekarang
+        </a>
+      </div>
     </div>
   );
 }

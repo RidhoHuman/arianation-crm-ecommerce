@@ -102,7 +102,7 @@ const designFileStorage = USE_SUPABASE
 // ============================================================
 
 const imageFileFilter = (req, file, cb) => {
-  const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+  const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.jfif'];
   const fileExtension = path.extname(file.originalname).toLowerCase();
   // Basic extension check
   if (!allowedExtensions.includes(fileExtension)) {
@@ -183,11 +183,7 @@ const uploadProductImage = (req, res, next) => {
       });
     }
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded',
-        statusCode: 400,
-      });
+      return next(); // Proceed without file for both POST and PUT requests
     }
 
     // If Supabase is enabled, upload the file buffer to Supabase Storage and populate req.file fields
@@ -265,11 +261,7 @@ const uploadDesign = (req, res, next) => {
       });
     }
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded',
-        statusCode: 400,
-      });
+      return next(); // Proceed without file for both POST and PUT requests
     }
 
     // If Supabase is enabled, upload design file buffer to Supabase Storage
@@ -303,6 +295,52 @@ const uploadDesign = (req, res, next) => {
     next();
   });
 };
+
+const uploadCustomOrderFiles = (req, res, next) => {
+  uploadDesignInstance.any()(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ success: false, message: `Upload error: ${err.message}` });
+    } else if (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    
+    if (!req.files || req.files.length === 0) {
+      return next();
+    }
+
+    if (USE_SUPABASE && supabase) {
+      try {
+        await Promise.all(req.files.map(async (file) => {
+          const ext = path.extname(file.originalname).toLowerCase();
+          const timestamp = Date.now();
+          const random = Math.floor(Math.random() * 10000);
+          const filename = `order_${timestamp}_${random}${ext}`;
+          
+          const key = `designs/${filename}`;
+          await uploadBufferToSupabase(key, file.buffer, file.mimetype);
+          
+          file.filename = filename;
+          file.size = file.size || file.buffer.length;
+          file.url = getFileUrl(filename, 'designs');
+        }));
+      } catch (uploadErr) {
+        console.error('Supabase multi-upload error:', uploadErr.message);
+        sentryCapture(uploadErr, req, { stage: 'upload', type: 'custom_orders' });
+        return res.status(500).json({ success: false, message: 'Failed to upload files to Supabase' });
+      }
+    }
+
+    if (!USE_SUPABASE) {
+      req.files.forEach(file => {
+        file.url = getFileUrl(file.filename, 'designs');
+      });
+    }
+
+    next();
+  });
+};
+
+
 
 // ============================================================
 // UTILITY FUNCTIONS
@@ -506,6 +544,7 @@ const getFileInfo = (filename, type = 'products') => {
 module.exports = {
   uploadProductImage,
   uploadDesign,
+  uploadCustomOrderFiles,
   getFileUrl,
   deleteFile,
   getFileInfo,

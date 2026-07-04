@@ -1,0 +1,80 @@
+﻿diff --git a/frontend/src/pages/Home.jsx b/frontend/src/pages/Home.jsx
+index 21ccc10..8ee6266 100644
+--- a/frontend/src/pages/Home.jsx
++++ b/frontend/src/pages/Home.jsx
+@@ -10,10 +10,10 @@ const CATEGORIES = [
+     image: 'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=1200&q=80',
+     color: '#8B0000',
+     products: [
+-      { id: 1, name: 'Premium Jersey', price: 'Rp 299.000', image: 'https://via.placeholder.com/300x300?text=Jersey' },
+-      { id: 2, name: 'Supporter Scarf', price: 'Rp 199.000', image: 'https://via.placeholder.com/300x300?text=Scarf' },
+-      { id: 3, name: 'Football Cap', price: 'Rp 149.000', image: 'https://via.placeholder.com/300x300?text=Cap' },
+-      { id: 4, name: 'Fan Badge Set', price: 'Rp 99.000', image: 'https://via.placeholder.com/300x300?text=Badge' },
++      { id: 1, name: 'Premium Jersey', price: 'Rp 299.000', image: 'https://placehold.co/300x300?text=Jersey' },
++      { id: 2, name: 'Supporter Scarf', price: 'Rp 199.000', image: 'https://placehold.co/300x300?text=Scarf' },
++      { id: 3, name: 'Football Cap', price: 'Rp 149.000', image: 'https://placehold.co/300x300?text=Cap' },
++      { id: 4, name: 'Fan Badge Set', price: 'Rp 99.000', image: 'https://placehold.co/300x300?text=Badge' },
+     ]
+   },
+   {
+@@ -24,10 +24,10 @@ const CATEGORIES = [
+     image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80',
+     color: '#2A6B3C',
+     products: [
+-      { id: 5, name: 'Hiking Backpack', price: 'Rp 699.000', image: 'https://via.placeholder.com/300x300?text=Backpack' },
+-      { id: 6, name: 'Windbreaker Jacket', price: 'Rp 549.000', image: 'https://via.placeholder.com/300x300?text=Jacket' },
+-      { id: 7, name: 'Trail Pants', price: 'Rp 399.000', image: 'https://via.placeholder.com/300x300?text=Pants' },
+-      { id: 8, name: 'Outdoor Tee', price: 'Rp 199.000', image: 'https://via.placeholder.com/300x300?text=Tee' },
++      { id: 5, name: 'Hiking Backpack', price: 'Rp 699.000', image: 'https://placehold.co/300x300?text=Backpack' },
++      { id: 6, name: 'Windbreaker Jacket', price: 'Rp 549.000', image: 'https://placehold.co/300x300?text=Jacket' },
++      { id: 7, name: 'Trail Pants', price: 'Rp 399.000', image: 'https://placehold.co/300x300?text=Pants' },
++      { id: 8, name: 'Outdoor Tee', price: 'Rp 199.000', image: 'https://placehold.co/300x300?text=Tee' },
+     ]
+   },
+   {
+@@ -38,10 +38,10 @@ const CATEGORIES = [
+     image: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1200&q=80',
+     color: '#1E3A5F',
+     products: [
+-      { id: 9, name: 'Fishing Shirt', price: 'Rp 279.000', image: 'https://via.placeholder.com/300x300?text=FishingShirt' },
+-      { id: 10, name: 'UV Protection Hat', price: 'Rp 169.000', image: 'https://via.placeholder.com/300x300?text=Hat' },
+-      { id: 11, name: 'Cargo Shorts', price: 'Rp 249.000', image: 'https://via.placeholder.com/300x300?text=Shorts' },
+-      { id: 12, name: 'Fishing Vest', price: 'Rp 399.000', image: 'https://via.placeholder.com/300x300?text=Vest' },
++      { id: 9, name: 'Fishing Shirt', price: 'Rp 279.000', image: 'https://placehold.co/300x300?text=FishingShirt' },
++      { id: 10, name: 'UV Protection Hat', price: 'Rp 169.000', image: 'https://placehold.co/300x300?text=Hat' },
++      { id: 11, name: 'Cargo Shorts', price: 'Rp 249.000', image: 'https://placehold.co/300x300?text=Shorts' },
++      { id: 12, name: 'Fishing Vest', price: 'Rp 399.000', image: 'https://placehold.co/300x300?text=Vest' },
+     ]
+   },
+   {
+@@ -52,10 +52,10 @@ const CATEGORIES = [
+     image: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1200&q=80',
+     color: '#FF6B35',
+     products: [
+-      { id: 13, name: 'Performance Tee', price: 'Rp 229.000', image: 'https://via.placeholder.com/300x300?text=PerfTee' },
+-      { id: 14, name: 'Running Shorts', price: 'Rp 279.000', image: 'https://via.placeholder.com/300x300?text=RunShorts' },
+-      { id: 15, name: 'Sports Bra', price: 'Rp 319.000', image: 'https://via.placeholder.com/300x300?text=SportsBra' },
+-      { id: 16, name: 'Compression Wear', price: 'Rp 349.000', image: 'https://via.placeholder.com/300x300?text=Compression' },
++      { id: 13, name: 'Performance Tee', price: 'Rp 229.000', image: 'https://placehold.co/300x300?text=PerfTee' },
++      { id: 14, name: 'Running Shorts', price: 'Rp 279.000', image: 'https://placehold.co/300x300?text=RunShorts' },
++      { id: 15, name: 'Sports Bra', price: 'Rp 319.000', image: 'https://placehold.co/300x300?text=SportsBra' },
++      { id: 16, name: 'Compression Wear', price: 'Rp 349.000', image: 'https://placehold.co/300x300?text=Compression' },
+     ]
+   },
+ ];
+@@ -74,12 +74,12 @@ export default function HomePage() {
+         <div className="absolute inset-0 bg-gradient-to-br from-white/70 to-aria-cream/80"></div>
+         
+         <div className="relative z-10 flex flex-col items-center text-center px-4 max-w-2xl">
+-          <div className="mb-2 text-sm font-bold text-aria-maroon tracking-widest uppercase">Est. 2024 ÔÇó Premium Streetwear</div>
++          <div className="mb-2 text-sm font-bold text-aria-maroon tracking-widest uppercase">Est. 2010 ÔÇó Dari Malang untuk Indonesia</div>
+           <h1 className="text-6xl md:text-8xl font-black text-black mb-6 leading-tight tracking-tighter">
+-            AGAINST<br />MODERN<br />FOOTBALL
++            LIFESTYLE<br />UNTUK SEMUA<br />MOMEN
+           </h1>
+           <p className="text-lg md:text-xl text-aria-charcoal mb-10 font-medium leading-relaxed">
+-            Authentic streetwear for casual supporters, outdoor enthusiasts, and those who live for culture.
++            Pilihan gaya versatile yang bisa dipakai kerja, hangout, adventure, dan cerita lokal.
+           </p>
+           <div className="flex flex-col sm:flex-row gap-4">
+             <Link 

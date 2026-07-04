@@ -26,7 +26,7 @@ const userService = {
     }
 
     const users = await query
-      .select('id', 'email', 'fullName', 'role', 'isActive', 'createdAt', 'updatedAt')
+      .select('id', 'email', 'fullName', 'phone', 'role', 'isActive', 'rewardPoints', 'createdAt', 'updatedAt')
       .orderBy('createdAt', 'desc')
       .limit(limit)
       .offset(skip);
@@ -60,7 +60,7 @@ const userService = {
   // Cari user berdasarkan ID
   async findById(id) {
     const user = await knex('user')
-      .select('id', 'email', 'fullName', 'role', 'isActive', 'createdAt', 'updatedAt')
+      .select('id', 'email', 'fullName', 'phone', 'role', 'isActive', 'rewardPoints', 'createdAt', 'updatedAt')
       .where('id', id)
       .first();
 
@@ -77,7 +77,7 @@ const userService = {
   },
 
   // Buat user baru
-  async create({ email, password, fullName, phone, role = 'CUSTOMER', isActive = true }) {
+  async create({ email, password, fullName, phone, role = 'CUSTOMER', isActive = true, rewardPoints = 0 }) {
     const id = require('cuid')();
     
     const user = {
@@ -88,6 +88,7 @@ const userService = {
       phone: phone || null,
       role,
       isActive,
+      rewardPoints,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

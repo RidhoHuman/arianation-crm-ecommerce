@@ -11,40 +11,113 @@ const getAllProducts = async (req, res, next) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
-    const { categoryId, businessType, productType, isActive, search, minPrice, maxPrice } =
+    const { categoryId, category, collectionId, collection, businessType, productType, excludeType, isActive, search, minPrice, maxPrice, tag, isSale, type } =
       req.query;
 
     // Build Knex query dengan filter
-    let query = knex('product');
+    let query = knex('product')
+      .leftJoin('productCategory', 'product.categoryId', 'productCategory.id');
 
-    if (categoryId) query = query.where('categoryId', categoryId);
-    if (businessType) query = query.where('businessType', businessType);
-    if (productType) query = query.where('productType', productType);
-    if (isActive !== undefined) query = query.where('isActive', isActive === 'true' ? 1 : 0);
-    if (search) {
-      query = query.where((builder) => {
-        builder.where('productName', 'like', `%${search}%`)
-          .orWhere('description', 'like', `%${search}%`);
-      });
+    if (categoryId) query = query.where('product.categoryId', categoryId);
+    if (category) query = query.where('product.categoryId', category);
+    
+    if (collectionId || collection) {
+      const colId = collectionId || collection;
+      
+      if (colId === 'new-arrivals') {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        query = query.where(builder => {
+          builder.whereExists(function() {
+            this.select('*').from('product_collection')
+                .where('collectionId', colId)
+                .whereRaw('product_collection.productId = product.id');
+          }).orWhere('product.createdAt', '>=', thirtyDaysAgo);
+        });
+      } else if (colId === 'best-seller') {
+        // Fetch threshold dynamically
+        const setting = await knex('store_settings').where('settingKey', 'best_seller_threshold').first();
+        const threshold = setting && !isNaN(parseInt(setting.settingValue, 10)) ? parseInt(setting.settingValue, 10) : 5;
+        
+        query = query.where(builder => {
+          builder.whereExists(function() {
+            this.select('*').from('product_collection')
+                .where('collectionId', colId)
+                .whereRaw('product_collection.productId = product.id');
+          }).orWhereExists(function() {
+            this.select('productId').from('orderItem')
+                .whereRaw('orderItem.productId = product.id')
+                .groupBy('productId')
+                .havingRaw('SUM(quantity) >= ?', [threshold]);
+          });
+        });
+      } else {
+        query = query.join('product_collection', 'product.id', 'product_collection.productId')
+                     .where('product_collection.collectionId', colId);
+      }
     }
-    if (minPrice) query = query.where('price', '>=', parseFloat(minPrice));
-    if (maxPrice) query = query.where('price', '<=', parseFloat(maxPrice));
+    
+    // Map URL type (e.g., 't-shirts', 'hoodies') to product names since productType is an ENUM (KAOS/ATRIBUT)
+    if (type) {
+      if (type === 'hoodies') {
+        query = query.where('product.productName', 'like', '%hoodie%');
+      } else if (type === 't-shirts') {
+        query = query.where(builder => {
+          builder.where('product.productName', 'like', '%tee%')
+                 .orWhere('product.productName', 'like', '%shirt%');
+        });
+      } else if (type === 'pants') {
+        query = query.where('product.productName', 'like', '%pants%');
+      } else if (type === 'accessories') {
+        query = query.where(builder => {
+          builder.where('product.productName', 'like', '%cap%')
+                 .orWhere('product.productName', 'like', '%scarf%')
+                 .orWhere('product.productName', 'like', '%badge%');
+        });
+      }
+    }
+
+    if (businessType) query = query.where('product.businessType', businessType);
+    if (productType) query = query.where('product.productType', productType);
+    if (excludeType) query = query.whereNot('product.productType', excludeType);
+    if (isActive !== undefined) query = query.where('product.isActive', isActive === 'true' ? 1 : 0);
+    if (isSale !== undefined) query = query.where('product.isSale', isSale === 'true' ? 1 : 0);
+    if (tag) query = query.where('product.tags', 'like', `%${tag}%`);
+    if (search) {
+      const terms = search.trim().split(/\s+/).filter(Boolean);
+      if (terms.length > 0) {
+        query = query.where((builder) => {
+          terms.forEach(term => {
+            builder.where(sub => {
+              sub.where('product.productName', 'like', `%${term}%`)
+                 .orWhere('product.description', 'like', `%${term}%`);
+            });
+          });
+        });
+      }
+    }
+    if (minPrice) query = query.where('product.price', '>=', parseFloat(minPrice));
+    if (maxPrice) query = query.where('product.price', '<=', parseFloat(maxPrice));
 
     const [products, countResult] = await Promise.all([
       query.clone()
         .select(
-          'id',
-          'categoryId',
-          'productName',
-          'description',
-          'price',
-          'stockQuantity',
-          'productType',
-          'imageUrl',
-          'businessType',
-          'isActive',
-          'createdAt',
-          'updatedAt'
+          'product.id',
+          'product.categoryId',
+          'product.productName',
+          'product.description',
+          'product.price',
+          'product.stockQuantity',
+          'product.productType',
+          'product.imageUrl',
+          'product.businessType',
+          'product.isActive',
+          'product.tags',
+          'product.isSale',
+          'product.imageUrls',
+          'product.createdAt',
+          'product.updatedAt',
+          'productCategory.categoryName as categoryName'
         )
         .orderBy('createdAt', 'desc')
         .limit(limit)
@@ -53,6 +126,15 @@ const getAllProducts = async (req, res, next) => {
     ]);
 
     const total = countResult.count;
+
+    // Fetch variants (colors/sizes)
+    const productIds = products.map(p => p.id);
+    if (productIds.length > 0) {
+      const variants = await knex('productvariant').whereIn('productId', productIds);
+      products.forEach(p => {
+        p.variants = variants.filter(v => v.productId === p.id);
+      });
+    }
 
     return sendPaginated(
       res,
@@ -80,6 +162,14 @@ const getProductById = async (req, res, next) => {
       throw new NotFoundError(MESSAGES.PRODUCT_NOT_FOUND);
     }
 
+    // Fetch collectionIds
+    const collections = await knex('product_collection').where('productId', id).select('collectionId');
+    product.collectionIds = collections.map(c => c.collectionId);
+
+    // Fetch variants
+    const variants = await knex('productvariant').where('productId', id);
+    product.variants = variants;
+
     return sendSuccess(res, product, MESSAGES.PRODUCT_FOUND);
   } catch (error) {
     next(error);
@@ -92,12 +182,18 @@ const createProduct = async (req, res, next) => {
       categoryId,
       productName,
       description,
+      descriptionEn,
       price,
       stockQuantity,
       productType,
+      productTypeId,
       imageUrl,
       businessType,
+      tags,
+      isSale,
+      isActive,
       variants,
+      imageUrls,
     } = req.body;
 
     const category = await knex('productCategory').where('id', categoryId).first();
@@ -109,11 +205,17 @@ const createProduct = async (req, res, next) => {
       categoryId,
       productName,
       description: description || null,
+      descriptionEn: descriptionEn || null,
       price,
       stockQuantity: stockQuantity || 0,
       productType,
+      productTypeId: productTypeId === '' ? null : productTypeId,
       imageUrl: imageUrl || null,
       businessType,
+      tags: tags || null,
+      isSale: isSale === true || isSale === 'true' || isSale === 1 || isSale === '1',
+      isActive: isActive === undefined ? true : (isActive === true || isActive === 'true' || isActive === 1 || isActive === '1'),
+      imageUrls: imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null,
     });
 
     // Create variants jika ada
@@ -122,7 +224,7 @@ const createProduct = async (req, res, next) => {
         id: require('cuid')(),
         productId: product.id,
         variantName: v.variantName,
-        sku: v.sku,
+        sku: v.sku || `SKU-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
         additionalPrice: v.additionalPrice || 0,
         stockQuantity: v.stockQuantity || 0,
         createdAt: new Date(),
@@ -130,6 +232,16 @@ const createProduct = async (req, res, next) => {
       }));
 
       await knex('productVariant').insert(variantRecords);
+    }
+
+    // Save collectionIds jika ada
+    let colIds = req.body.collectionIds;
+    if (colIds) {
+      if (!Array.isArray(colIds)) colIds = [colIds];
+      if (colIds.length > 0) {
+        const colRecords = colIds.map(cId => ({ productId: product.id, collectionId: cId }));
+        await knex('product_collection').insert(colRecords);
+      }
     }
 
     return sendCreated(res, product, MESSAGES.PRODUCT_CREATED);
@@ -141,7 +253,13 @@ const createProduct = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { productName, description, price, stockQuantity, imageUrl, isActive } = req.body;
+    
+    // DEBUG LOGGING
+    try {
+      require('fs').appendFileSync('debug-error.log', 'UPDATE PRODUCT PAYLOAD: ' + JSON.stringify(req.body) + '\n');
+    } catch(e) {}
+
+    const { productName, description, descriptionEn, price, stockQuantity, imageUrl, imageUrls, isActive, tags, isSale, categoryId, productTypeId, variants } = req.body;
 
     const existing = await productService.findById(id);
     if (!existing) {
@@ -151,12 +269,30 @@ const updateProduct = async (req, res, next) => {
     const updateData = {};
     if (productName !== undefined) updateData.productName = productName;
     if (description !== undefined) updateData.description = description;
+    if (descriptionEn !== undefined) updateData.descriptionEn = descriptionEn;
     if (price !== undefined) updateData.price = price;
     if (stockQuantity !== undefined) updateData.stockQuantity = stockQuantity;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
-    if (isActive !== undefined) updateData.isActive = isActive;
+    if (isActive !== undefined) updateData.isActive = isActive === true || isActive === 'true' || isActive === 1 || isActive === '1';
+    if (tags !== undefined) updateData.tags = tags;
+    if (isSale !== undefined) updateData.isSale = isSale === true || isSale === 'true' || isSale === 1 || isSale === '1';
+    if (imageUrls !== undefined) updateData.imageUrls = imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null;
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (productTypeId !== undefined) updateData.productTypeId = productTypeId === '' ? null : productTypeId;
+    if (variants !== undefined) updateData.variants = variants;
 
     const product = await productService.update(id, updateData);
+
+    // Save collectionIds jika ada
+    let colIds = req.body.collectionIds;
+    if (colIds) {
+      if (!Array.isArray(colIds)) colIds = [colIds];
+      await knex('product_collection').where('productId', id).del();
+      if (colIds.length > 0) {
+        const colRecords = colIds.map(cId => ({ productId: id, collectionId: cId }));
+        await knex('product_collection').insert(colRecords);
+      }
+    }
 
     return sendSuccess(res, product, MESSAGES.PRODUCT_UPDATED);
   } catch (error) {
@@ -317,6 +453,77 @@ const uploadProductImageAndUpdate = async (req, res, next) => {
   }
 };
 
+const addProductColor = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { colorName, hexCode, stockQuantity, imageUrl, imageUrlBack, imageUrlLeft, imageUrlRight } = req.body;
+    
+    // Check if product exists
+    const knex = require('../config/knex');
+    const product = await knex('product').where('id', id).first();
+    if (!product) throw new NotFoundError(MESSAGES.PRODUCT_NOT_FOUND);
+
+    const newColor = {
+      id: require('cuid')(),
+      productId: id,
+      colorName,
+      hexCode: hexCode || null,
+      stockQuantity: stockQuantity || 0,
+      imageUrl: imageUrl || null,
+      imageUrlBack: imageUrlBack || null,
+      imageUrlLeft: imageUrlLeft || null,
+      imageUrlRight: imageUrlRight || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await knex('product_color_variant').insert(newColor);
+    return sendCreated(res, newColor, 'Color variant created');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProductColor = async (req, res, next) => {
+  try {
+    const { id, colorId } = req.params;
+    const { colorName, hexCode, stockQuantity, imageUrl, imageUrlBack, imageUrlLeft, imageUrlRight } = req.body;
+    const knex = require('../config/knex');
+    
+    const updateData = {
+      colorName,
+      hexCode,
+      stockQuantity,
+      updatedAt: new Date()
+    };
+    
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (imageUrlBack !== undefined) updateData.imageUrlBack = imageUrlBack;
+    if (imageUrlLeft !== undefined) updateData.imageUrlLeft = imageUrlLeft;
+    if (imageUrlRight !== undefined) updateData.imageUrlRight = imageUrlRight;
+    
+    const updated = await knex('product_color_variant')
+      .where({ id: colorId, productId: id })
+      .update(updateData);
+      
+    if (!updated) throw new NotFoundError('Color variant not found');
+    return sendSuccess(res, { id: colorId }, 'Color variant updated');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteProductColor = async (req, res, next) => {
+  try {
+    const { id, colorId } = req.params;
+    const knex = require('../config/knex');
+    const deleted = await knex('product_color_variant').where({ id: colorId, productId: id }).del();
+    if (!deleted) throw new NotFoundError('Color variant not found');
+    return sendSuccess(res, null, 'Color variant deleted');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
@@ -327,4 +534,7 @@ module.exports = {
   createVariant,
   uploadProductImage,
   uploadProductImageAndUpdate,
+  addProductColor,
+  updateProductColor,
+  deleteProductColor,
 };

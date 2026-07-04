@@ -5,29 +5,35 @@ const designRequestService = {
   // Ambil semua design request dengan filter dan pagination
   async findMany({ page = 1, limit = 10, userId, status } = {}) {
     const skip = (page - 1) * limit;
-    let query = knex('designRequest');
+    let query = knex('designRequest')
+      .leftJoin('user', 'designRequest.userId', 'user.id');
 
     if (userId) {
-      query = query.where('userId', userId);
+      query = query.where('designRequest.userId', userId);
     }
 
     if (status) {
-      query = query.where('status', status);
+      query = query.where('designRequest.status', status);
     }
 
     const requests = await query
       .select(
-        'id',
-        'userId',
-        'productId',
-        'title',
-        'description',
-        'status',
-        'designFile',
-        'createdAt',
-        'updatedAt'
+        'designRequest.id',
+        'designRequest.userId',
+        'designRequest.orderId',
+        'designRequest.designTitle',
+        'designRequest.designDescription',
+        'designRequest.status',
+        'designRequest.designFileUrl',
+        'designRequest.fileType',
+        'designRequest.quantity',
+        'designRequest.productTypeForSablon',
+        'designRequest.createdAt',
+        'designRequest.updatedAt',
+        'user.fullName as customerName',
+        'user.email as customerEmail'
       )
-      .orderBy('createdAt', 'desc')
+      .orderBy('designRequest.createdAt', 'desc')
       .limit(limit)
       .offset(skip);
 
@@ -53,17 +59,6 @@ const designRequestService = {
   // Cari design request berdasarkan ID
   async findById(id) {
     const request = await knex('designRequest')
-      .select(
-        'id',
-        'userId',
-        'productId',
-        'title',
-        'description',
-        'status',
-        'designFile',
-        'createdAt',
-        'updatedAt'
-      )
       .where('id', id)
       .first();
 
@@ -71,17 +66,12 @@ const designRequestService = {
   },
 
   // Buat design request baru
-  async create({ userId, productId, title, description, designFile = null }) {
+  async create(data) {
     const id = require('cuid')();
 
     const designRequest = {
       id,
-      userId,
-      productId,
-      title,
-      description,
-      status: 'PENDING',
-      designFile,
+      ...data,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -118,11 +108,11 @@ const designRequestService = {
   },
 
   // Update design file
-  async updateDesignFile(id, designFile) {
+  async updateDesignFile(id, designFileUrl) {
     await knex('designRequest')
       .where('id', id)
       .update({
-        designFile,
+        designFileUrl,
         updatedAt: new Date(),
       });
 
@@ -144,9 +134,8 @@ const designRequestService = {
       .where('userId', userId)
       .select(
         'id',
-        'productId',
-        'title',
-        'description',
+        'designTitle',
+        'designDescription',
         'status',
         'createdAt'
       )

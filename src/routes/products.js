@@ -13,6 +13,9 @@ const {
   createVariant,
   uploadProductImage,
   uploadProductImageAndUpdate,
+  addProductColor,
+  updateProductColor,
+  deleteProductColor,
 } = require('../controllers/productController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
@@ -20,7 +23,7 @@ const { uploadProductImage: uploadProductImageMiddleware } = require('../middlew
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 10000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests, please try again later.' },
@@ -49,6 +52,10 @@ router.post(
   authorize('ADMIN', 'OWNER'),
   createVariant
 );
+
+router.post('/:id/colors', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), addProductColor);
+router.put('/:id/colors/:colorId', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), updateProductColor);
+router.delete('/:id/colors/:colorId', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), deleteProductColor);
 
 // Upload routes
 router.post(

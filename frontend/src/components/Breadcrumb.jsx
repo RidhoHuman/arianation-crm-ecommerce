@@ -5,7 +5,7 @@ import { useLocation, Link } from 'react-router-dom';
  * Breadcrumb Navigation component dengan JSON-LD schema
  * Auto-generates breadcrumb dari current URL path
  */
-export default function Breadcrumb() {
+export default function Breadcrumb({ customLabels = {} }) {
   const location = useLocation();
   const pathname = location.pathname;
 
@@ -31,7 +31,7 @@ export default function Breadcrumb() {
       admin: 'Admin',
     };
 
-    const label = labelMap[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
+    const label = customLabels[segment] || labelMap[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
 
     breadcrumbItems.push({
       label,

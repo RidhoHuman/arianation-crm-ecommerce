@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 
 const useAuthStore = create((set, get) => ({
-  user: null,
-  token: null,
-  isAuthenticated: false,
+  user: JSON.parse(localStorage.getItem('user')) || null,
+  token: localStorage.getItem('token') || null,
+  isAuthenticated: !!localStorage.getItem('token'),
   
   setAuth(user, token) {
     console.log('🔐 authStore.setAuth() called');

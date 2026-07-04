@@ -15,8 +15,10 @@ const {
   getOrderTimeline,
   getOrderNotifications,
 } = require('../controllers/orderController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { createCustomOrder } = require('../controllers/customOrderController');
+const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
+const { uploadCustomOrderFiles } = require('../middleware/upload');
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -110,15 +112,18 @@ const guestCheckoutLimiter = rateLimit({
 
 router.post('/guest', guestCheckoutLimiter, createGuestOrder);
 
+// Routes that can be accessed by both guests (via order ID) and authenticated users
+router.get('/:id', optionalAuth, getOrderById);
+router.get('/:id/tracking', optionalAuth, getOrderTracking);
+
 // All other order routes require authentication
 router.use(generalLimiter, authenticate);
 
 router.get('/', getAllOrders);
 router.post('/', validateBody(schemas.createOrder), validateCreateOrderRequest, createOrder);
-router.get('/:id', getOrderById);
+router.post('/custom-sablon', uploadCustomOrderFiles, createCustomOrder);
 router.put('/:id/status', authorize('ADMIN', 'OWNER', 'DESIGN_STAFF'), updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);
-router.get('/:id/tracking', getOrderTracking);
 
 // Order fulfillment routes
 router.get('/:id/status-history', getOrderStatusHistory);

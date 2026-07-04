@@ -117,6 +117,54 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
         updatedAt: new Date(),
       });
 
+    // Award points if DELIVERED and order belongs to a user
+    if (newStatus === 'DELIVERED' && order.userId) {
+      const orderData = await trx('order').where('id', orderId).select('totalAmount').first();
+      const earnedPoints = Math.floor((orderData.totalAmount || 0) / 10000); // 1 point per 10.000 IDR
+      
+      if (earnedPoints > 0) {
+        // Update User table
+        await trx('user').where('id', order.userId).increment('rewardPoints', earnedPoints);
+        
+        // Add point history
+        await trx('pointHistory').insert({
+          id: require('cuid')(),
+          userId: order.userId,
+          points: earnedPoints,
+          type: 'EARNED',
+          description: `Hadiah pesanan ${orderId.slice(0, 8)}`,
+          createdAt: new Date(),
+        });
+      }
+      
+      // Update Customer Metrics
+      const metrics = await trx('customerMetrics').where('userId', order.userId).first();
+      if (metrics) {
+        const newTotalTransactions = (metrics.totalTransactions || 0) + 1;
+        const newTotalSpent = parseFloat(metrics.totalSpent || 0) + parseFloat(orderData.totalAmount || 0);
+        const newAverageOrderValue = newTotalSpent / newTotalTransactions;
+        
+        // Tier calculation (e.g. Bronze, Silver > 500k, Gold > 2m, Platinum > 5m)
+        let newTier = metrics.currentTier || 'BRONZE';
+        if (!metrics.isTierManuallySet) {
+          if (newTotalSpent >= 5000000) newTier = 'PLATINUM';
+          else if (newTotalSpent >= 2000000) newTier = 'GOLD';
+          else if (newTotalSpent >= 500000) newTier = 'SILVER';
+          else newTier = 'BRONZE';
+        }
+
+        await trx('customerMetrics').where('userId', order.userId).update({
+          totalTransactions: newTotalTransactions,
+          totalSpent: newTotalSpent,
+          averageOrderValue: newAverageOrderValue,
+          loyaltyPoints: (metrics.loyaltyPoints || 0) + earnedPoints,
+          currentTier: newTier,
+          updatedAt: new Date()
+        });
+      }
+
+      }
+
     // Create status history record
     const cuid = require('cuid');
     await trx('orderStatusHistory').insert({

@@ -10,6 +10,7 @@ const {
   deleteUser,
   updateProfile,
   changePassword,
+  getPointsHistory,
 } = require('../controllers/userController');
 const { authenticate, authorize } = require('../middleware/auth');
 
@@ -34,6 +35,7 @@ router.get('/me', (req, res, next) => {
 });
 router.put('/profile', updateProfile);
 router.put('/change-password', changePassword);
+router.get('/points-history', getPointsHistory);
 
 // Specific user operations
 router.get('/:id', getUserById);

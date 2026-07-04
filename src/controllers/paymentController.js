@@ -62,7 +62,7 @@ const getPaymentById = async (req, res, next) => {
 
 const createPayment = async (req, res, next) => {
   try {
-    const { orderId, method } = req.body;
+    const { orderId, method, customerDetails } = req.body;
 
     const order = await orderService.findById(orderId);
 
@@ -107,6 +107,38 @@ const createPayment = async (req, res, next) => {
       paymentData.accountName = accountName;
     }
 
+    // Midtrans Snap Token Generation
+    const { snap } = require('../config/midtrans');
+    
+    // Fallback if customer details not fully provided by frontend
+    const customer = req.user ? {
+      first_name: req.user.fullName,
+      email: req.user.email,
+      phone: req.user.phone || '081234567890'
+    } : customerDetails;
+
+    const parameter = {
+      transaction_details: {
+        order_id: transactionId,
+        gross_amount: order.totalAmount
+      },
+      customer_details: customer,
+    };
+
+    let snapToken = null;
+    let snapRedirectUrl = null;
+
+    try {
+      const snapResponse = await snap.createTransaction(parameter);
+      snapToken = snapResponse.token;
+      snapRedirectUrl = snapResponse.redirect_url;
+      paymentData.qrisUrl = snapRedirectUrl; // We can repurpose this for the snap URL
+    } catch (midtransError) {
+      console.error('Midtrans Snap Error:', midtransError.message);
+      // If Midtrans fails, we can either throw error or fallback to manual. We throw to be strict.
+      throw new BadRequestError('Gagal memproses pembayaran melalui payment gateway');
+    }
+
     let payment;
     if (existingPayment) {
       payment = await paymentService.update(existingPayment.id, paymentData);
@@ -114,7 +146,15 @@ const createPayment = async (req, res, next) => {
       payment = await paymentService.create(paymentData);
     }
 
-    return sendCreated(res, payment, MESSAGES.PAYMENT_CREATED);
+    return res.status(201).json({
+      success: true,
+      message: MESSAGES.PAYMENT_CREATED,
+      data: {
+        ...payment,
+        snapToken,
+        snapRedirectUrl
+      }
+    });
   } catch (error) {
     next(error);
   }

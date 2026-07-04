@@ -3,6 +3,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
+const upload = require('../middleware/upload');
 
 const {
   getDashboard,
@@ -65,8 +66,9 @@ router.get('/dashboard', getDashboard);
 // PRODUCTS
 // ============================================================
 router.get('/products', getProducts);
-router.post('/products', createProduct);
-router.put('/products/:id', updateProduct);
+router.post('/products', upload.uploadProductImage, createProduct);
+router.post('/products/upload-image', upload.uploadProductImage, require('../controllers/adminController').uploadImageHandler);
+router.put('/products/:id', upload.uploadProductImage, updateProduct);
 router.delete('/products/:id', deleteProduct);
 
 // ============================================================
@@ -127,5 +129,37 @@ router.get('/analytics/revenue', getRevenueAnalytics);
 router.get('/analytics/orders', getOrderAnalytics);
 router.get('/analytics/customers', getCustomerAnalytics);
 router.get('/analytics/designs', getDesignAnalytics);
+
+// ============================================================
+// CUSTOMER CRM
+// ============================================================
+const inventoryController = require('../controllers/inventoryController');
+const customerController = require('../controllers/customerController');
+const settingsController = require('../controllers/settingsController');
+const printTechniqueController = require('../controllers/printTechniqueController');
+
+// Rute untuk Settings
+router.get('/settings', settingsController.getSettings);
+router.put('/settings', settingsController.updateSettings);
+
+// Rute untuk Customer & CRM
+router.get('/customers', customerController.getCustomers);
+router.post('/customers/promo', customerController.sendPromoEmail);
+router.put('/customers/:id', customerController.updateCustomer);
+
+// ============================================================
+// PRINT TECHNIQUES (TEKNIK SABLON)
+// ============================================================
+router.get('/techniques', printTechniqueController.getAllAdmin);
+router.post('/techniques', printTechniqueController.create);
+router.put('/techniques/:id', printTechniqueController.update);
+router.delete('/techniques/:id', printTechniqueController.delete);
+
+// ============================================================
+// PRODUCT REVIEWS
+// ============================================================
+const reviewController = require('../controllers/reviewController');
+router.get('/reviews', reviewController.getAllReviewsAdmin);
+router.delete('/reviews/:id', reviewController.deleteReviewAdmin);
 
 module.exports = router;

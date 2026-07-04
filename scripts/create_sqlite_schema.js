@@ -15,7 +15,11 @@ const knexLib = require('knex');
     fs.mkdirSync(dbDir, { recursive: true });
   }
   if (fs.existsSync(dbFile)) {
-    fs.unlinkSync(dbFile);
+    try {
+      fs.unlinkSync(dbFile);
+    } catch (e) {
+      // Ignore unlink errors in setup if it's already deleted or locked by same process
+    }
   }
 
   const db = knexLib({
@@ -30,11 +34,17 @@ const knexLib = require('knex');
     if (!(await has('user')))
       await db.schema.createTable('user', (t) => {
         t.string('id').primary();
-        t.string('email');
+        t.string('email').unique();
         t.string('password');
         t.string('fullName');
+        t.string('phone').nullable();
         t.string('role');
         t.boolean('isActive').defaultTo(true);
+        t.text('address').nullable();
+        t.string('city').nullable();
+        t.string('postalCode').nullable();
+        t.string('province').nullable();
+        t.boolean('emailVerified').defaultTo(false);
         t.timestamp('createdAt').defaultTo(db.fn.now());
         t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
@@ -57,6 +67,8 @@ const knexLib = require('knex');
         t.integer('stockQuantity').defaultTo(0);
         t.string('productType');
         t.string('businessType');
+        t.string('imageUrl').nullable();
+        t.text('description').nullable();
         t.boolean('isActive').defaultTo(true);
         t.timestamp('createdAt').defaultTo(db.fn.now());
         t.timestamp('updatedAt').defaultTo(db.fn.now());
@@ -65,11 +77,13 @@ const knexLib = require('knex');
     if (!(await has('order')))
       await db.schema.createTable('order', (t) => {
         t.string('id').primary();
-        t.string('orderNumber');
-        t.string('userId');
+        t.string('orderNumber').unique();
+        t.string('userId').nullable();
+        t.string('guestEmail').nullable();
         t.decimal('totalAmount', 10, 2).defaultTo(0);
-        t.string('paymentMethod');
-        t.string('status');
+        t.string('paymentMethod').nullable();
+        t.string('status').defaultTo('pending');
+        t.text('shippingAddress').nullable();
         t.timestamp('createdAt').defaultTo(db.fn.now());
         t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
@@ -92,7 +106,7 @@ const knexLib = require('knex');
         t.decimal('amount', 10, 2).defaultTo(0);
         t.string('method');
         t.string('status');
-        t.string('transactionId');
+        t.string('transactionId').nullable();
         t.timestamp('createdAt').defaultTo(db.fn.now());
         t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
@@ -101,11 +115,11 @@ const knexLib = require('knex');
       await db.schema.createTable('orderStatusHistory', (t) => {
         t.string('id').primary();
         t.string('orderId');
-        t.string('previousStatus');
+        t.string('previousStatus').nullable();
         t.string('newStatus');
-        t.string('reason');
-        t.string('updatedBy');
-        t.text('notes');
+        t.string('reason').nullable();
+        t.string('updatedBy').nullable();
+        t.text('notes').nullable();
         t.timestamp('createdAt').defaultTo(db.fn.now());
       });
 
@@ -113,8 +127,8 @@ const knexLib = require('knex');
       await db.schema.createTable('orderTracking', (t) => {
         t.string('id').primary();
         t.string('orderId');
-        t.string('trackingNumber');
-        t.string('courier');
+        t.string('trackingNumber').nullable();
+        t.string('courier').nullable();
         t.timestamp('createdAt').defaultTo(db.fn.now());
       });
 
@@ -122,13 +136,13 @@ const knexLib = require('knex');
       await db.schema.createTable('orderNotification', (t) => {
         t.string('id').primary();
         t.string('orderId');
-        t.string('userId');
-        t.string('recipientEmail');
+        t.string('userId').nullable();
+        t.string('recipientEmail').nullable();
         t.string('type');
         t.string('title');
         t.text('message');
         t.boolean('emailSent').defaultTo(false);
-        t.text('payload');
+        t.text('payload').nullable();
         t.timestamp('createdAt').defaultTo(db.fn.now());
       });
 

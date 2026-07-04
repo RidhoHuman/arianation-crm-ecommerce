@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import useUIStore from '../store/uiStore';
+import { FcGoogle } from 'react-icons/fc';
+import { FaFacebook } from 'react-icons/fa';
 
 const registerSchema = z.object({
   fullName: z.string().min(3, 'Nama minimal 3 karakter'),
@@ -126,7 +128,32 @@ export default function Register() {
         </button>
       </form>
 
-      <p className="mt-4 text-sm text-center">
+      <div className="my-6 flex items-center">
+        <div className="flex-grow border-t border-gray-300"></div>
+        <span className="flex-shrink-0 mx-4 text-sm text-gray-500">atau daftar dengan</span>
+        <div className="flex-grow border-t border-gray-300"></div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => { window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/oauth/google` }}
+          className="py-2.5 px-3 border border-gray-300 rounded flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
+        >
+          <FcGoogle className="text-xl" />
+          <span className="text-sm font-medium">Google</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => { window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/oauth/facebook` }}
+          className="py-2.5 px-3 border border-gray-300 rounded flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
+        >
+          <FaFacebook className="text-xl text-[#1877F2]" />
+          <span className="text-sm font-medium">Facebook</span>
+        </button>
+      </div>
+
+      <p className="mt-8 text-sm text-center">
         Sudah punya akun? <a href="/login" className="text-blue-600 font-medium">Masuk</a>
       </p>
     </div>

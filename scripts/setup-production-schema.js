@@ -47,6 +47,7 @@ async function setupSchema() {
         t.string('city').nullable();
         t.string('postalCode').nullable();
         t.string('province').nullable();
+        t.integer('rewardPoints').defaultTo(0);
         t.boolean('emailVerified').defaultTo(false);
         t.timestamp('createdAt').defaultTo(db.fn.now());
         t.timestamp('updatedAt').defaultTo(db.fn.now());
@@ -207,6 +208,127 @@ async function setupSchema() {
       console.log('✅ orderNotification table created');
     } else {
       console.log('⏭️  orderNotification table sudah ada');
+    }
+
+    // Customer Profile table
+    const hasCustomerProfileTable = await db.schema.hasTable('customerProfile');
+    if (!hasCustomerProfileTable) {
+      console.log('📝 Creating customerProfile table...');
+      await db.schema.createTable('customerProfile', (t) => {
+        t.string('id').primary();
+        t.string('userId').references('id').inTable('user').onDelete('CASCADE');
+        t.text('address').nullable();
+        t.string('city').nullable();
+        t.string('postalCode').nullable();
+        t.string('province').nullable();
+        t.boolean('emailPromo').defaultTo(true);
+        t.boolean('emailOrderUpdates').defaultTo(true);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ customerProfile table created');
+    } else {
+      console.log('⏭️  customerProfile table sudah ada, checking columns...');
+      const hasPromoCol = await db.schema.hasColumn('customerProfile', 'emailPromo');
+      if (!hasPromoCol) {
+        await db.schema.alterTable('customerProfile', t => {
+          t.boolean('emailPromo').defaultTo(true);
+          t.boolean('emailOrderUpdates').defaultTo(true);
+        });
+        console.log('✅ customerProfile table altered: added email preferences');
+      }
+    }
+
+    // Design Request table
+    const hasDesignRequestTable = await db.schema.hasTable('designRequest');
+    if (!hasDesignRequestTable) {
+      console.log('📝 Creating designRequest table...');
+      await db.schema.createTable('designRequest', (t) => {
+        t.string('id').primary();
+        t.string('userId').references('id').inTable('user').onDelete('CASCADE');
+        t.string('orderId').nullable();
+        t.string('designTitle');
+        t.text('designDescription').nullable();
+        t.string('referenceImageUrl').nullable();
+        t.string('designFileUrl').nullable();
+        t.string('fileType').nullable();
+        t.integer('quantity').defaultTo(1);
+        t.string('productTypeForSablon').nullable();
+        t.string('colorPreferences').nullable();
+        t.date('deadline').nullable();
+        t.string('status').defaultTo('DRAFT');
+        t.timestamp('submittedAt').nullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ designRequest table created');
+    } else {
+      console.log('⏭️  designRequest table sudah ada');
+    }
+
+    // Customer Metrics table
+    const hasCustomerMetricsTable = await db.schema.hasTable('customerMetrics');
+    if (!hasCustomerMetricsTable) {
+      console.log('📝 Creating customerMetrics table...');
+      await db.schema.createTable('customerMetrics', (t) => {
+        t.string('id').primary();
+        t.string('userId').references('id').inTable('user').onDelete('CASCADE');
+        t.integer('totalOrders').defaultTo(0);
+        t.decimal('totalSpent', 10, 2).defaultTo(0);
+        t.timestamp('lastOrderDate').nullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ customerMetrics table created');
+    } else {
+      console.log('⏭️  customerMetrics table sudah ada');
+    }
+
+    // Shopping Cart table
+    const hasShoppingCartTable = await db.schema.hasTable('shoppingCart');
+    if (!hasShoppingCartTable) {
+      console.log('📝 Creating shoppingCart table...');
+      await db.schema.createTable('shoppingCart', (t) => {
+        t.string('id').primary();
+        t.string('userId').references('id').inTable('user').onDelete('CASCADE');
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ shoppingCart table created');
+    } else {
+      console.log('⏭️  shoppingCart table sudah ada');
+    }
+
+    // Wishlist table
+    const hasWishlistTable = await db.schema.hasTable('wishlist');
+    if (!hasWishlistTable) {
+      console.log('📝 Creating wishlist table...');
+      await db.schema.createTable('wishlist', (t) => {
+        t.string('id').primary();
+        t.string('userId').references('id').inTable('user').onDelete('CASCADE');
+        t.string('productId').references('id').inTable('product').onDelete('CASCADE');
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ wishlist table created');
+    } else {
+      console.log('⏭️  wishlist table sudah ada');
+    }
+
+    // Point History table
+    const hasPointHistoryTable = await db.schema.hasTable('pointHistory');
+    if (!hasPointHistoryTable) {
+      console.log('📝 Creating pointHistory table...');
+      await db.schema.createTable('pointHistory', (t) => {
+        t.string('id').primary();
+        t.string('userId'); // Removed foreign key constraint to prevent MySQL type mismatch
+        t.integer('points').notNullable();
+        t.string('type').notNullable(); // EARNED or SPENT
+        t.string('description').notNullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ pointHistory table created');
+    } else {
+      console.log('⏭️  pointHistory table sudah ada');
     }
 
     console.log('\n✅ Production schema setup complete!');

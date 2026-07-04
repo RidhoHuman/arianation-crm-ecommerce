@@ -6,6 +6,8 @@ const { sendSuccess, sendCreated, sendPaginated } = require('../utils/response')
 const { NotFoundError, BadRequestError, AuthorizationError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
 const orderFulfillmentService = require('../services/orderFulfillmentService');
+const paymentService = require('../services/paymentService');
+const { snap } = require('../config/midtrans');
 
 const getAllOrders = async (req, res, next) => {
   try {
@@ -47,9 +49,31 @@ const getOrderById = async (req, res, next) => {
       throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
     }
 
-    if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
     }
+
+    // Attach user info if userId exists
+    if (order.userId) {
+      const user = await knex('user').where('id', order.userId).first();
+      if (user) {
+        order.user = {
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phone
+        };
+      }
+    }
+
+    const items = await knex('orderItem')
+      .leftJoin('product', 'orderItem.productId', 'product.id')
+      .select('orderItem.*', 'product.productName')
+      .where('orderId', id);
+
+    order.items = items.map(item => ({
+      ...item,
+      product: { productName: item.productName }
+    }));
 
     return sendSuccess(res, order, MESSAGES.ORDER_FOUND);
   } catch (error) {
@@ -60,7 +84,10 @@ const getOrderById = async (req, res, next) => {
 const createOrder = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { paymentMethod, deliveryAddress, notes, items } = req.body;
+    const { paymentMethod, deliveryAddress, notes, items, usePoints, voucherCode } = req.body;
+
+    const user = await knex('user').where('id', userId).first();
+    let discountFromPoints = 0;
 
     let orderItems = [];
 
@@ -116,21 +143,109 @@ const createOrder = async (req, res, next) => {
 
     const totalAmount = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
 
+    let finalAmount = totalAmount; // Subtotal
+    let tierDiscountAmount = 0;
+    let tierDiscountPercentage = 0;
+
+    // 1. Tier Discount
+    if (userId) {
+      const metrics = await knex('customerMetrics').where('userId', userId).first();
+      const currentTier = metrics?.currentTier || 'BRONZE';
+      
+      if (currentTier === 'SILVER') tierDiscountPercentage = 5;
+      else if (currentTier === 'GOLD') tierDiscountPercentage = 10;
+      else if (currentTier === 'PLATINUM') tierDiscountPercentage = 15;
+
+      if (tierDiscountPercentage > 0) {
+        tierDiscountAmount = Math.floor(totalAmount * (tierDiscountPercentage / 100));
+        finalAmount -= tierDiscountAmount;
+      }
+    }
+
+    // 2. Voucher Discount
+    let voucherDiscountAmount = 0;
+    let validVoucherCode = null;
+    let usedVoucherId = null;
+
+    if (voucherCode) {
+      const voucher = await knex('voucher').where('code', voucherCode.toUpperCase()).first();
+      if (voucher && voucher.isActive && (!voucher.expiresAt || new Date(voucher.expiresAt) > new Date()) && (!voucher.usageLimit || voucher.usedCount < voucher.usageLimit) && finalAmount >= voucher.minPurchase) {
+        if (voucher.type === 'PERCENTAGE') {
+          voucherDiscountAmount = Math.floor(finalAmount * (voucher.value / 100));
+          if (voucher.maxDiscount > 0 && voucherDiscountAmount > voucher.maxDiscount) {
+            voucherDiscountAmount = Number(voucher.maxDiscount);
+          }
+        } else {
+          voucherDiscountAmount = Number(voucher.value);
+        }
+
+        if (voucherDiscountAmount > finalAmount) {
+          voucherDiscountAmount = finalAmount;
+        }
+
+        finalAmount -= voucherDiscountAmount;
+        validVoucherCode = voucher.code;
+        usedVoucherId = voucher.id;
+      } else {
+        throw new BadRequestError('Kode voucher tidak valid atau syarat tidak terpenuhi');
+      }
+    }
+
+    // 3. Points Discount
+    let pointsToDeduct = 0;
+    if (usePoints && user && user.rewardPoints > 0) {
+      discountFromPoints = user.rewardPoints * 1000;
+      if (discountFromPoints > finalAmount) {
+        pointsToDeduct = Math.ceil(finalAmount / 1000);
+      } else {
+        pointsToDeduct = user.rewardPoints;
+      }
+      finalAmount -= (pointsToDeduct * 1000);
+    }
+
+    // 4. Floor Limit Safeguard
+    if (finalAmount < 0) {
+      finalAmount = 0;
+    }
+
     // Buat order dan order items dalam transaksi
     const order = await knex.transaction(async (trx) => {
       const orderId = require('cuid')();
 
       await trx('order').insert({
         id: orderId,
+        orderNumber: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         userId,
-        totalAmount,
+        totalAmount: finalAmount,
+        tierDiscountAmount,
+        tierDiscountPercentage,
+        voucherCode: validVoucherCode,
+        voucherDiscountAmount,
         paymentMethod,
-        deliveryAddress: deliveryAddress || null,
+        deliveryAddress: deliveryAddress ? JSON.stringify(deliveryAddress) : null,
         notes: notes || null,
         status: 'PENDING',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+
+      if (pointsToDeduct > 0) {
+        await trx('user').where('id', userId).decrement('rewardPoints', pointsToDeduct);
+        
+        // Log to pointHistory
+        await trx('pointHistory').insert({
+          id: require('cuid')(),
+          userId,
+          points: pointsToDeduct,
+          type: 'SPENT',
+          description: `Digunakan untuk pesanan ${orderId.slice(0, 8)}`,
+          createdAt: new Date(),
+        });
+      }
+
+      if (usedVoucherId) {
+        await trx('voucher').where('id', usedVoucherId).increment('usedCount', 1);
+      }
 
       const itemRecords = orderItems.map((it) => ({
         id: require('cuid')(),
@@ -142,7 +257,6 @@ const createOrder = async (req, res, next) => {
         subtotal: it.subtotal,
         notes: it.notes || null,
         createdAt: new Date(),
-        updatedAt: new Date(),
       }));
 
       if (itemRecords.length) {
@@ -159,7 +273,47 @@ const createOrder = async (req, res, next) => {
       }
     }
 
-    return sendCreated(res, order, MESSAGES.ORDER_CREATED);
+    // Call Midtrans Snap
+    let paymentUrl = null;
+    let snapToken = null;
+    try {
+      const customer = user ? {
+        first_name: user.fullName?.split(' ')[0] || 'Customer',
+        last_name: user.fullName?.split(' ').slice(1).join(' ') || '',
+        email: user.email,
+        phone: user.phone || '081234567890'
+      } : {
+        first_name: 'Customer',
+        email: deliveryAddress?.email || 'customer@example.com'
+      };
+
+      const parameter = {
+        transaction_details: {
+          order_id: order.id,
+          gross_amount: finalAmount
+        },
+        customer_details: customer,
+      };
+
+      const snapResponse = await snap.createTransaction(parameter);
+      
+      // Save payment locally
+      await paymentService.create({
+        orderId: order.id,
+        amount: finalAmount,
+        paymentMethod: paymentMethod || 'MIDTRANS',
+        status: 'PENDING',
+        transactionId: order.id,
+        qrisUrl: snapResponse.redirect_url
+      });
+
+      paymentUrl = snapResponse.redirect_url;
+      snapToken = snapResponse.token;
+    } catch (err) {
+      console.error('Midtrans Snap Error:', err.message);
+    }
+
+    return sendCreated(res, { ...order, paymentUrl, snapToken }, MESSAGES.ORDER_CREATED);
   } catch (error) {
     next(error);
   }
@@ -216,14 +370,14 @@ const getOrderTracking = async (req, res, next) => {
     const order = await orderService.findById(id);
     if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
-    if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
     }
 
     const tracking = await knex('orderTracking').where('orderId', id).first();
     if (tracking) {
       tracking.history = await knex('trackingHistory')
-        .where('orderTrackingId', tracking.id)
+        .where('trackingId', tracking.id)
         .orderBy('timestamp', 'desc');
     }
 
@@ -240,7 +394,7 @@ const getOrderStatusHistory = async (req, res, next) => {
     const order = await orderService.findById(id);
     if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
-    if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
     }
 
@@ -259,7 +413,7 @@ const getOrderTimeline = async (req, res, next) => {
     const order = await orderService.findById(id);
     if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
-    if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
     }
 
@@ -278,7 +432,7 @@ const getOrderNotifications = async (req, res, next) => {
     const order = await orderService.findById(id);
     if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
-    if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
     }
 
@@ -376,14 +530,16 @@ const createGuestOrder = async (req, res, next) => {
 
       await trx('order').insert({
         id: orderId,
+        orderNumber: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         userId: null,
-        guestEmail: sanitizedData.guestEmail,
-        guestFirstName: sanitizedData.firstName,
-        guestLastName: sanitizedData.lastName,
-        guestPhone: sanitizedData.phone,
-        guestAddress: sanitizedData.address,
-        guestCity: sanitizedData.city,
-        guestPostalCode: sanitizedData.postalCode,
+        deliveryAddress: JSON.stringify({
+          fullName: `${sanitizedData.firstName} ${sanitizedData.lastName}`,
+          email: sanitizedData.guestEmail,
+          phone: sanitizedData.phone,
+          addressLine1: sanitizedData.address,
+          city: sanitizedData.city,
+          postalCode: sanitizedData.postalCode
+        }),
         totalAmount,
         paymentMethod: paymentMethod || 'PENDING',
         status: 'PENDING',
@@ -402,7 +558,6 @@ const createGuestOrder = async (req, res, next) => {
         subtotal: it.subtotal,
         notes: it.notes || null,
         createdAt: new Date(),
-        updatedAt: new Date(),
       }));
 
       if (itemRecords.length) {
@@ -411,18 +566,56 @@ const createGuestOrder = async (req, res, next) => {
 
       // Audit log
       await trx('auditLog').insert({
+        id: require('cuid')(),
         action: 'GUEST_CHECKOUT_CREATED',
         orderId,
-        guestEmail: sanitizedData.guestEmail,
+        guestOrderId: orderId,
         ipAddress: req.ip || 'unknown',
         userAgent: req.get('user-agent') || 'unknown',
         createdAt: new Date(),
       });
 
-      return orderId;
+      return await trx('order').where('id', orderId).first();
     });
 
-    return sendCreated(res, { orderId: order, email: sanitizedData.guestEmail }, 'Guest order created successfully');
+    // Call Midtrans Snap
+    let paymentUrl = null;
+    let snapToken = null;
+    try {
+      const customer = {
+        first_name: sanitizedData.firstName,
+        last_name: sanitizedData.lastName,
+        email: sanitizedData.guestEmail,
+        phone: sanitizedData.phone
+      };
+
+      const parameter = {
+        transaction_details: {
+          order_id: order.id,
+          gross_amount: totalAmount
+        },
+        customer_details: customer,
+      };
+
+      const snapResponse = await snap.createTransaction(parameter);
+      
+      // Save payment locally
+      await paymentService.create({
+        orderId: order.id,
+        amount: totalAmount,
+        paymentMethod: paymentMethod || 'MIDTRANS',
+        status: 'PENDING',
+        transactionId: order.id,
+        qrisUrl: snapResponse.redirect_url
+      });
+
+      paymentUrl = snapResponse.redirect_url;
+      snapToken = snapResponse.token;
+    } catch (err) {
+      console.error('Midtrans Snap Error:', err.message);
+    }
+
+    return sendCreated(res, { orderId: order.id, email: sanitizedData.guestEmail, paymentUrl, snapToken }, 'Guest order created successfully');
   } catch (error) {
     next(error);
   }

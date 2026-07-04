@@ -4,6 +4,9 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'process.env': {}
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -12,11 +15,18 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: false,
+    hmr: {
+      clientPort: 3000, // Memaksa HMR menggunakan port 3000
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
         rewrite: (path) => path,
+      },
+      '/uploads': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
       },
     },
   },

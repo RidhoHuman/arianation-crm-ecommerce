@@ -44,6 +44,19 @@ const getUserById = async (req, res, next) => {
       throw new NotFoundError(MESSAGES.USER_NOT_FOUND);
     }
 
+    // Inject Customer Metrics
+    const metrics = await knex('customerMetrics').where('userId', id).first();
+    if (metrics) {
+      user.metrics = metrics;
+    } else {
+      user.metrics = {
+        currentTier: 'BRONZE',
+        totalSpent: 0,
+        loyaltyPoints: user.rewardPoints || 0,
+        totalTransactions: 0
+      };
+    }
+
     return sendSuccess(res, user, MESSAGES.USER_FOUND);
   } catch (error) {
     next(error);
@@ -98,35 +111,58 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
-const updateProfile = async (req, res, next) => {
-  try {
-    const { fullName, phone, address, city, postalCode, province } = req.body;
-    const userId = req.user.id;
-
-    const updateData = {};
-    if (fullName !== undefined) updateData.fullName = fullName;
-    if (phone !== undefined) updateData.phone = phone;
-
-    const user = await userService.update(userId, updateData);
-
-    if (
-      address !== undefined ||
-      city !== undefined ||
-      postalCode !== undefined ||
-      province !== undefined
-    ) {
-      const profileData = {};
-      if (address !== undefined) profileData.address = address;
-      if (city !== undefined) profileData.city = city;
-      if (postalCode !== undefined) profileData.postalCode = postalCode;
-      if (province !== undefined) profileData.province = province;
+  const updateProfile = async (req, res, next) => {
+    try {
+      const {
+        fullName,
+        phone,
+        address,
+        city,
+        postalCode,
+        province,
+        emailPromo,
+        emailOrderUpdates,
+      } = req.body;
+      const userId = req.user.id;
+  
+      const updateData = {};
+      if (fullName !== undefined) updateData.fullName = fullName;
+      if (phone !== undefined) updateData.phone = phone;
+  
+      const user = await userService.update(userId, updateData);
+  
+      if (
+        address !== undefined ||
+        city !== undefined ||
+        postalCode !== undefined ||
+        province !== undefined ||
+        emailPromo !== undefined ||
+        emailOrderUpdates !== undefined
+      ) {
+        const profileData = {};
+        if (address !== undefined) profileData.address = address;
+        if (city !== undefined) profileData.city = city;
+        if (postalCode !== undefined) profileData.postalCode = postalCode;
+        if (province !== undefined) profileData.province = province;
+        if (emailPromo !== undefined) profileData.emailPromo = emailPromo;
+        if (emailOrderUpdates !== undefined) profileData.emailOrderUpdates = emailOrderUpdates;
 
       // Insert/Update ke customerProfile table menggunakan Knex
       const existing = await knex('customerProfile').where('userId', userId).first();
       if (existing) {
-        await knex('customerProfile').where('userId', userId).update(profileData);
+        await knex('customerProfile').where('userId', userId).update({
+          ...profileData,
+          updatedAt: new Date()
+        });
       } else {
-        await knex('customerProfile').insert({ userId, ...profileData });
+        const id = require('cuid')();
+        await knex('customerProfile').insert({
+          id,
+          userId,
+          ...profileData,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
       }
     }
 
@@ -171,6 +207,35 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+const getPointsHistory = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    const history = await knex('pointHistory')
+      .where('userId', userId)
+      .orderBy('createdAt', 'desc');
+
+    // Jika kosong, kita berikan bonus registrasi fiktif (karena user lama belum tercatat saat register)
+    if (history.length === 0) {
+      const user = await userService.findById(userId);
+      if (user && user.rewardPoints > 0) {
+        history.push({
+          id: 'bonus-reg',
+          userId,
+          points: user.rewardPoints,
+          type: 'EARNED',
+          description: 'Bonus Registrasi Akun',
+          createdAt: user.createdAt,
+        });
+      }
+    }
+
+    return sendSuccess(res, history, 'Points history retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -178,4 +243,5 @@ module.exports = {
   deleteUser,
   updateProfile,
   changePassword,
+  getPointsHistory,
 };

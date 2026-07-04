@@ -16,8 +16,10 @@ const cartItemService = {
         'id',
         'cartId',
         'productId',
+        'variantId',
         'quantity',
-        'price',
+        'unitPrice',
+        'subtotal',
         'createdAt',
         'updatedAt'
       )
@@ -46,8 +48,10 @@ const cartItemService = {
         'id',
         'cartId',
         'productId',
+        'variantId',
         'quantity',
-        'price',
+        'unitPrice',
+        'subtotal',
         'createdAt',
         'updatedAt'
       )
@@ -72,7 +76,11 @@ const cartItemService = {
     const existing = await this.findByCartAndProduct(cartId, productId);
 
     if (existing) {
-      return this.update(existing.id, { quantity: existing.quantity + quantity });
+      const newQuantity = existing.quantity + quantity;
+      return this.update(existing.id, { 
+        quantity: newQuantity,
+        subtotal: newQuantity * existing.unitPrice
+      });
     }
 
     const id = require('cuid')();
@@ -81,8 +89,10 @@ const cartItemService = {
       id,
       cartId,
       productId,
+      variantId: null, // Default
       quantity,
-      price,
+      unitPrice: price,
+      subtotal: price * quantity,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -108,10 +118,14 @@ const cartItemService = {
 
   // Update quantity
   async updateQuantity(id, quantity) {
+    const item = await this.findById(id);
+    if (!item) return null;
+
     await knex('cartItem')
       .where('id', id)
       .update({
         quantity,
+        subtotal: quantity * item.unitPrice,
         updatedAt: new Date(),
       });
 
@@ -140,7 +154,7 @@ const cartItemService = {
   async getCartTotal(cartId) {
     const result = await knex('cartItem')
       .where('cartId', cartId)
-      .sum('price as total')
+      .sum('subtotal as total')
       .first();
 
     return result.total || 0;

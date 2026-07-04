@@ -13,6 +13,7 @@ const knex = require('./config/knex');
 const { config, validateEnv } = require('./config/env');
 const logger = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
+const passport = require('./config/passport');
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -29,6 +30,20 @@ const analyticsRoutes = require('./routes/analytics');
 const checkoutRoutes = require('../routes/checkout');
 const uploadRoutes = require('./routes/uploads');
 const sitemapRoutes = require('./routes/sitemap');
+const poRoutes = require('./routes/po');
+const inventoryRoutes = require('./routes/inventory');
+const wishlistRoutes = require('./routes/wishlist');
+const categoryRoutes = require('./routes/category');
+const collectionRoutes = require('./routes/collections');
+const productTypeRoutes = require('./routes/productTypes');
+const bannerRoutes = require('./routes/banners');
+const subscriberRoutes = require('./routes/subscribers');
+const notificationRoutes = require('./routes/notificationRoutes');
+const designInfoRoutes = require('./routes/designInfo');
+const portfolioRoutes = require('./routes/portfolioRoutes');
+const printTechniqueRoutes = require('./routes/printTechniques');
+const reviewRoutes = require('./routes/reviews');
+const voucherRoutes = require('./routes/vouchers');
 
 // Validate environment variables (throws if invalid)
 try {
@@ -85,6 +100,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(logger);
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Sentry request handler must be before routes (if enabled)
 if (process.env.SENTRY_DSN) {
@@ -214,6 +232,15 @@ app.post('/api/setup-db', async (req, res) => {
         },
       },
       {
+        name: 'otp_verifications',
+        create: async (t) => {
+          t.string('phone').primary();
+          t.string('otpCode');
+          t.timestamp('expiresAt');
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
         name: 'productCategory',
         create: async (t) => {
           t.string('id').primary();
@@ -236,8 +263,48 @@ app.post('/api/setup-db', async (req, res) => {
           t.string('imageUrl').nullable();
           t.text('description').nullable();
           t.boolean('isActive').defaultTo(true);
+          t.string('tags').nullable();
+          t.boolean('isSale').defaultTo(false);
           t.timestamp('createdAt').defaultTo(knex.fn.now());
           t.timestamp('updatedAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'collection',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('name');
+          t.string('slug').unique();
+          t.text('description').nullable();
+          t.string('imageUrl').nullable();
+          t.boolean('isActive').defaultTo(true);
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+          t.timestamp('updatedAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'voucher',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('code').unique().notNullable();
+          t.string('type').notNullable().defaultTo('PERCENTAGE'); // PERCENTAGE, NOMINAL
+          t.decimal('value', 10, 2).notNullable(); 
+          t.decimal('minPurchase', 10, 2).defaultTo(0);
+          t.decimal('maxDiscount', 10, 2).defaultTo(0);
+          t.integer('usageLimit').nullable();
+          t.integer('usedCount').defaultTo(0);
+          t.boolean('isActive').defaultTo(true);
+          t.timestamp('expiresAt').nullable();
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+          t.timestamp('updatedAt').defaultTo(knex.fn.now());
+        },
+      },
+      {
+        name: 'product_collection',
+        create: async (t) => {
+          t.string('productId');
+          t.string('collectionId');
+          t.primary(['productId', 'collectionId']);
         },
       },
       {
@@ -248,6 +315,10 @@ app.post('/api/setup-db', async (req, res) => {
           t.string('userId').nullable();
           t.string('guestEmail').nullable();
           t.decimal('totalAmount', 10, 2).defaultTo(0);
+          t.decimal('tierDiscountAmount', 10, 2).defaultTo(0);
+          t.integer('tierDiscountPercentage').defaultTo(0);
+          t.string('voucherCode').nullable();
+          t.decimal('voucherDiscountAmount', 10, 2).defaultTo(0);
           t.string('paymentMethod').nullable();
           t.string('status').defaultTo('pending');
           t.text('shippingAddress').nullable();
@@ -326,6 +397,16 @@ app.post('/api/setup-db', async (req, res) => {
         console.log(`📝 Creating ${table.name}...`);
         await knex.schema.createTable(table.name, table.create);
       }
+    }
+
+    // Auto-migrate schema updates
+    const hasTags = await knex.schema.hasColumn('product', 'tags');
+    if (!hasTags) {
+      console.log(`📝 Adding tags and isSale to product...`);
+      await knex.schema.alterTable('product', t => {
+        t.string('tags').nullable();
+        t.boolean('isSale').defaultTo(false);
+      });
     }
 
     // 2. Seed sample data
@@ -438,20 +519,37 @@ app.post('/api/setup-db', async (req, res) => {
   }
 });
 
-// API
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/product-types', productTypeRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api', checkoutRoutes);
 app.use('/api/design-requests', designRequestRoutes);
+app.use('/api/design-info', designInfoRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/batch', batchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/po', poRoutes);
+app.use('/api/admin/inventory', inventoryRoutes);
+app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api/subscribers', subscriberRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/print-techniques', printTechniqueRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/vouchers', voucherRoutes);
+app.use('/api/banners', bannerRoutes);
+
+// Public Settings Route
+const settingsController = require('./controllers/settingsController');
+app.get('/api/settings', settingsController.getSettings);
 
 // SEO Routes (Sitemap)
 app.use('/api', sitemapRoutes);

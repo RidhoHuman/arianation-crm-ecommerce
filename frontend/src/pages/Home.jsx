@@ -1,241 +1,387 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-
-const CATEGORIES = [
-  {
-    id: 'supporter',
-    title: 'SUPPORTER CULTURE',
-    subtitle: 'The Heart of Football',
-    description: 'From passionate supporters to casual fans, our Supporter Culture collection celebrates the vibrant spirit of football. Wear your allegiance with pride through our premium jerseys, scarves, caps, and accessories that represent the true essence of fandom.',
-    image: 'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=1200&q=80',
-    color: '#8B0000',
-    products: [
-      { id: 1, name: 'Premium Jersey', price: 'Rp 299.000', image: 'https://via.placeholder.com/300x300?text=Jersey' },
-      { id: 2, name: 'Supporter Scarf', price: 'Rp 199.000', image: 'https://via.placeholder.com/300x300?text=Scarf' },
-      { id: 3, name: 'Football Cap', price: 'Rp 149.000', image: 'https://via.placeholder.com/300x300?text=Cap' },
-      { id: 4, name: 'Fan Badge Set', price: 'Rp 99.000', image: 'https://via.placeholder.com/300x300?text=Badge' },
-    ]
-  },
-  {
-    id: 'outdoor',
-    title: 'OUTDOOR ADVENTURE',
-    subtitle: 'Explore Without Limits',
-    description: 'Conquer the wilderness with our Outdoor collection. Built for durability and style, our range includes rugged backpacks, weather-resistant jackets, and versatile gear designed for modern adventurers who refuse to compromise on fashion.',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80',
-    color: '#2A6B3C',
-    products: [
-      { id: 5, name: 'Hiking Backpack', price: 'Rp 699.000', image: 'https://via.placeholder.com/300x300?text=Backpack' },
-      { id: 6, name: 'Windbreaker Jacket', price: 'Rp 549.000', image: 'https://via.placeholder.com/300x300?text=Jacket' },
-      { id: 7, name: 'Trail Pants', price: 'Rp 399.000', image: 'https://via.placeholder.com/300x300?text=Pants' },
-      { id: 8, name: 'Outdoor Tee', price: 'Rp 199.000', image: 'https://via.placeholder.com/300x300?text=Tee' },
-    ]
-  },
-  {
-    id: 'fishing',
-    title: 'FISHING LIFESTYLE',
-    subtitle: 'Born to Fish',
-    description: 'For the water enthusiasts and fishing aficionados. Our Fishing collection blends functionality with coastal style. From moisture-wicking shirts to strategic pocket designs, each piece is crafted for those who live for the catch.',
-    image: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1200&q=80',
-    color: '#1E3A5F',
-    products: [
-      { id: 9, name: 'Fishing Shirt', price: 'Rp 279.000', image: 'https://via.placeholder.com/300x300?text=FishingShirt' },
-      { id: 10, name: 'UV Protection Hat', price: 'Rp 169.000', image: 'https://via.placeholder.com/300x300?text=Hat' },
-      { id: 11, name: 'Cargo Shorts', price: 'Rp 249.000', image: 'https://via.placeholder.com/300x300?text=Shorts' },
-      { id: 12, name: 'Fishing Vest', price: 'Rp 399.000', image: 'https://via.placeholder.com/300x300?text=Vest' },
-    ]
-  },
-  {
-    id: 'running',
-    title: 'RUNNING PERFORMANCE',
-    subtitle: 'Push Your Limits',
-    description: 'Engineered for athletes and fitness enthusiasts. Our Running collection features breathable fabrics, ergonomic designs, and eye-catching styles. Whether you\'re sprinting marathons or hitting the gym, perform at your peak without sacrificing street style.',
-    image: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1200&q=80',
-    color: '#FF6B35',
-    products: [
-      { id: 13, name: 'Performance Tee', price: 'Rp 229.000', image: 'https://via.placeholder.com/300x300?text=PerfTee' },
-      { id: 14, name: 'Running Shorts', price: 'Rp 279.000', image: 'https://via.placeholder.com/300x300?text=RunShorts' },
-      { id: 15, name: 'Sports Bra', price: 'Rp 319.000', image: 'https://via.placeholder.com/300x300?text=SportsBra' },
-      { id: 16, name: 'Compression Wear', price: 'Rp 349.000', image: 'https://via.placeholder.com/300x300?text=Compression' },
-    ]
-  },
-];
+import { motion, AnimatePresence } from 'framer-motion';
+import HeroSlider from '../components/HeroSlider';
+import ProductCard from '../components/ProductCard';
+import SEOHead from '../components/SEOHead';
+import LocalBusinessSchema from '../components/LocalBusinessSchema';
+import useUIStore from '../store/uiStore';
+import useCategoryStore from '../store/categoryStore';
+import useCollectionStore from '../store/collectionStore';
+import useProductTypeStore from '../store/productTypeStore';
+import api from '../services/api';
 
 export default function HomePage() {
+  const language = useUIStore((s) => s.language) || 'ID';
+  const { categories, fetchCategories } = useCategoryStore();
+  const { collections, fetchCollections } = useCollectionStore();
+  const { types, fetchTypes } = useProductTypeStore();
+
+  const [newDrops, setNewDrops] = useState([]);
+  const [subscriberEmail, setSubscriberEmail] = useState('');
+  const [subscribeStatus, setSubscribeStatus] = useState(null);
+
+  const TRANSLATIONS = {
+    ID: {
+      newDrops: 'Koleksi Terbaru',
+      newDropsSub: 'Rilisan terbaru kami.',
+      shopAll: 'Lihat Semua',
+      explore: 'Jelajahi Koleksi',
+      customTitle: 'Wujudkan Visi Anda',
+      customDesc: 'Punya desain sendiri? Kami menyediakan layanan sablon premium untuk mewujudkan idemu di atas pakaian berkualitas tinggi.',
+      startDesigning: 'Mulai Mendesain',
+      shopByType: 'Belanja Berdasarkan Kategori',
+      joinTitle: 'Bergabung Bersama Kami',
+      joinDesc: 'Dapatkan akses eksklusif ke koleksi terbaru, promo, dan update langsung ke inbox Anda.',
+      subscribe: 'Berlangganan',
+      emailPlaceholder: 'Masukkan email Anda',
+      subscribed: 'Terima kasih! Anda berhasil berlangganan.',
+      collectionLabel: 'Koleksi',
+      customServiceLabel: 'Layanan Kustom',
+    },
+    EN: {
+      newDrops: 'New Drops',
+      newDropsSub: 'The latest products freshly arrived for you.',
+      shopAll: 'Shop All',
+      explore: 'Explore Collection',
+      customTitle: 'Bring Your Vision to Life',
+      customDesc: 'Got your own design? Our premium custom sablon service brings your vision to life on high-quality apparel.',
+      startDesigning: 'Start Designing',
+      shopByType: 'Shop by Type',
+      joinTitle: 'Join the Community',
+      joinDesc: 'Get exclusive drops, early access to new collections, and insider updates delivered to your inbox.',
+      subscribe: 'Subscribe',
+      emailPlaceholder: 'Enter your email',
+      subscribed: 'Thank you! You have been subscribed.',
+      collectionLabel: 'Collection',
+      customServiceLabel: 'Custom Service',
+    }
+  };
+  const t = TRANSLATIONS[language];
+
+  useEffect(() => {
+    fetchCategories();
+    fetchCollections();
+    fetchTypes();
+
+    // Fetch new drops (4 latest products)
+    const loadNewDrops = async () => {
+      try {
+        const res = await api.get('/products', { params: { limit: 4, businessType: 'FASHION_RETAIL' } });
+        setNewDrops(res.data?.data || []);
+      } catch (err) {
+        console.error('Failed to fetch new drops', err);
+      }
+    };
+    loadNewDrops();
+  }, [fetchCategories, fetchCollections]);
+
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    if (!subscriberEmail) return;
+    try {
+      await api.post('/subscribers', { email: subscriberEmail });
+      setSubscribeStatus('success');
+      setSubscriberEmail('');
+    } catch (err) {
+      setSubscribeStatus('error');
+    }
+  };
+
+  // Filter collections by is_featured (or fallback to active ones if is_featured not used widely yet)
+  const featuredCollections = collections.filter(c => c.isActive && c.is_featured);
+  // If no featured, just take the first 2 active collections as fallback
+  const displayCollections = featuredCollections.length > 0 ? featuredCollections : collections.filter(c => c.isActive).slice(0, 2);
+
+  // Image slider for Custom Sablon section
+  const customSablonImages = [
+    'https://images.unsplash.com/photo-1529374255404-311a2a4f1fd9?w=1000&q=80', // folded stack of blank tees
+    'https://images.unsplash.com/photo-1562157873-818bc0726f68?w=1000&q=80',
+    'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=1000&q=80'
+  ];
+  const [sablonImageIdx, setSablonImageIdx] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSablonImageIdx(prev => (prev + 1) % customSablonImages.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const activeCategories = categories.filter(c => c.isActive && c.businessType === 'FASHION_RETAIL');
+  const activeTypes = types.filter(t => t.isActive).slice(0, 4); // Limit to 4 for a symmetrical grid
+
+  const getTypeImage = (slug) => {
+    const defaultImages = {
+      't-shirts': 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80',
+      'hoodies': 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500&q=80',
+      'pants': 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500&q=80',
+      'accessories': 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80',
+      'jacket': 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&q=80'
+    };
+    return defaultImages[slug] || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500&q=80';
+  };
+
+  const homeStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Arianation',
+    url: 'https://arianation.com',
+    logo: 'https://arianation.com/logo_AriaNation-removebg-preview.svg',
+    description: language === 'EN'
+      ? 'Premium streetwear and custom sablon e-commerce'
+      : 'Toko sablon dan fashion online berkualitas dengan custom design dan harga terjangkau',
+  };
+
   return (
-    <div className="w-full">
-      {/* HERO SECTION */}
-      <section className="relative w-full h-screen bg-aria-cream flex items-center justify-center overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-30"
-          style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1540575467063-178f50002c4b?w=1400&q=80)'
-          }}
-        ></div>
-        <div className="absolute inset-0 bg-gradient-to-br from-white/70 to-aria-cream/80"></div>
-        
-        <div className="relative z-10 flex flex-col items-center text-center px-4 max-w-2xl">
-          <div className="mb-2 text-sm font-bold text-aria-maroon tracking-widest uppercase">Est. 2024 • Premium Streetwear</div>
-          <h1 className="text-6xl md:text-8xl font-black text-black mb-6 leading-tight tracking-tighter">
-            AGAINST<br />MODERN<br />FOOTBALL
-          </h1>
-          <p className="text-lg md:text-xl text-aria-charcoal mb-10 font-medium leading-relaxed">
-            Authentic streetwear for casual supporters, outdoor enthusiasts, and those who live for culture.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link 
-              to="/products" 
-              className="bg-aria-maroon text-white px-12 py-4 font-bold uppercase tracking-wider hover:bg-aria-darkgray transition-all duration-300 transform hover:scale-105"
-            >
-              Shop Now
-            </Link>
-            <Link 
-              to="/sablon" 
-              className="border-2 border-black text-black px-12 py-4 font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-all duration-300"
-            >
-              Custom Design
-            </Link>
-          </div>
-        </div>
-      </section>
+    <>
+      <SEOHead
+        title="ARIANATION | CASUALS & HOOLIGANS"
+        description={language === 'EN' ? 'Premium streetwear crafted for the rebels, the supporters, and the adventurers.' : 'Pakaian jalanan premium untuk para pemberontak, pendukung, dan petualang.'}
+        url="https://arianation.com"
+        type="website"
+        structuredData={homeStructuredData}
+      />
+      <LocalBusinessSchema />
 
-      {/* CATEGORY SECTIONS */}
-      {CATEGORIES.map((category, index) => (
-        <section key={category.id} className={index % 2 === 0 ? 'bg-white' : 'bg-aria-lightgray'}>
-          {/* Category Header with Image */}
-          <div className="relative w-full h-96 overflow-hidden">
-            <img 
-              src={category.image}
-              alt={category.title}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/30"></div>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
-              <div className="text-sm font-bold tracking-widest uppercase mb-2 opacity-90">{category.subtitle}</div>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tighter">{category.title}</h2>
-            </div>
-          </div>
+      <div className="w-full bg-white dark:bg-black transition-colors duration-300">
 
-          {/* Article & Products */}
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-16">
-            {/* Article Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-16">
-              <div className="lg:col-span-2">
-                <div className="inline-block mb-4 px-3 py-1 bg-aria-lightgray">
-                  <span className="text-xs font-bold text-aria-charcoal tracking-widest uppercase">Featured Category</span>
-                </div>
-                <h3 className="text-3xl md:text-4xl font-black text-black mb-6 leading-tight">
-                  {category.title}
-                </h3>
-                <p className="text-lg text-aria-charcoal leading-relaxed mb-8 font-medium">
-                  {category.description}
-                </p>
-                <Link 
-                  to={`/products?category=${category.id}`}
-                  className="inline-flex items-center font-bold text-black hover:text-aria-maroon transition-colors uppercase tracking-wider"
-                >
-                  Explore Collection →
-                </Link>
+        {/* HERO SLIDER */}
+        <HeroSlider location="home" />
+
+        {/* NEW DROPS SECTION */}
+        <section className="py-16 md:py-24">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6">
+            <div className="flex items-end justify-between mb-10 border-b border-gray-200 dark:border-gray-800 pb-4">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-aria-charcoal dark:text-white uppercase">
+                  {t.newDrops}
+                </h2>
               </div>
-
-              {/* Quick Stats */}
-              <div className="flex flex-col justify-center space-y-6">
-                <div className="border-l-4 border-aria-maroon pl-4">
-                  <div className="text-3xl font-black text-black">100+</div>
-                  <p className="text-sm text-aria-charcoal font-medium">Products</p>
-                </div>
-                <div className="border-l-4 border-black pl-4">
-                  <div className="text-3xl font-black text-black">Premium</div>
-                  <p className="text-sm text-aria-charcoal font-medium">Quality Guaranteed</p>
-                </div>
-                <div className="border-l-4 border-aria-charcoal pl-4">
-                  <div className="text-3xl font-black text-black">Free</div>
-                  <p className="text-sm text-aria-charcoal font-medium">Shipping on Orders</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Products Grid */}
-            <div className="mb-8">
-              <h4 className="text-sm font-black text-aria-charcoal tracking-widest uppercase mb-8">Featured Products</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                {category.products.map((product) => (
-                  <Link 
-                    key={product.id}
-                    to={`/products/${product.id}`}
-                    className="group"
-                  >
-                    <div className="relative bg-aria-cream aspect-square mb-4 overflow-hidden border border-aria-lightgray group-hover:border-black transition-all duration-300">
-                      <img 
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                    <h5 className="text-xs md:text-sm font-bold text-black uppercase tracking-wider mb-2 group-hover:text-aria-maroon transition-colors">
-                      {product.name}
-                    </h5>
-                    <p className="text-sm md:text-base font-black text-aria-charcoal">
-                      {product.price}
-                    </p>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* View All Link */}
-            <div className="text-center pt-8 border-t border-aria-lightgray">
-              <Link 
-                to={`/products?category=${category.id}`}
-                className="inline-block px-8 py-3 border-2 border-black text-black font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-all duration-300"
+              <Link
+                to="/products"
+                className="hidden md:inline-flex items-center text-xs font-bold tracking-widest uppercase text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors"
               >
-                View All {category.title}
+                {t.shopAll} <span className="ml-2">→</span>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {newDrops.map((product) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <ProductCard product={product} showCategory={false} />
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="md:hidden text-center mt-8">
+              <Link to="/products" className="inline-flex items-center text-xs font-bold tracking-widest uppercase text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors">
+                {t.shopAll} <span className="ml-2">→</span>
               </Link>
             </div>
           </div>
         </section>
-      ))}
 
-      {/* CUSTOM SABLON SECTION */}
-      <section className="w-full bg-aria-charcoal text-aria-cream py-20">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 text-center">
-          <div className="mb-4 text-sm font-bold text-aria-maroon tracking-widest uppercase">Create Your Vision</div>
-          <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter leading-tight">
-            Custom Sablon Design
-          </h2>
-          <p className="text-lg mb-10 max-w-2xl mx-auto leading-relaxed font-medium">
-            Design your own story. From club colors to personal designs, our custom sablon service brings your vision to life on premium apparel.
-          </p>
-          <Link 
-            to="/sablon"
-            className="inline-block bg-aria-cream text-aria-charcoal px-12 py-4 font-bold uppercase tracking-wider hover:bg-aria-maroon hover:text-white transition-all duration-300 transform hover:scale-105"
-          >
-            Start Designing
-          </Link>
-        </div>
-      </section>
+        {/* FEATURED COLLECTIONS (ZIG-ZAG LAYOUT) */}
+        <section className="py-10">
+          {activeCategories.slice(0, 2).map((col, index) => {
+            const isEven = index % 2 === 0;
+            // Provide translated labels for common collections
+            let translatedColName = col.name;
+            if (language === 'ID') {
+              if (col.name === 'Best Seller') translatedColName = 'Paling Laku';
+              if (col.name === 'New Arrivals') translatedColName = 'Pendatang Baru';
+              if (col.name === 'Heritage') translatedColName = 'Warisan Budaya';
+              if (col.name === 'Everyday') translatedColName = 'Harian';
+              if (col.name === 'Outdoor') translatedColName = 'Luar Ruangan';
+              if (col.name === 'Active') translatedColName = 'Aktif';
+              if (col.name === 'Street') translatedColName = 'Jalanan';
+            }
 
-      {/* CTA Section */}
-      <section className="w-full bg-white py-16 border-t border-aria-lightgray">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-2xl md:text-3xl font-black text-black mb-8 uppercase tracking-tighter">
-            Join Arianation Community
-          </h2>
-          <p className="text-aria-charcoal mb-8 max-w-xl mx-auto">
-            Get exclusive drops, early access to new collections, and insider updates delivered to your inbox.
-          </p>
-          <form className="flex gap-2 max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
-            <input 
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 px-4 py-3 border border-aria-lightgray focus:outline-none focus:border-black transition-colors"
-              required
-            />
-            <button className="px-8 py-3 bg-black text-white font-bold uppercase tracking-wider hover:bg-aria-maroon transition-colors">
-              Subscribe
-            </button>
-          </form>
-        </div>
-      </section>
-    </div>
+            const translatedDesc = col.description
+              ? (language === 'EN' && col.description === 'Jelajahi koleksi eksklusif ini.' ? 'Explore this exclusive collection.' : col.description)
+              : (language === 'EN' ? 'Explore this exclusive collection.' : 'Jelajahi koleksi eksklusif ini.');
+
+            return (
+              <div key={col.id} className="w-full flex flex-col md:flex-row min-h-[500px]">
+                {/* Image Side */}
+                <div className={`w-full md:w-1/2 relative ${isEven ? 'md:order-1' : 'md:order-2'}`}>
+                  <img
+                    src={col.imageUrl || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80'}
+                    alt={translatedColName}
+                    className="w-full h-full object-cover aspect-square md:aspect-auto absolute inset-0"
+                  />
+                </div>
+
+                {/* Text Side */}
+                <div className={`w-full md:w-1/2 flex items-center justify-center p-12 md:p-24 bg-gray-50 dark:bg-gray-900 ${isEven ? 'md:order-2' : 'md:order-1'}`}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5 }}
+                    className="max-w-md w-full"
+                  >
+                    <div className="text-xs font-bold text-aria-maroon tracking-widest uppercase mb-4">{t.collectionLabel}</div>
+                    <h3 className="text-4xl md:text-5xl font-black text-aria-charcoal dark:text-white mb-6 tracking-tighter">
+                      {translatedColName}
+                    </h3>
+                    <p className="text-gray-700 dark:text-gray-300 mb-8 leading-relaxed font-medium text-lg">
+                      {translatedDesc}
+                    </p>
+                    <Link
+                      to={`/categories/${col.slug || col.id}`}
+                      className="inline-flex items-center text-sm font-bold tracking-widest uppercase text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors border-b-2 border-black dark:border-white pb-1"
+                    >
+                      {t.explore} →
+                    </Link>
+                  </motion.div>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+
+        {/* CUSTOM SABLON CTA - Static with Split Layout */}
+        <section className="w-full bg-black text-white flex flex-col md:flex-row">
+          <div className="w-full md:w-1/2 flex items-center justify-center p-12 md:p-24 lg:p-32 relative overflow-hidden">
+            {/* Subtle background texture for the black block */}
+            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23fff\' fill-opacity=\'1\' fill-rule=\'evenodd\'%3E%3Cpath d=\'M0 40L40 0H20L0 20M40 40V20L20 40\'/%3E%3C/g%3E%3C/svg%3E")', backgroundSize: '20px 20px' }}></div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}
+              className="relative z-10 max-w-lg w-full"
+            >
+              <div className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4">{t.customServiceLabel}</div>
+              <h2 className="text-4xl md:text-6xl font-black mb-8 tracking-tighter leading-[1.1]">
+                {t.customTitle}
+              </h2>
+              <p className="text-lg text-gray-300 mb-10 leading-relaxed">
+                {t.customDesc}
+              </p>
+              <Link
+                to="/custom-sablon"
+                className="inline-block bg-white text-black px-8 py-4 font-bold uppercase tracking-widest text-sm hover:bg-gray-200 transition-colors"
+              >
+                {t.startDesigning}
+              </Link>
+            </motion.div>
+          </div>
+          <div className="w-full md:w-1/2 min-h-[400px] relative overflow-hidden group">
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={sablonImageIdx}
+                initial={{ opacity: 0, scale: 1.05 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1 }}
+                src={customSablonImages[sablonImageIdx]}
+                alt="Custom Sablon Service"
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
+              />
+            </AnimatePresence>
+            {/* Navigation Dots for Sablon Slider */}
+            <div className="absolute bottom-6 left-0 right-0 z-20 flex justify-center gap-2">
+              {customSablonImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSablonImageIdx(idx)}
+                  className={`transition-all duration-300 rounded-full ${sablonImageIdx === idx
+                    ? 'w-6 h-1.5 bg-white'
+                    : 'w-2 h-1.5 bg-white/50 hover:bg-white/80'
+                    }`}
+                  aria-label={`Go to image ${idx + 1}`}
+                />
+              ))}
+            </div>
+            {/* Subtle dark overlay on hover to match the vibe */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-1000 pointer-events-none"></div>
+          </div>
+        </section>
+
+        {/* SHOP BY TYPE (Grid with Dark Overlays) */}
+        {activeTypes.length > 0 && (
+          <section className="py-24 bg-white dark:bg-black">
+            <div className="max-w-[1440px] mx-auto px-4 sm:px-6">
+              <h2 className="text-4xl font-black tracking-tighter text-center text-aria-charcoal dark:text-white uppercase mb-16">
+                {t.shopByType}
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {activeTypes.map((type) => (
+                  <Link
+                    key={type.id}
+                    to={`/products?type=${type.slug}`}
+                    className="group relative bg-gray-900 aspect-square overflow-hidden rounded-sm"
+                  >
+                    <img
+                      src={getTypeImage(type.slug)}
+                      alt={type.typeName}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out opacity-90 group-hover:opacity-100"
+                    />
+                    {/* Dark Overlay 40% for text readability */}
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-300" />
+
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                      <span className="text-white font-black uppercase tracking-widest text-xl drop-shadow-md group-hover:-translate-y-1 transition-transform duration-300">
+                        {type.typeName}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* JOIN THE COMMUNITY / NEWSLETTER */}
+        <section className="py-24 bg-gray-50 dark:bg-gray-950">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+            >
+              <h2 className="text-3xl font-black text-aria-charcoal dark:text-white mb-4 tracking-tighter">
+                {t.joinTitle}
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 mb-10 max-w-xl mx-auto font-medium">
+                {t.joinDesc}
+              </p>
+              {subscribeStatus === 'success' ? (
+                <p className="text-green-600 dark:text-green-400 font-bold">{t.subscribed}</p>
+              ) : (
+                <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-0 max-w-lg mx-auto shadow-sm">
+                  <input
+                    type="email"
+                    value={subscriberEmail}
+                    onChange={(e) => setSubscriberEmail(e.target.value)}
+                    placeholder={t.emailPlaceholder}
+                    className="flex-1 px-6 py-4 border border-gray-300 dark:border-gray-700 border-r-0 focus:outline-none focus:border-black transition-colors bg-white dark:bg-black text-sm dark:text-white font-medium rounded-l-sm"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="px-10 py-4 bg-black text-white font-bold uppercase tracking-widest text-sm hover:bg-aria-maroon transition-colors rounded-r-sm"
+                  >
+                    {t.subscribe}
+                  </button>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        </section>
+
+      </div>
+    </>
   );
 }

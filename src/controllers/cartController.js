@@ -18,16 +18,14 @@ const getCart = async (req, res, next) => {
     const items = await knex('cartItem')
       .where('cartId', cart.id)
       .select('cartItem.*', 
-        knex.raw('p.productName, p.price as productPrice, p.imageUrl, p.isActive'),
-        'pv.variantName', 'pv.additionalPrice'
+        knex.raw('p.productName, p.price as productPrice, p.imageUrl, p.isActive')
       )
       .leftJoin('product as p', 'cartItem.productId', 'p.id')
-      .leftJoin('productVariant as pv', 'cartItem.variantId', 'pv.id')
       .orderBy('cartItem.createdAt', 'desc');
 
     // Calculate total
     const totalAmount = items.reduce((sum, item) => {
-      return sum + (item.price * item.quantity);
+      return sum + (item.unitPrice * item.quantity);
     }, 0);
 
     return sendSuccess(

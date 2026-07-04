@@ -19,16 +19,7 @@ const DB_NAME = process.env.DB_NAME || 'arianation_db';
 const DATABASE_URL = process.env.DATABASE_URL;
 const isPostgresUrl = typeof DATABASE_URL === 'string' && /^postgres(ql)?:\/\//i.test(DATABASE_URL);
 
-// If running tests, create sqlite schema synchronously first so tables exist
-if (process.env.NODE_ENV === 'test') {
-  try {
-    const child = require('child_process');
-    const scriptPath = require('path').resolve(process.cwd(), 'scripts', 'create_sqlite_schema.js');
-    child.execSync(`node "${scriptPath}"`, { stdio: 'inherit' });
-  } catch (err) {
-    console.error('❌ Gagal menjalankan skrip inisialisasi SQLite (sync):', err.message);
-  }
-}
+
 
 const db = knex({
   client:

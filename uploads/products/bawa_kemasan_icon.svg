@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="800" height="800" style="background-color: #F7F7F7; border-radius: 12px;">
+  <!-- Top Face -->
+  <polygon points="17.5,40 32.5,20 82.5,20 67.5,40" fill="none" stroke="#4A4A4A" stroke-width="2.5" stroke-dasharray="4,4" stroke-linejoin="round" />
+  
+  <!-- Right Side Face -->
+  <polygon points="67.5,40 82.5,20 82.5,60 67.5,80" fill="none" stroke="#4A4A4A" stroke-width="2.5" stroke-dasharray="4,4" stroke-linejoin="round" />
+  
+  <!-- Front Face -->
+  <polygon points="17.5,40 67.5,40 67.5,80 17.5,80" fill="none" stroke="#4A4A4A" stroke-width="2.5" stroke-dasharray="4,4" stroke-linejoin="round" />
+  
+  <!-- Flap line to make it look like an open/foldable box -->
+  <line x1="17.5" y1="40" x2="32.5" y2="40" stroke="#4A4A4A" stroke-width="2.5" stroke-dasharray="4,4" stroke-linecap="round" />
+  <line x1="32.5" y1="20" x2="32.5" y2="40" stroke="#4A4A4A" stroke-width="2.5" stroke-dasharray="4,4" stroke-linecap="round" />
+
+  <!-- Ikon Plus (+) di Tengah Front Face - Solid -->
+  <line x1="42.5" y1="50" x2="42.5" y2="70" stroke="#7A7A7A" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="32.5" y1="60" x2="52.5" y2="60" stroke="#7A7A7A" stroke-width="2.5" stroke-linecap="round" />
+</svg>

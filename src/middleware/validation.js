@@ -98,6 +98,20 @@ const schemas = {
     designFileUrl: { required: true, type: 'string' },
     fileType: { required: true, type: 'string', enum: ['PNG', 'JPG', 'PDF', 'AI', 'CDR'] },
     quantity: { required: true, type: 'number', min: 1 },
+    purpose: { type: 'string' },
+    sizeBreakdown: { type: 'string' },
+    printPosition: { type: 'string' },
+    printTechnique: { type: 'string' },
+    numberOfColors: { type: 'number' },
+    picName: { required: true, type: 'string' },
+    whatsappNumber: { required: true, type: 'string' },
+    shippingAddress: { required: true, type: 'string' },
+    shippingNotes: { type: 'string' },
+    productTypeForSablon: { type: 'string' },
+    colorPreferences: { type: 'string' },
+    designDescription: { type: 'string' },
+    referenceImageUrl: { type: 'string' },
+    deadline: { type: 'string' }
   },
 };
 
