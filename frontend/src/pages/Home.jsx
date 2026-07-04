@@ -136,7 +136,7 @@ export default function HomePage() {
   return (
     <>
       <SEOHead
-        title="ARIANATION | CASUALS & HOOLIGANS"
+        title="Arianation"
         description={language === 'EN' ? 'Premium streetwear crafted for the rebels, the supporters, and the adventurers.' : 'Pakaian jalanan premium untuk para pemberontak, pendukung, dan petualang.'}
         url="https://arianation.com"
         type="website"
@@ -190,7 +190,7 @@ export default function HomePage() {
 
         {/* FEATURED COLLECTIONS (ZIG-ZAG LAYOUT) */}
         <section className="py-10">
-          {activeCategories.slice(0, 2).map((col, index) => {
+          {displayCollections.slice(0, 2).map((col, index) => {
             const isEven = index % 2 === 0;
             // Provide translated labels for common collections
             let translatedColName = col.name;
@@ -236,7 +236,7 @@ export default function HomePage() {
                       {translatedDesc}
                     </p>
                     <Link
-                      to={`/categories/${col.slug || col.id}`}
+                      to={`/products?collection=${col.slug || col.id}`}
                       className="inline-flex items-center text-sm font-bold tracking-widest uppercase text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors border-b-2 border-black dark:border-white pb-1"
                     >
                       {t.explore} →
@@ -323,7 +323,7 @@ export default function HomePage() {
                     className="group relative bg-gray-900 aspect-square overflow-hidden rounded-sm"
                   >
                     <img
-                      src={getTypeImage(type.slug)}
+                      src={type.imageUrl || getTypeImage(type.slug)}
                       alt={type.typeName}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out opacity-90 group-hover:opacity-100"
                     />

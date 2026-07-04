@@ -838,7 +838,7 @@ export default function DesignRequest() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white">
-      <SEOHead title="Custom Sablon & Merchandise | ARIANATION" description={t.hero.desc} />
+      <SEOHead title="Custom Sablon & Merchandise | Arianation" description={t.hero.desc} />
 
       {/* Hero Section */}
       <section className="relative pt-24 pb-32 overflow-hidden border-b border-gray-200 dark:border-gray-800">

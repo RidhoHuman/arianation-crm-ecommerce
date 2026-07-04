@@ -5,6 +5,25 @@ import SEOHead from '../components/SEOHead';
 import useCategoryStore from '../store/categoryStore';
 import useUIStore from '../store/uiStore';
 
+const getTranslatedCategoryName = (name, lang) => {
+  if (!name) return '';
+  const lower = name.toLowerCase();
+  if (lang === 'ID') {
+    if (lower.includes('everyday')) return 'Sehari-hari';
+    if (lower.includes('heritage')) return 'Klasik (Heritage)';
+    if (lower.includes('outdoor')) return 'Luar Ruang';
+    if (lower.includes('street')) return 'Jalanan';
+    if (lower.includes('active')) return 'Aktif';
+  } else {
+    if (lower.includes('everyday')) return 'Everyday';
+    if (lower.includes('heritage')) return 'Heritage';
+    if (lower.includes('outdoor')) return 'Outdoor';
+    if (lower.includes('street')) return 'Street';
+    if (lower.includes('active')) return 'Active';
+  }
+  return name;
+};
+
 export default function About() {
   const language = useUIStore((s) => s.language) || 'ID';
   const { categories, fetchCategories } = useCategoryStore();
@@ -31,8 +50,8 @@ export default function About() {
               Arianation
             </h1>
             <p className="text-xl md:text-2xl text-aria-cream font-light">
-              {language === 'EN' 
-                ? 'From Malang. For Indonesia. Celebrating Authenticity Through Versatile Lifestyle.' 
+              {language === 'EN'
+                ? 'From Malang. For Indonesia. Celebrating Authenticity Through Versatile Lifestyle.'
                 : 'Dari Malang. Untuk Indonesia. Merayakan Otentisitas Melalui Gaya Hidup Serbaguna.'}
             </p>
           </div>
@@ -64,9 +83,9 @@ export default function About() {
                 </p>
               </div>
               <div className="relative h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-xl">
-                <img 
-                  src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-                  alt="Arianation Screen Printing Workshop" 
+                <img
+                  src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                  alt="Arianation Screen Printing Workshop"
                   className="w-full h-full object-cover grayscale-[20%]"
                 />
               </div>
@@ -157,24 +176,24 @@ export default function About() {
                   'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
                 ];
                 const imgSource = col.imageUrl || fallbackImgs[index % fallbackImgs.length];
-                
+
                 return (
                   <div key={col.id} className="relative group overflow-hidden rounded-lg aspect-[4/3] sm:aspect-[4/5] bg-gray-200">
-                    <img 
-                      src={imgSource} 
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                      alt={col.categoryName} 
+                    <img
+                      src={imgSource}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      alt={getTranslatedCategoryName(col.categoryName, language)}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent group-hover:bg-black/40 transition-colors duration-300"></div>
                     <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8 text-white">
                       <h3 className="text-2xl font-bold mb-2 uppercase tracking-wide">
-                        {col.categoryName}
+                        {getTranslatedCategoryName(col.categoryName, language)}
                       </h3>
                       <p className="text-gray-200 mb-4 line-clamp-2 text-sm md:text-base font-light">
                         {col.description || (language === 'EN' ? 'Explore this premium collection.' : 'Jelajahi koleksi premium ini.')}
                       </p>
-                      <Link 
-                        to={`/categories/${col.slug || col.id}`} 
+                      <Link
+                        to={`/categories/${col.slug || col.id}`}
                         className="inline-block text-white font-semibold uppercase tracking-wider text-sm hover:underline"
                       >
                         {language === 'EN' ? 'Explore Collection →' : 'Jelajahi Koleksi →'}
@@ -194,15 +213,15 @@ export default function About() {
           <section className="mb-20 relative overflow-hidden rounded-lg">
             {/* Background Image */}
             <div className="absolute inset-0">
-              <img 
-                src="https://images.unsplash.com/photo-1518063009955-46f3630f40d3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80" 
-                alt="Community Vision" 
+              <img
+                src="https://images.unsplash.com/photo-1518063009955-46f3630f40d3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80"
+                alt="Community Vision"
                 className="w-full h-full object-cover"
               />
             </div>
             {/* Dark Overlay */}
             <div className="absolute inset-0 bg-black/80"></div>
-            
+
             {/* Content */}
             <div className="relative z-10 px-8 py-16 md:py-24 max-w-3xl mx-auto text-center text-white">
               <h2 className="text-4xl font-bold mb-8 uppercase tracking-widest">

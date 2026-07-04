@@ -974,7 +974,7 @@ export default function AccountPage() {
 
   return (
     <div className="min-h-screen bg-aria-cream dark:bg-black transition-colors duration-300">
-      <SEOHead title={`${t.pageTitle} | ARIANATION`} description="Manage your Arianation account" />
+      <SEOHead title={`${t.pageTitle} | Arianation`} description="Manage your Arianation account" />
 
       {/* Header */}
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">

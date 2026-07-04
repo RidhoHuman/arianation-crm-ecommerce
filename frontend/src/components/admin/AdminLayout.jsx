@@ -109,8 +109,7 @@ export default function AdminLayout() {
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-aria-charcoal text-white shadow-xl h-full border-r border-white/5 overflow-y-auto">
         <div className="flex items-center gap-4 border-b border-white/10 pb-6 mb-6 p-6">
-          <div className="w-10 h-10 bg-aria-maroon rounded-xl flex items-center justify-center font-bold text-white text-xl">A</div>
-          <span className="font-bold tracking-wider text-lg">Admin Panel</span>
+          <span className="font-black tracking-widest text-xl uppercase text-white">Arianation</span>
         </div>
 
         <div className="flex-1 py-4">
@@ -204,7 +203,7 @@ export default function AdminLayout() {
         <div className="fixed inset-0 bg-black/50 z-50 md:hidden flex" onClick={() => setIsMobileMenuOpen(false)}>
           <aside className="w-64 bg-aria-charcoal h-full flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-white/5 flex justify-between items-center">
-              <span className="font-bold text-white text-lg">Admin Panel</span>
+              <span className="font-black tracking-widest text-lg uppercase text-white">Arianation</span>
               <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 hover:text-white text-2xl transition-colors"><FiX /></button>
             </div>
             <nav className="p-4 space-y-4 flex-1 overflow-y-auto">

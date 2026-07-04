@@ -11,6 +11,25 @@ const HeartIcon = ({ filled }) => (
   </svg>
 );
 
+const getTranslatedCategoryName = (name, lang) => {
+  if (!name) return '';
+  const lower = name.toLowerCase();
+  if (lang === 'ID') {
+    if (lower.includes('everyday')) return 'Sehari-hari';
+    if (lower.includes('heritage')) return 'Klasik (Heritage)';
+    if (lower.includes('outdoor')) return 'Luar Ruang';
+    if (lower.includes('street')) return 'Jalanan';
+    if (lower.includes('active')) return 'Aktif';
+  } else {
+    if (lower.includes('everyday')) return 'Everyday';
+    if (lower.includes('heritage')) return 'Heritage';
+    if (lower.includes('outdoor')) return 'Outdoor';
+    if (lower.includes('street')) return 'Street';
+    if (lower.includes('active')) return 'Active';
+  }
+  return name;
+};
+
 export default function ProductCard({ 
   product, 
   aspectRatio = 'aspect-square',
@@ -81,9 +100,9 @@ export default function ProductCard({
   const currentImage = allImages.length > 0 ? allImages[currentImageIdx] : null;
 
   return (
-    <Link to={`/products/${product.id}`} className="group block w-full">
+    <Link to={`/products/${product.id}`} className="group flex flex-col h-full w-full">
       <div 
-        className={`relative bg-gray-100 dark:bg-gray-900 mb-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all rounded-md overflow-hidden ${aspectRatio}`}
+        className={`relative bg-gray-100 dark:bg-gray-900 mb-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all rounded-md overflow-hidden aspect-[4/5]`}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
@@ -143,11 +162,13 @@ export default function ProductCard({
           </div>
         )}
       </div>
-      <h3 className="text-sm font-medium uppercase tracking-wider mb-2 dark:text-gray-200 group-hover:text-aria-maroon dark:group-hover:text-white transition-colors truncate">
+      <h3 className="text-sm md:text-base font-semibold text-aria-charcoal mb-1 line-clamp-2 leading-snug dark:text-gray-200 group-hover:text-aria-maroon dark:group-hover:text-white transition-colors">
         {product.productName}
       </h3>
-      <div className="text-gray-500 dark:text-gray-400 font-bold">
-        Rp {product.price?.toLocaleString('id-ID')}
+      <div className="flex flex-col gap-1 mt-auto">
+        <div className="text-aria-charcoal dark:text-gray-400 font-bold text-sm md:text-base">
+          Rp {product.price?.toLocaleString('id-ID')}
+        </div>
       </div>
       
       {showBadges && (
@@ -173,7 +194,7 @@ export default function ProductCard({
       {showCategory && product.category && (
         <div className="mt-2">
           <span className="text-xs bg-gray-100 dark:bg-gray-800 dark:text-gray-300 px-2 py-1 rounded">
-            {product.category.categoryName || product.category}
+            {getTranslatedCategoryName(product.category.categoryName || product.category, language)}
           </span>
         </div>
       )}

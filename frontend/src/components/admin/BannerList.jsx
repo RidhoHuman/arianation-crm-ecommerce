@@ -9,7 +9,7 @@ export default function BannerList() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     page_location: 'home',
     imageUrl: '',
@@ -124,7 +124,7 @@ export default function BannerList() {
           <h2 className="text-2xl font-bold text-gray-800">Manajemen Banner</h2>
           <p className="text-gray-500 text-sm mt-1">Kelola slide banner untuk halaman utama (Home)</p>
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm shadow-blue-600/30"
         >
@@ -185,14 +185,14 @@ export default function BannerList() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
+                        <button
                           onClick={() => handleOpenModal(banner)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Edit"
                         >
                           <FiEdit2 />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(banner.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Hapus"
@@ -221,7 +221,7 @@ export default function BannerList() {
                 &times;
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="col-span-1 md:col-span-2">
@@ -231,9 +231,9 @@ export default function BannerList() {
                       {formData.imageUrl ? (
                         <div className="relative">
                           <img src={formData.imageUrl} alt="Preview" className="mx-auto h-32 object-cover rounded" />
-                          <button 
-                            type="button" 
-                            onClick={() => setFormData({...formData, imageUrl: ''})}
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, imageUrl: '' })}
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
                           >
                             &times;
@@ -260,10 +260,10 @@ export default function BannerList() {
                     <span className="px-3 text-gray-500 text-sm">ATAU LINK URL</span>
                     <div className="flex-1 border-t border-gray-300"></div>
                   </div>
-                  <input 
-                    type="url" 
+                  <input
+                    type="url"
                     value={formData.imageUrl}
-                    onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
                     className="mt-2 w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="https://example.com/image.jpg"
                     required
@@ -274,7 +274,7 @@ export default function BannerList() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Lokasi Banner *</label>
                   <select
                     value={formData.page_location}
-                    onChange={(e) => setFormData({...formData, page_location: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, page_location: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     required
                   >
@@ -285,10 +285,10 @@ export default function BannerList() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Judul Utama</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Contoh: Lifestyle for Every Moment"
                   />
@@ -296,10 +296,10 @@ export default function BannerList() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Singkat</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={formData.subtitle}
-                    onChange={(e) => setFormData({...formData, subtitle: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Contoh: Premium streetwear crafted..."
                   />
@@ -307,10 +307,10 @@ export default function BannerList() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Teks Tombol</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={formData.buttonText}
-                    onChange={(e) => setFormData({...formData, buttonText: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, buttonText: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Contoh: DISCOVER COLLECTION"
                   />
@@ -318,10 +318,10 @@ export default function BannerList() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Link Tombol</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={formData.buttonLink}
-                    onChange={(e) => setFormData({...formData, buttonLink: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, buttonLink: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Contoh: /category/stories"
                   />
@@ -329,21 +329,21 @@ export default function BannerList() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Urutan (Angka)</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={formData.orderIndex}
-                    onChange={(e) => setFormData({...formData, orderIndex: parseInt(e.target.value) || 0})}
+                    onChange={(e) => setFormData({ ...formData, orderIndex: parseInt(e.target.value) || 0 })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
 
                 <div className="flex items-center pt-6">
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={formData.isActive}
-                      onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
-                      className="sr-only peer" 
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                     <span className="ml-3 text-sm font-medium text-gray-700">Tampilkan Banner (Aktif)</span>
@@ -352,15 +352,15 @@ export default function BannerList() {
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t mt-6 pb-2">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleCloseModal}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
                 >
                   Batal
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isLoading || isUploading}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-blue-600/30 disabled:opacity-50"
                 >

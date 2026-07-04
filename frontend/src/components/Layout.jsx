@@ -11,6 +11,25 @@ import useProductTypeStore from '../store/productTypeStore';
 import RewardBanner from './RewardBanner';
 import SearchDrawer from './SearchDrawer';
 
+export const getTranslatedCategoryName = (name, lang) => {
+  if (!name) return '';
+  const lower = name.toLowerCase();
+  if (lang === 'ID') {
+    if (lower.includes('everyday')) return 'Sehari-hari';
+    if (lower.includes('heritage')) return 'Klasik (Heritage)';
+    if (lower.includes('outdoor')) return 'Luar Ruang';
+    if (lower.includes('street')) return 'Jalanan';
+    if (lower.includes('active')) return 'Aktif';
+  } else {
+    if (lower.includes('everyday')) return 'Everyday';
+    if (lower.includes('heritage')) return 'Heritage';
+    if (lower.includes('outdoor')) return 'Outdoor';
+    if (lower.includes('street')) return 'Street';
+    if (lower.includes('active')) return 'Active';
+  }
+  return name;
+};
+
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -102,8 +121,8 @@ export default function Layout() {
       title: 'SHOP',
       columns: {
         'By Category': activeCategories.map(cat => ({
-          name: cat.categoryName || cat.name,
-          href: `/products?category=${cat.id}`
+          name: getTranslatedCategoryName(cat.categoryName || cat.name, language),
+          href: `/products?category=${cat.slug || cat.id}`
         })),
         'By Type': types.filter(t => t.isActive).map(t => ({
           name: t.typeName,
@@ -116,7 +135,7 @@ export default function Layout() {
       columns: {
         'All Collections': activeCollections.map(col => ({
           name: col.collectionName || col.name,
-          href: `/products?collection=${col.id}`
+          href: `/products?collection=${col.slug || col.id}`
         })),
       }
     }
