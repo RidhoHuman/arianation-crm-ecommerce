@@ -27,7 +27,7 @@ export default function OrderList() {
         const params = {};
         if (statusFilter !== 'all') params.status = statusFilter;
 
-        const response = await api.get('/po', { params });
+        const response = await api.get('/orders', { params });
         setOrders(response.data.data || []);
       } catch (e) {
         setError(e?.response?.data?.message || 'Gagal memuat daftar PO');
@@ -44,7 +44,7 @@ export default function OrderList() {
       const params = {};
       if (statusFilter !== 'all') params.status = statusFilter;
 
-      const response = await api.get('/po', { params });
+      const response = await api.get('/orders', { params });
       setOrders(response.data.data || []);
     } catch (e) {
       setError(e?.response?.data?.message || 'Gagal menyegarkan daftar PO');
@@ -56,8 +56,8 @@ export default function OrderList() {
     setMessage(null);
 
     try {
-      const response = await api.patch(`/po/${orderId}/${action}`);
-      setMessage(response.data?.message || 'Status PO berhasil diperbarui');
+      const response = await api.put(`/orders/${orderId}/status`, { status: action });
+      setMessage(response.data?.message || 'Status pesanan berhasil diperbarui');
       await refreshOrders();
     } catch (e) {
       setError(e?.response?.data?.message || 'Gagal mengubah status PO');
@@ -71,8 +71,8 @@ export default function OrderList() {
     setMessage(null);
 
     try {
-      const response = await api.patch(`/po/${orderId}/cancel`, { reason: 'Admin canceled' });
-      setMessage(response.data?.message || 'PO dibatalkan');
+      const response = await api.put(`/orders/${orderId}/cancel`, { reason: 'Admin canceled' });
+      setMessage(response.data?.message || 'Pesanan dibatalkan');
       await refreshOrders();
     } catch (e) {
       setError(e?.response?.data?.message || 'Gagal membatalkan PO');
@@ -89,7 +89,7 @@ export default function OrderList() {
           <>
             <button
               type="button"
-              onClick={() => updateOrder(order.id, 'confirm')}
+              onClick={() => updateOrder(order.id, 'CONFIRMED')}
               disabled={isLoading}
               className="rounded-full bg-aria-charcoal px-3 py-2 text-xs font-semibold text-white hover:bg-aria-maroon disabled:opacity-60"
             >
@@ -109,7 +109,7 @@ export default function OrderList() {
           <>
             <button
               type="button"
-              onClick={() => updateOrder(order.id, 'ship')}
+              onClick={() => updateOrder(order.id, 'SHIPPED')}
               disabled={isLoading}
               className="rounded-full bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
             >
@@ -128,7 +128,7 @@ export default function OrderList() {
         {order.status === 'shipped' && (
           <button
             type="button"
-            onClick={() => updateOrder(order.id, 'deliver')}
+            onClick={() => updateOrder(order.id, 'DELIVERED')}
             disabled={isLoading}
             className="rounded-full bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
           >
@@ -143,8 +143,8 @@ export default function OrderList() {
     <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-2xl font-bold mb-1">PO Orders</h2>
-          <p className="text-gray-600">Kelola pre-order produk dan jalankan proses konfirmasi, pengiriman, serta penerimaan.</p>
+          <h1 className="text-xl font-bold text-gray-900">Semua Pesanan</h1>
+          <p className="text-sm text-gray-500">Kelola pesanan pelanggan dan jalankan proses konfirmasi, pengiriman, serta penerimaan.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
@@ -182,10 +182,10 @@ export default function OrderList() {
       )}
 
       {loading ? (
-        <p className="text-center py-12">Memuat daftar PO...</p>
+        <p className="text-center py-12">Memuat daftar pesanan...</p>
       ) : orders.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-gray-600">
-          Tidak ada PO dengan status ini.
+          Tidak ada pesanan dengan status ini.
         </div>
       ) : (
         <div className="overflow-x-auto">

@@ -7,7 +7,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 // All analytics endpoints require OWNER/ADMIN role
 router.use(authenticate);
-router.use(authorize(['OWNER', 'ADMIN']));
+router.use(authorize('OWNER', 'ADMIN'));
 
 /**
  * GET /api/analytics/fulfillment

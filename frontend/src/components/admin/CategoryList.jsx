@@ -8,7 +8,7 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
   const { categories, isLoading, error, fetchCategories, createCategory, updateCategory, deleteCategory } = useCategoryStore();
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   const [imageFile, setImageFile] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -64,7 +64,7 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Disable form interactions or show loading indicator locally if store doesn't handle image upload state well
     // But store isLoading is handled by fetch, we will handle our own upload await.
 
@@ -74,11 +74,11 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
       try {
         const uploadData = new FormData();
         uploadData.append('image', imageFile);
-        
+
         const uploadRes = await api.post('/products/upload-image', uploadData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        
+
         // Akses URL dari format response backend: uploadRes.data adalah JSON, dan didalamnya ada object data
         if (uploadRes.data?.data?.url) {
           finalImageUrl = uploadRes.data.data.url;
@@ -141,12 +141,12 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
             {businessType === 'FASHION_RETAIL' ? 'Kategori Retail' : 'Kategori Sablon'}
           </h2>
           <p className="text-gray-500 text-sm mt-1">
-            {businessType === 'FASHION_RETAIL' 
-              ? 'Kelola kategori produk untuk E-Commerce Anda' 
+            {businessType === 'FASHION_RETAIL'
+              ? 'Kelola kategori produk untuk E-Commerce Anda'
               : 'Kelola kategori bahan dasar untuk Custom Sablon'}
           </p>
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm shadow-blue-600/30"
         >
@@ -201,14 +201,14 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
+                        <button
                           onClick={() => handleOpenModal(cat)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Edit"
                         >
                           <FiEdit2 />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(cat.id, cat.name)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Hapus"
@@ -237,26 +237,26 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
                 &times;
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kategori *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="Contoh: Supporter Culture"
                 />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Banner</label>
                   <div className="flex gap-2">
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       accept="image/*"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
@@ -282,13 +282,13 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
                   )}
                   <p className="text-xs text-gray-400 mt-1">Pilih file untuk mengupload gambar baru.</p>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Singkat</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Deskripsi singkat kategori ini..."
                   />
@@ -297,9 +297,9 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Artikel Kategori (Long Description)</label>
-                <textarea 
+                <textarea
                   value={formData.longDescription}
-                  onChange={(e) => setFormData({...formData, longDescription: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, longDescription: e.target.value })}
                   rows="4"
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="Tuliskan artikel atau narasi lengkap tentang kategori ini..."
@@ -308,9 +308,9 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Purpose (Tujuan / Mengapa kategori ini ada)</label>
-                <textarea 
+                <textarea
                   value={formData.purpose}
-                  onChange={(e) => setFormData({...formData, purpose: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
                   rows="2"
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="Contoh: Dibuat khusus untuk Anda yang..."
@@ -320,9 +320,9 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Highlights (Karakteristik)</label>
-                  <textarea 
+                  <textarea
                     value={formData.highlights}
-                    onChange={(e) => setFormData({...formData, highlights: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, highlights: e.target.value })}
                     rows="3"
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Minimalist, Nyaman dipakai seharian, Earth tones (pisahkan dengan koma)"
@@ -332,9 +332,9 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Use Cases (Momen Terbaik)</label>
-                  <textarea 
+                  <textarea
                     value={formData.useCases}
-                    onChange={(e) => setFormData({...formData, useCases: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, useCases: e.target.value })}
                     rows="3"
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Nonton konser, Naik gunung, Jalan-jalan (pisahkan dengan koma)"
@@ -346,26 +346,26 @@ export default function CategoryList({ businessType = 'FASHION_RETAIL' }) {
               <div className="flex items-center justify-between pt-2">
                 <label className="text-sm font-medium text-gray-700">Status Aktif</label>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={formData.isActive}
-                    onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
-                    className="sr-only peer" 
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                 </label>
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t mt-6 pb-2">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleCloseModal}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
                 >
                   Batal
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isLoading}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm shadow-blue-600/30 disabled:opacity-50"
                 >
