@@ -1,5 +1,6 @@
 // src/services/orderService.js
 const knex = require('../config/knex');
+const activityService = require('./activityService');
 
 const orderService = {
   // Ambil semua order dengan filter dan pagination
@@ -206,25 +207,47 @@ const orderService = {
   },
 
   // Update status order
-  async updateStatus(id, status) {
+  async updateStatus(id, status, updatedBy = null) {
+    const oldOrder = await knex('order').where('id', id).select('orderNumber', 'status').first();
+    
     await knex('order')
       .where('id', id)
       .update({
         status,
         updatedAt: new Date(),
       });
+      
+    if (oldOrder && oldOrder.status !== status) {
+      await activityService.logActivity({
+        userId: updatedBy,
+        action: 'Update Status Pesanan',
+        details: `Pesanan ${oldOrder.orderNumber || id} berubah status dari ${oldOrder.status} menjadi ${status}`,
+        entityType: 'ORDER',
+        entityId: id
+      });
+    }
 
     return this.findById(id);
   },
 
   // Update payment status
-  async updatePaymentStatus(id, paymentStatus) {
+  async updatePaymentStatus(id, paymentStatus, updatedBy = null) {
+    const oldOrder = await knex('order').where('id', id).select('orderNumber').first();
+    
     await knex('payment')
       .where('orderId', id)
       .update({
         status: paymentStatus,
         updatedAt: new Date(),
       });
+      
+    await activityService.logActivity({
+      userId: updatedBy,
+      action: 'Update Status Pembayaran',
+      details: `Pembayaran pesanan ${oldOrder?.orderNumber || id} diubah menjadi ${paymentStatus}`,
+      entityType: 'PAYMENT',
+      entityId: id
+    });
 
     return this.findById(id);
   },

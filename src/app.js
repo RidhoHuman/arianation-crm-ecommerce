@@ -389,6 +389,18 @@ app.post('/api/setup-db', async (req, res) => {
           t.timestamp('createdAt').defaultTo(knex.fn.now());
         },
       },
+      {
+        name: 'system_activity',
+        create: async (t) => {
+          t.string('id').primary();
+          t.string('userId').nullable();
+          t.string('action');
+          t.text('details').nullable();
+          t.string('entityType').nullable();
+          t.string('entityId').nullable();
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+        },
+      },
     ];
 
     for (const table of tables) {
@@ -406,6 +418,28 @@ app.post('/api/setup-db', async (req, res) => {
       await knex.schema.alterTable('product', t => {
         t.string('tags').nullable();
         t.boolean('isSale').defaultTo(false);
+      });
+    }
+
+    const hasSalePrice = await knex.schema.hasColumn('product', 'salePrice');
+    if (!hasSalePrice) {
+      console.log(`📝 Adding salePrice to product...`);
+      await knex.schema.alterTable('product', t => {
+        t.decimal('salePrice', 10, 2).nullable();
+      });
+    }
+
+    const hasSystemActivity = await knex.schema.hasTable('system_activity');
+    if (!hasSystemActivity) {
+      console.log(`📝 Creating system_activity table (auto-migrate)...`);
+      await knex.schema.createTable('system_activity', t => {
+        t.string('id').primary();
+        t.string('userId').nullable();
+        t.string('action');
+        t.text('details').nullable();
+        t.string('entityType').nullable();
+        t.string('entityId').nullable();
+        t.timestamp('createdAt').defaultTo(knex.fn.now());
       });
     }
 

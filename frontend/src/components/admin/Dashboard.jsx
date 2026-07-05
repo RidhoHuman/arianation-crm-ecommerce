@@ -7,7 +7,7 @@ import {
 import {
   TrendingUp, TrendingDown, ShoppingBag, Users, Gift, Eye, Clock, Calendar, AlertTriangle
 } from 'lucide-react';
-import { format, subDays } from 'date-fns';
+import { format, subDays, formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import api from '../../services/api';
 
@@ -51,17 +51,19 @@ export default function Dashboard() {
       };
 
       // Fetch parallel
-      const [fulfillmentRes, revenueRes, usersRes, inventoryRes] = await Promise.all([
+      const [fulfillmentRes, revenueRes, usersRes, inventoryRes, activitiesRes] = await Promise.all([
         api.get('/analytics/fulfillment', { params: dateParams }).catch(() => ({ data: { data: {} } })),
         api.get('/analytics/revenue', { params: dateParams }).catch(() => ({ data: { data: { data: [] } } })),
         api.get('/users').catch(() => ({ data: { data: [] } })),
-        api.get('/admin/inventory/analytics').catch(() => ({ data: { data: {} } }))
+        api.get('/admin/inventory/analytics').catch(() => ({ data: { data: {} } })),
+        api.get('/analytics/activities', { params: { limit: 10 } }).catch(() => ({ data: { data: [] } }))
       ]);
 
       const fulfillment = fulfillmentRes?.data?.data || {};
       const revenue = revenueRes?.data?.data || {};
       const users = usersRes?.data?.data || [];
       const inventoryAnalytics = inventoryRes?.data?.data || {};
+      const recentActivities = activitiesRes?.data?.data || [];
 
       // Transform revenue data for chart
       const chartData = (revenue.data || []).map(item => ({
@@ -94,6 +96,7 @@ export default function Dashboard() {
           { name: 'Custom Sablon', value: 0 }
         ],
         recentOrders: recent,
+        activities: recentActivities,
       }));
 
     } catch (error) {
@@ -370,17 +373,29 @@ export default function Dashboard() {
               <h3 className="text-lg font-bold text-gray-900 mb-6">Aktivitas Sistem</h3>
               <div className="flex-1">
                 <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
-                  {dashboardData.activities.map((activity, idx) => (
-                    <div key={activity.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                      <div className="flex items-center justify-center w-5 h-5 rounded-full border border-white bg-gray-200 text-gray-500 group-[.is-active]:bg-aria-charcoal group-[.is-active]:text-white shadow shrink-0 z-10">
-                        <Clock className="w-3 h-3" />
+                  {dashboardData.activities.length === 0 ? (
+                    <div className="text-center text-gray-500 py-4 relative z-10 bg-white">Belum ada aktivitas terekam.</div>
+                  ) : (
+                    dashboardData.activities.map((activity) => (
+                      <div key={activity.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full border border-white bg-gray-200 text-gray-500 group-[.is-active]:bg-aria-charcoal group-[.is-active]:text-white shadow shrink-0 z-10">
+                          <Clock className="w-3 h-3" />
+                        </div>
+                        <div className="w-[calc(100%-2rem)] md:w-[calc(50%-1.5rem)] p-3 rounded-lg border border-gray-100 bg-white shadow-sm ml-4 md:ml-0">
+                          <p className="text-sm font-semibold text-gray-900">{activity.action}</p>
+                          <p className="text-xs text-gray-600 mt-1">{activity.details}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-[10px] font-medium text-gray-400">
+                              {activity.userName || activity.userEmail || 'Sistem'}
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true, locale: id })}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-[calc(100%-2rem)] md:w-[calc(50%-1.5rem)] p-3 rounded-lg border border-gray-100 bg-white shadow-sm ml-4 md:ml-0">
-                        <p className="text-sm text-gray-700">{activity.text}</p>
-                        <span className="text-xs text-gray-400 mt-1 block">{activity.time}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>

@@ -19,7 +19,7 @@ async function verify() {
     WHERE TABLE_NAME='product' 
     AND COLUMN_NAME IN ('category', 'stockType', 'readyStock', 'articleTitle', 'articleDescription', 'featured')
   `);
-  
+
   if (productCols.length > 0) {
     productCols.forEach(col => {
       console.log(`   ✅ ${col.COLUMN_NAME}: ${col.COLUMN_TYPE}`);
@@ -31,13 +31,13 @@ async function verify() {
   // Check new tables
   console.log('\n2️⃣ TABEL-TABEL BARU:');
   const newTables = ['po_orders', 'inventory_log', 'category_articles'];
-  
+
   for (const table of newTables) {
     const [result] = await connection.execute(`
       SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.TABLES 
       WHERE TABLE_NAME='${table}' AND TABLE_SCHEMA='arianation_db'
     `);
-    
+
     if (result[0].count > 0) {
       console.log(`   ✅ ${table}: EXISTS`);
     } else {
@@ -48,7 +48,7 @@ async function verify() {
   // Check category_articles data
   console.log('\n3️⃣ DATA KATEGORI DEFAULT:');
   const [categories] = await connection.execute('SELECT category, title FROM category_articles');
-  
+
   if (categories.length > 0) {
     categories.forEach(cat => {
       console.log(`   ✅ ${cat.category}: ${cat.title}`);

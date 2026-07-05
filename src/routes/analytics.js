@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const analyticsService = require('../services/analyticsService');
+const analyticsController = require('../controllers/analyticsController');
 const { authenticate, authorize } = require('../middleware/auth');
 
 // All analytics endpoints require OWNER/ADMIN role
@@ -78,5 +79,11 @@ router.get('/revenue', async (req, res, next) => {
     next(error);
   }
 });
+
+/**
+ * GET /api/analytics/activities
+ * Get recent system activities
+ */
+router.get('/activities', analyticsController.getSystemActivities);
 
 module.exports = router;

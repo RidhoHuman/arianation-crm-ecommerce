@@ -5,7 +5,7 @@ import api from '../../services/api';
 import useCategoryStore from '../../store/categoryStore';
 import useCollectionStore from '../../store/collectionStore';
 import useProductTypeStore from '../../store/productTypeStore';
-import { FiSave, FiArrowLeft, FiImage, FiPlus, FiTrash2, FiInfo } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiImage, FiPlus, FiTrash2, FiInfo, FiX } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 
 export default function ProductForm({ defaultBusinessType }) {
@@ -25,6 +25,7 @@ export default function ProductForm({ defaultBusinessType }) {
 
   const [mainImageFile, setMainImageFile] = useState(null);
   const [galleryFiles, setGalleryFiles] = useState([]);
+  const [variantFiles, setVariantFiles] = useState({});
 
   // Smart Variant Matrix State
   const [variantColors, setVariantColors] = useState('');
@@ -43,6 +44,7 @@ export default function ProductForm({ defaultBusinessType }) {
       productType: businessType === 'SABLON_SERVICE' ? 'SABLON_TEMPLATE' : 'KAOS',
       isActive: true,
       isSale: false,
+      salePrice: 0,
       tags: '',
       variants: [],
       imageUrl: '',
@@ -55,9 +57,12 @@ export default function ProductForm({ defaultBusinessType }) {
     name: "variants"
   });
 
+  const [activeVariantImageIndex, setActiveVariantImageIndex] = useState(null);
+
   const currentImageUrl = watch('imageUrl');
   const currentImageUrls = watch('imageUrls') || [];
   const currentProductType = watch('productType');
+  const isSaleActive = watch('isSale');
 
   useEffect(() => {
     fetchCategories({ businessType });
@@ -85,6 +90,7 @@ export default function ProductForm({ defaultBusinessType }) {
             productType: data.productType || (data.businessType === 'SABLON_SERVICE' ? 'SABLON_TEMPLATE' : 'KAOS'),
             isActive: data.isActive,
             isSale: data.isSale,
+            salePrice: data.salePrice || 0,
             tags: data.tags || '',
             variants: data.variants || [],
             imageUrl: data.imageUrl || '',
@@ -124,7 +130,7 @@ export default function ProductForm({ defaultBusinessType }) {
     if (combinations.length > 0) {
       if (!window.confirm(`Sistem akan men-generate ${combinations.length} varian. Varian saat ini (jika ada) tidak akan dihapus. Lanjutkan?`)) return;
       combinations.forEach(combo => {
-        appendVariant({ variantName: combo, sku: '', additionalPrice: 0, stockQuantity: 0 });
+        appendVariant({ variantName: combo, sku: '', additionalPrice: 0, stockQuantity: 0, colorCode: '#000000' });
       });
       setVariantColors('');
       setVariantSizes('');
@@ -159,12 +165,26 @@ export default function ProductForm({ defaultBusinessType }) {
         }
       }
 
+      // 3. Upload Variant Images
+      const finalVariants = [...data.variants];
+      for (const [idxStr, file] of Object.entries(variantFiles)) {
+        const idx = parseInt(idxStr, 10);
+        if (file && finalVariants[idx]) {
+          const url = await uploadImage(file);
+          if (url) {
+            finalVariants[idx].imageUrl = url;
+          }
+        }
+      }
+
       const payload = {
         ...data,
+        variants: finalVariants,
         imageUrl: finalImageUrl,
         imageUrls: finalImageUrls,
         businessType: businessType,
         price: Number(data.price),
+        salePrice: Number(data.salePrice) || null,
         stockQuantity: Number(data.stockQuantity)
       };
 
@@ -198,7 +218,7 @@ export default function ProductForm({ defaultBusinessType }) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto pb-12">
+    <div className="max-w-5xl mx-auto pb-24 relative">
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => navigate(-1)} className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
           <FiArrowLeft className="text-gray-600" />
@@ -265,10 +285,12 @@ export default function ProductForm({ defaultBusinessType }) {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Stok Tersedia *</label>
                   <input
                     type="number"
-                    {...register('stockQuantity', { required: 'Stok wajib diisi' })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all"
+                    {...register('stockQuantity')}
+                    disabled={variantFields.length > 0}
+                    className={`w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all ${variantFields.length > 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
                     placeholder="0"
                   />
+                  {variantFields.length > 0 && <p className="text-[10px] text-orange-500 mt-1">Diambil otomatis dari total stok varian.</p>}
                 </div>
               </div>
             </div>
@@ -321,7 +343,7 @@ export default function ProductForm({ defaultBusinessType }) {
                 <h4 className="font-semibold text-sm text-gray-800">Daftar Varian ({variantFields.length})</h4>
                 <button
                   type="button"
-                  onClick={() => appendVariant({ variantName: '', sku: '', additionalPrice: 0, stockQuantity: 0 })}
+                  onClick={() => appendVariant({ variantName: '', sku: '', additionalPrice: 0, stockQuantity: 0, colorCode: '#000000' })}
                   className="text-xs font-semibold bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
                 >
                   <FiPlus /> Tambah Manual
@@ -335,23 +357,77 @@ export default function ProductForm({ defaultBusinessType }) {
               ) : (
                 <div className="space-y-4">
                   {variantFields.map((field, index) => (
-                    <div key={field.id} className="grid grid-cols-12 gap-3 items-start bg-gray-50 p-4 rounded-xl border border-gray-200">
-                      <div className="col-span-3">
+                    <div key={field.id} className="grid grid-cols-12 gap-3 items-end bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <div className="col-span-1 flex flex-col items-center justify-end pb-1">
+                        <label className="block text-xs font-medium text-gray-600 mb-1 text-center w-full">Foto</label>
+                        <div className="relative w-[34px] h-[34px] group">
+                          {(variantFiles[index] || watch(`variants.${index}.imageUrl`)) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setVariantFiles(prev => {
+                                  const newFiles = { ...prev };
+                                  delete newFiles[index];
+                                  return newFiles;
+                                });
+                                setValue(`variants.${index}.imageUrl`, '', { shouldDirty: true });
+                              }}
+                              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-[2px] shadow-sm z-20 hover:bg-red-600 hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+                              title="Hapus Foto"
+                            >
+                              <FiX size={10} strokeWidth={3} />
+                            </button>
+                          )}
+                          <div
+                            onClick={() => setActiveVariantImageIndex(index)}
+                            className="w-full h-full border border-gray-300 rounded-md bg-white flex items-center justify-center overflow-hidden hover:border-black cursor-pointer relative z-10"
+                            title="Pilih Foto Varian"
+                          >
+                            {variantFiles[index] ? (
+                              <img src={URL.createObjectURL(variantFiles[index])} alt="preview" className="w-full h-full object-cover" />
+                            ) : watch(`variants.${index}.imageUrl`) ? (
+                              <img src={watch(`variants.${index}.imageUrl`)} alt="variant" className="w-full h-full object-cover" />
+                            ) : (
+                              <FiImage className="text-gray-400 group-hover:text-black transition-colors" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-span-2">
                         <label className="block text-xs font-medium text-gray-600 mb-1">Nama Varian (mis: XL Merah)</label>
                         <input
                           {...register(`variants.${index}.variantName`, { required: true })}
                           className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-black outline-none"
                         />
                       </div>
-                      <div className="col-span-3">
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Warna Hex</label>
+                        <div className="flex items-center border border-gray-200 rounded-md bg-white px-2 h-[34px]">
+                          <input
+                            type="color"
+                            value={watch(`variants.${index}.colorCode`) || '#000000'}
+                            onChange={(e) => setValue(`variants.${index}.colorCode`, e.target.value, { shouldValidate: true, shouldDirty: true })}
+                            className="w-6 h-6 border-0 p-0 rounded cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            {...register(`variants.${index}.colorCode`)}
+                            placeholder="#000000"
+                            className="w-full ml-2 text-xs outline-none bg-transparent"
+                          />
+                        </div>
+                      </div>
+                      <div className="col-span-2">
                         <label className="block text-xs font-medium text-gray-600 mb-1">SKU</label>
                         <input
                           {...register(`variants.${index}.sku`)}
                           className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-black outline-none"
                         />
                       </div>
-                      <div className="col-span-3">
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Stok Varian</label>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Stok</label>
                         <input
                           type="number"
                           {...register(`variants.${index}.stockQuantity`)}
@@ -366,11 +442,12 @@ export default function ProductForm({ defaultBusinessType }) {
                           className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-black outline-none"
                         />
                       </div>
-                      <div className="col-span-1 pt-6 text-right">
+                      <div className="col-span-1 flex justify-end pb-1">
                         <button
                           type="button"
                           onClick={() => removeVariant(index)}
                           className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                          title="Hapus Varian"
                         >
                           <FiTrash2 />
                         </button>
@@ -540,11 +617,23 @@ export default function ProductForm({ defaultBusinessType }) {
                   </label>
                 </div>
               )}
+
+              {isSaleActive && (
+                <div className="pt-3 border-t border-gray-100">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Harga Diskon / Sale (Rp) *</label>
+                  <input
+                    type="number"
+                    {...register('salePrice')}
+                    className="w-full px-4 py-2 border border-red-200 bg-red-50/30 rounded-lg focus:ring-2 focus:ring-red-500 outline-none transition-all"
+                    placeholder="Contoh: 89000"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-4 border-t border-gray-200 pt-6 mt-6">
+        <div className="sticky bottom-0 z-50 flex items-center justify-end gap-4 bg-white/90 backdrop-blur-md py-4 mt-8 border-t border-gray-200">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -555,17 +644,86 @@ export default function ProductForm({ defaultBusinessType }) {
           <button
             type="submit"
             disabled={loading}
-            className="px-8 py-2.5 bg-black hover:bg-gray-800 text-white rounded-lg font-medium transition-all shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`px-8 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors flex items-center gap-2 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             {loading ? (
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
             ) : (
               <FiSave />
             )}
-            {isEditing ? 'Simpan Perubahan' : 'Terbitkan Produk'}
+            {loading ? 'Menyimpan...' : (isEditing ? 'Simpan Perubahan' : 'Terbitkan Produk')}
           </button>
         </div>
       </form>
+
+      {/* Variant Image Picker Modal */}
+      {activeVariantImageIndex !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="font-bold text-gray-800">Pilih Foto Varian</h3>
+              <button onClick={() => setActiveVariantImageIndex(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+                <FiX />
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto">
+              <div className="mb-6">
+                <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Upload Foto Baru</p>
+                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <FiPlus className="text-gray-400 mb-2" size={24} />
+                    <p className="text-sm text-gray-600 font-medium">Klik untuk upload foto</p>
+                  </div>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files[0]) {
+                        setVariantFiles(prev => ({ ...prev, [activeVariantImageIndex]: e.target.files[0] }));
+                        setActiveVariantImageIndex(null);
+                      }
+                    }} 
+                  />
+                </label>
+              </div>
+
+              {((currentImageUrl && currentImageUrl !== '') || currentImageUrls.length > 0) && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Pilih dari Galeri Produk</p>
+                  <div className="grid grid-cols-4 gap-3">
+                    {currentImageUrl && currentImageUrl !== '' && (
+                      <button 
+                        onClick={() => {
+                          setValue(`variants.${activeVariantImageIndex}.imageUrl`, currentImageUrl, { shouldDirty: true });
+                          setActiveVariantImageIndex(null);
+                        }}
+                        className="aspect-square border border-gray-200 rounded-lg overflow-hidden hover:border-black hover:shadow-md transition-all relative group"
+                      >
+                        <div className="absolute top-1 left-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded uppercase font-bold z-10">Utama</div>
+                        <img src={currentImageUrl} alt="Main" className="w-full h-full object-cover" />
+                      </button>
+                    )}
+                    {currentImageUrls.map((url, i) => url && (
+                      <button 
+                        key={i}
+                        onClick={() => {
+                          setValue(`variants.${activeVariantImageIndex}.imageUrl`, url, { shouldDirty: true });
+                          setActiveVariantImageIndex(null);
+                        }}
+                        className="aspect-square border border-gray-200 rounded-lg overflow-hidden hover:border-black hover:shadow-md transition-all group"
+                      >
+                        <img src={url} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

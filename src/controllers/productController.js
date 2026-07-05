@@ -100,6 +100,7 @@ const getAllProducts = async (req, res, next) => {
           'product.isActive',
           'product.tags',
           'product.isSale',
+          'product.salePrice',
           'product.imageUrls',
           'product.createdAt',
           'product.updatedAt',
@@ -177,10 +178,17 @@ const createProduct = async (req, res, next) => {
       businessType,
       tags,
       isSale,
+      salePrice,
       isActive,
       variants,
       imageUrls,
     } = req.body;
+
+    // Calculate total stock if variants exist
+    let totalStock = stockQuantity || 0;
+    if (variants && Array.isArray(variants) && variants.length > 0) {
+      totalStock = variants.reduce((sum, v) => sum + (parseInt(v.stockQuantity, 10) || 0), 0);
+    }
 
     const category = await knex('productCategory').where('id', categoryId).first();
     if (!category) {
@@ -193,32 +201,18 @@ const createProduct = async (req, res, next) => {
       description: description || null,
       descriptionEn: descriptionEn || null,
       price,
-      stockQuantity: stockQuantity || 0,
+      stockQuantity: totalStock,
       productType,
       productTypeId: productTypeId === '' ? null : productTypeId,
       imageUrl: imageUrl || null,
       businessType,
       tags: tags || null,
       isSale: isSale === true || isSale === 'true' || isSale === 1 || isSale === '1',
+      salePrice: salePrice ? parseFloat(salePrice) : null,
       isActive: isActive === undefined ? true : (isActive === true || isActive === 'true' || isActive === 1 || isActive === '1'),
       imageUrls: imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null,
+      variants: variants // pass variants to productService.create
     });
-
-    // Create variants jika ada
-    if (variants && Array.isArray(variants)) {
-      const variantRecords = variants.map((v) => ({
-        id: require('cuid')(),
-        productId: product.id,
-        variantName: v.variantName,
-        sku: v.sku || `SKU-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-        additionalPrice: v.additionalPrice || 0,
-        stockQuantity: v.stockQuantity || 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-
-      await knex('productVariant').insert(variantRecords);
-    }
 
     // Save collectionIds jika ada
     let colIds = req.body.collectionIds;
@@ -245,7 +239,7 @@ const updateProduct = async (req, res, next) => {
       require('fs').appendFileSync('debug-error.log', 'UPDATE PRODUCT PAYLOAD: ' + JSON.stringify(req.body) + '\n');
     } catch(e) {}
 
-    const { productName, description, descriptionEn, price, stockQuantity, imageUrl, imageUrls, isActive, tags, isSale, categoryId, productTypeId, variants } = req.body;
+    const { productName, description, descriptionEn, price, stockQuantity, imageUrl, imageUrls, isActive, tags, isSale, salePrice, categoryId, productTypeId, variants } = req.body;
 
     const existing = await productService.findById(id);
     if (!existing) {
@@ -262,10 +256,18 @@ const updateProduct = async (req, res, next) => {
     if (isActive !== undefined) updateData.isActive = isActive === true || isActive === 'true' || isActive === 1 || isActive === '1';
     if (tags !== undefined) updateData.tags = tags;
     if (isSale !== undefined) updateData.isSale = isSale === true || isSale === 'true' || isSale === 1 || isSale === '1';
+    if (salePrice !== undefined) updateData.salePrice = salePrice ? parseFloat(salePrice) : null;
     if (imageUrls !== undefined) updateData.imageUrls = imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (productTypeId !== undefined) updateData.productTypeId = productTypeId === '' ? null : productTypeId;
-    if (variants !== undefined) updateData.variants = variants;
+    
+    // Process variants and dynamic stock
+    if (variants !== undefined) {
+      updateData.variants = variants;
+      if (Array.isArray(variants) && variants.length > 0) {
+        updateData.stockQuantity = variants.reduce((sum, v) => sum + (parseInt(v.stockQuantity, 10) || 0), 0);
+      }
+    }
 
     const product = await productService.update(id, updateData);
 

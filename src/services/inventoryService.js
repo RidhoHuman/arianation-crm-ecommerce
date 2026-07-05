@@ -6,6 +6,7 @@
 
 const knex = require('../config/knex');
 const { ValidationError, NotFoundError } = require('../utils/errors');
+const activityService = require('./activityService');
 
 class InventoryService {
   /**
@@ -45,6 +46,25 @@ class InventoryService {
         stockBefore,
         stockAfter,
         createdAt: new Date(),
+      });
+
+      // Also log to system activity
+      const actionMap = {
+        'stock_in': 'Restock Produk',
+        'sale': 'Stok Terjual',
+        'adjustment': 'Penyesuaian Stok',
+        'return': 'Pengembalian Stok'
+      };
+      
+      const actionName = actionMap[type] || 'Perubahan Stok';
+      const actionDetails = `${reason || actionName} (Perubahan: ${change > 0 ? '+' : ''}${change}, Sisa: ${stockAfter})`;
+      
+      await activityService.logActivity({
+        userId: changedBy,
+        action: actionName,
+        details: actionDetails,
+        entityType: 'PRODUCT',
+        entityId: productId
       });
 
       return true;

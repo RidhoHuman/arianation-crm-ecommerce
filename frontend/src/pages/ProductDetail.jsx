@@ -16,6 +16,7 @@ export default function ProductDetail() {
 
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState('');
+  const [selectedColor, setSelectedColor] = useState(null);
 
   // Gallery state
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
@@ -54,9 +55,47 @@ export default function ProductDetail() {
         if (c.imageUrl) finalImages.push(c.imageUrl);
       });
     }
+    if (product.variants && Array.isArray(product.variants)) {
+      product.variants.forEach(v => {
+        if (v.imageUrl) finalImages.push(v.imageUrl);
+      });
+    }
     finalImages = [...finalImages, ...(Array.isArray(urls) ? urls : [])].filter(Boolean);
     return [...new Set(finalImages)];
   }, [product]);
+
+  const uniqueColors = useMemo(() => {
+    if (!product || !product.variants) return [];
+    const colorsMap = new Map();
+    const KNOWN_SIZES = ['s', 'm', 'l', 'xl', 'xxl', 'xxxl'];
+    
+    product.variants.forEach(v => {
+      // Use colorCode if exists, else parse variantName for color
+      const colorName = v.color || v.variantName?.split('-')[0]?.trim();
+      const code = v.colorCode || null;
+      
+      if (colorName) {
+        const isSizeOnly = KNOWN_SIZES.includes(colorName.toLowerCase());
+        // If the colorName is actually just a size, and they didn't explicitly pick a non-black color, ignore it
+        if (isSizeOnly && (!code || code === '#000000')) {
+          return; // Skip this one, it's just a size
+        }
+        
+        if (!colorsMap.has(colorName)) {
+          colorsMap.set(colorName, { name: colorName, code: code, imageUrl: v.imageUrl });
+        }
+      }
+    });
+    return Array.from(colorsMap.values());
+  }, [product]);
+
+  const handleColorClick = (colorObj) => {
+    setSelectedColor(colorObj.name);
+    if (colorObj.imageUrl) {
+      const idx = allImages.findIndex(img => img === colorObj.imageUrl);
+      if (idx !== -1) setCurrentImageIdx(idx);
+    }
+  };
 
   const nextImage = () => {
     setCurrentImageIdx((prev) => (prev + 1) % allImages.length);
@@ -65,6 +104,44 @@ export default function ProductDetail() {
   const prevImage = () => {
     setCurrentImageIdx((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
   };
+
+  const uniqueSizes = useMemo(() => {
+    if (!product || !product.variants || product.variants.length === 0) {
+      return ['S', 'M', 'L', 'XL', 'XXL']; // Fallback
+    }
+    const sizesSet = new Set();
+    product.variants.forEach(v => {
+      if (v.variantName) {
+        const parts = v.variantName.split('-');
+        const sizeStr = parts.length > 1 ? parts[parts.length - 1].trim() : parts[0].trim();
+        if (sizeStr) sizesSet.add(sizeStr);
+      }
+    });
+    return Array.from(sizesSet);
+  }, [product]);
+
+  const selectedVariant = useMemo(() => {
+    if (!product || !product.variants || product.variants.length === 0) return null;
+    
+    return product.variants.find(v => {
+      // Extract color and size from variant
+      const vColor = v.color || (v.variantName?.includes('-') ? v.variantName.split('-')[0].trim() : v.variantName.trim());
+      const vSize = v.variantName?.includes('-') ? v.variantName.split('-')[v.variantName.split('-').length - 1].trim() : v.variantName.trim();
+      
+      const matchColor = uniqueColors.length === 0 || vColor === selectedColor;
+      const matchSize = uniqueSizes.length === 0 || vSize === selectedSize;
+      
+      return matchColor && matchSize;
+    });
+  }, [product, selectedColor, selectedSize, uniqueColors, uniqueSizes]);
+
+  const displayPrice = useMemo(() => {
+    let basePrice = product?.price || 0;
+    if (selectedVariant && selectedVariant.additionalPrice) {
+      basePrice += selectedVariant.additionalPrice;
+    }
+    return basePrice;
+  }, [product, selectedVariant]);
 
   if (loading) {
     return (
@@ -88,20 +165,30 @@ export default function ProductDetail() {
     );
   }
 
-  const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
+
+
+  const isOutOfStock = selectedVariant ? selectedVariant.stockQuantity <= 0 : false;
+  const isSelectionComplete = (uniqueColors.length === 0 || selectedColor) && (uniqueSizes.length === 0 || selectedSize);
 
   const handleAddToCart = () => {
-    if (!selectedSize) {
+    if (uniqueColors.length > 0 && !selectedColor) {
+      alert('Silakan pilih warna terlebih dahulu.');
+      return;
+    }
+    if (uniqueSizes.length > 0 && !selectedSize) {
       alert('Silakan pilih ukuran terlebih dahulu.');
       return;
     }
     addItem({
       id: product.id,
+      variantId: selectedVariant?.id,
+      sku: selectedVariant?.sku,
       name: product.productName,
-      price: product.price,
+      price: displayPrice,
       quantity,
       image: allImages[currentImageIdx] || product.imageUrl,
-      size: selectedSize
+      size: selectedSize,
+      color: selectedColor
     });
 
     const btn = document.getElementById('add-to-bag-btn');
@@ -204,9 +291,34 @@ export default function ProductDetail() {
               {product.productName}
             </h1>
 
-            <div className="text-base text-gray-700 mb-8">
-              Rp {product.price?.toLocaleString('id-ID')}
+            <div className="text-base text-gray-700 mb-8 font-medium">
+              Rp {displayPrice.toLocaleString('id-ID')}
             </div>
+
+            {/* Colors Selector */}
+            {uniqueColors.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">COLOR:</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-black">{selectedColor || 'SELECT COLOR'}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {uniqueColors.map((colorObj, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleColorClick(colorObj)}
+                      title={colorObj.name}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${
+                        selectedColor === colorObj.name ? 'border-black scale-110' : 'border-gray-200 hover:border-gray-400'
+                      }`}
+                      style={{ backgroundColor: colorObj.code || '#f3f4f6' }}
+                    >
+                      {!colorObj.code && <span className="text-[8px] text-gray-500 uppercase">{colorObj.name.substring(0, 2)}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Size Selector */}
             <div className="mb-6">
@@ -215,7 +327,7 @@ export default function ProductDetail() {
                 <span className="text-[10px] font-bold uppercase tracking-widest text-black">{selectedSize || 'SELECT SIZE'}</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {SIZES.map((size) => (
+                {uniqueSizes.map((size) => (
                   <button
                     key={size}
                     onClick={() => setSelectedSize(size)}
@@ -259,10 +371,13 @@ export default function ProductDetail() {
               <button
                 id="add-to-bag-btn"
                 onClick={handleAddToCart}
-                disabled={product.stockQuantity <= 0}
-                className="flex-1 bg-[#1A1A1A] text-white h-12 flex items-center justify-center text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-black transition-colors disabled:opacity-50"
+                disabled={isSelectionComplete && isOutOfStock}
+                className={`flex-1 text-xs font-bold uppercase tracking-widest transition-colors h-12 flex items-center justify-center
+                  ${(isSelectionComplete && isOutOfStock) 
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                    : 'bg-[#111111] text-white hover:bg-black'}`}
               >
-                {product.stockQuantity > 0 ? 'ADD TO BAG' : 'OUT OF STOCK'}
+                {isSelectionComplete && isOutOfStock ? 'OUT OF STOCK' : 'ADD TO BAG'}
               </button>
               <button
                 className="w-12 h-12 border border-gray-200 flex items-center justify-center text-gray-600 hover:border-black hover:text-black transition-colors"

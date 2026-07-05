@@ -2,6 +2,7 @@
 
 const knex = require('../config/knex');
 const { sendSuccess } = require('../utils/response');
+const activityService = require('../services/activityService');
 
 // ============================================================
 // SALES ANALYTICS
@@ -358,10 +359,30 @@ const getDesignAnalytics = async (req, res, next) => {
   }
 };
 
+// ============================================================
+// SYSTEM ACTIVITIES
+// ============================================================
+
+const getSystemActivities = async (req, res, next) => {
+  try {
+    const { limit = 10 } = req.query;
+    const activities = await activityService.getRecentActivities(parseInt(limit));
+    
+    return sendSuccess(
+      res,
+      activities,
+      'System activities retrieved successfully'
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getSalesAnalytics,
   getRevenueAnalytics,
   getOrderAnalytics,
   getCustomerAnalytics,
   getDesignAnalytics,
+  getSystemActivities,
 };
