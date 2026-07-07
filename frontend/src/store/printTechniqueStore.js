@@ -19,7 +19,7 @@ const usePrintTechniqueStore = create((set) => ({
   fetchTechniquesPublic: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await api.get('/techniques');
+      const response = await api.get('/print-techniques');
       set({ techniques: response.data, loading: false });
     } catch (error) {
       set({ error: error.response?.data?.message || 'Failed to fetch techniques', loading: false });

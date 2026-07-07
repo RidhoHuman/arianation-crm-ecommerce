@@ -41,18 +41,22 @@ const ProductImageCarousel = ({ product, className = "w-12 h-12 object-cover rou
 
   // If we have actual uploaded images, remove the unsplash placeholder
   const actualImages = allImages.filter(img => !img.includes('unsplash.com'));
-  const finalImages = actualImages.length > 0 ? actualImages : allImages;
+  let finalImages = actualImages.length > 0 ? actualImages : allImages;
+
+  if (isServiceOnly && finalImages.length > 0) {
+    finalImages = [finalImages[0]];
+  }
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
 
   React.useEffect(() => {
-    if (finalImages.length > 1) {
+    if (finalImages.length > 1 && !isServiceOnly) {
       const timer = setInterval(() => {
         setCurrentIndex(prev => (prev + 1) % finalImages.length);
       }, 3000);
       return () => clearInterval(timer);
     }
-  }, [finalImages.length]);
+  }, [finalImages.length, isServiceOnly]);
 
   const objectFit = className.includes('object-contain') ? 'object-contain' : 'object-cover';
 
@@ -108,43 +112,6 @@ const FAQ_ITEMS = [
   { q: 'Berapa lama proses pengerjaannya?', a: 'Normalnya proses produksi memakan waktu 7-14 hari kerja setelah DP dibayarkan dan desain/mockup disetujui.' },
   { q: 'Apakah ada garansi jika hasil sablon rusak/luntur?', a: 'Tentu! Kami memberikan garansi 100% cetak ulang atau retur uang jika hasil cetakan tidak sesuai dengan mockup persetujuan, atau luntur dalam pemakaian wajar sebelum 6 bulan.' },
   { q: 'Apakah saya bisa membawa bahan/kaos sendiri?', a: 'Sangat bisa! Anda cukup memilih opsi "Bawa Sendiri" pada pilihan produk di atas. Anda cukup membayar jasa sablonnya saja.' }
-];
-
-const PRODUCT_CATALOG = [
-  // Pakaian
-  { id: 'Cotton Combed 30s', category: 'Pakaian', name: 'Cotton Combed 30s', price: 45000, desc: 'Ringan & Adem', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop', icon: 'M20.3,5.8l-4.1-1.9C15.8,3.7,15.4,3.6,15,3.6h-6c-0.4,0-0.8,0.1-1.2,0.3L3.7,5.8C3,6.1,2.5,6.8,2.5,7.5v4c0,0.8,0.7,1.5,1.5,1.5h1.5v7.5c0,0.8,0.7,1.5,1.5,1.5h10c0.8,0,1.5-0.7,1.5-1.5v-7.5h1.5c0.8,0,1.5-0.7,1.5-1.5v-4C21.5,6.8,21,6.1,20.3,5.8z M8,3.6h8c0,1.1-0.9,2-2,2h-4C8.9,5.6,8,4.7,8,3.6z' },
-  { id: 'Cotton Combed 30s (Panjang)', category: 'Pakaian', name: 'Cotton Combed 30s (Panjang)', price: 55000, desc: 'Ringan & Adem (Lengan Panjang)', image: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=800&auto=format&fit=crop', icon: 'M20.3,5.8l-4.1-1.9C15.8,3.7,15.4,3.6,15,3.6h-6c-0.4,0-0.8,0.1-1.2,0.3L3.7,5.8C3,6.1,2.5,6.8,2.5,7.5v4c0,0.8,0.7,1.5,1.5,1.5h1.5v7.5c0,0.8,0.7,1.5,1.5,1.5h10c0.8,0,1.5-0.7,1.5-1.5v-7.5h1.5c0.8,0,1.5-0.7,1.5-1.5v-4C21.5,6.8,21,6.1,20.3,5.8z M8,3.6h8c0,1.1-0.9,2-2,2h-4C8.9,5.6,8,4.7,8,3.6z' },
-  { id: 'Cotton Combed 24s', category: 'Pakaian', name: 'Cotton Combed 24s', price: 50000, desc: 'Tebal & Elegan', image: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop', icon: 'M20.3,5.8l-4.1-1.9C15.8,3.7,15.4,3.6,15,3.6h-6c-0.4,0-0.8,0.1-1.2,0.3L3.7,5.8C3,6.1,2.5,6.8,2.5,7.5v4c0,0.8,0.7,1.5,1.5,1.5h1.5v7.5c0,0.8,0.7,1.5,1.5,1.5h10c0.8,0,1.5-0.7,1.5-1.5v-7.5h1.5c0.8,0,1.5-0.7,1.5-1.5v-4C21.5,6.8,21,6.1,20.3,5.8z M8,3.6h8c0,1.1-0.9,2-2,2h-4C8.9,5.6,8,4.7,8,3.6z' },
-  { id: 'Cotton Combed 24s (Panjang)', category: 'Pakaian', name: 'Cotton Combed 24s (Panjang)', price: 60000, desc: 'Tebal & Elegan (Lengan Panjang)', image: 'https://images.unsplash.com/photo-1618354691438-25bc04584c23?q=80&w=800&auto=format&fit=crop', icon: 'M20.3,5.8l-4.1-1.9C15.8,3.7,15.4,3.6,15,3.6h-6c-0.4,0-0.8,0.1-1.2,0.3L3.7,5.8C3,6.1,2.5,6.8,2.5,7.5v4c0,0.8,0.7,1.5,1.5,1.5h1.5v7.5c0,0.8,0.7,1.5,1.5,1.5h10c0.8,0,1.5-0.7,1.5-1.5v-7.5h1.5c0.8,0,1.5-0.7,1.5-1.5v-4C21.5,6.8,21,6.1,20.3,5.8z M8,3.6h8c0,1.1-0.9,2-2,2h-4C8.9,5.6,8,4.7,8,3.6z' },
-  { id: 'Cotton Bamboo', category: 'Pakaian', name: 'Cotton Bamboo', price: 60000, desc: 'Anti-bakteri', image: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop', icon: 'M20.3,5.8l-4.1-1.9C15.8,3.7,15.4,3.6,15,3.6h-6c-0.4,0-0.8,0.1-1.2,0.3L3.7,5.8C3,6.1,2.5,6.8,2.5,7.5v4c0,0.8,0.7,1.5,1.5,1.5h1.5v7.5c0,0.8,0.7,1.5,1.5,1.5h10c0.8,0,1.5-0.7,1.5-1.5v-7.5h1.5c0.8,0,1.5-0.7,1.5-1.5v-4C21.5,6.8,21,6.1,20.3,5.8z M8,3.6h8c0,1.1-0.9,2-2,2h-4C8.9,5.6,8,4.7,8,3.6z' },
-  { id: 'Fleece (Hoodie)', category: 'Pakaian', name: 'Fleece (Hoodie)', price: 120000, desc: 'Fleece Lembut', image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=800&auto=format&fit=crop', icon: 'M16,6 L18,8 V20 C18,21.1 17.1,22 16,22 H8 C6.9,22 6,21.1 6,20 V8 L8,6 V4 C8,2.9 8.9,2 10,2 H14 C15.1,2 16,2.9 16,4 V6 Z M14,6 V4 H10 V6 H14 Z M16,8 H8 V20 H16 V8 Z' },
-  { id: 'Lacoste (Polo)', category: 'Pakaian', name: 'Lacoste (Polo)', price: 75000, desc: 'Formal & Rapi', image: 'https://images.unsplash.com/photo-1586363104862-3a5e2ab60d99?q=80&w=800&auto=format&fit=crop', icon: 'M18.8,5.4L15.3,4c-0.3-0.1-0.7-0.2-1-0.2H9.7C9.4,3.8,9,3.9,8.7,4L5.2,5.4C4.5,5.7,4,6.4,4,7.1v4.4C4,12.3,4.6,13,5.4,13H7v7.5C7,21.3,7.7,22,8.5,22h7c0.8,0,1.5-0.7,1.5-1.5V13h1.6c0.8,0,1.4-0.7,1.4-1.5V7.1C20,6.4,19.5,5.7,18.8,5.4z M13,7.5H11v-2h2V7.5z M13,10.5H11v-2h2V10.5z' },
-  { id: 'Bawa Kaos Sendiri', category: 'Pakaian', name: 'Bawa Sendiri', price: 0, desc: 'Hanya Jasa Sablon', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop', icon: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' },
-  // Tas & Merchandise
-  { id: 'Tote Bag (Kanvas)', category: 'Tas & Merchandise', name: 'Tote Bag Kanvas', price: 35000, desc: 'Tebal & Premium', image: 'https://images.unsplash.com/photo-1597484661643-2f5fef640df1?q=80&w=800&auto=format&fit=crop', icon: 'M19,6h-3c0-2.2-1.8-4-4-4S8,3.8,8,6H5C3.9,6,3,6.9,3,8v12c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V8C21,6.9,20.1,6,19,6z M12,4c1.1,0,2,0.9,2,2h-4C10,4.9,10.9,4,12,4z M19,20H5V8h3v2c0,0.6,0.4,1,1,1s1-0.4,1-1V8h4v2c0,0.6,0.4,1,1,1s1-0.4,1-1V8h3V20z' },
-  { id: 'Tote Bag (Blacu)', category: 'Tas & Merchandise', name: 'Tote Bag Blacu', price: 15000, desc: 'Ringan & Murah', image: 'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?q=80&w=800&auto=format&fit=crop', icon: 'M19,6h-3c0-2.2-1.8-4-4-4S8,3.8,8,6H5C3.9,6,3,6.9,3,8v12c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V8C21,6.9,20.1,6,19,6z M12,4c1.1,0,2,0.9,2,2h-4C10,4.9,10.9,4,12,4z M19,20H5V8h3v2c0,0.6,0.4,1,1,1s1-0.4,1-1V8h4v2c0,0.6,0.4,1,1,1s1-0.4,1-1V8h3V20z' },
-  { id: 'Drawstring Bag', category: 'Tas & Merchandise', name: 'Tas Serut', price: 25000, desc: 'Tas Serut Gym', image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=800&auto=format&fit=crop', icon: 'M17,4h-1.5l-2.1-2.6C13.1,1.1,12.6,1,12,1s-1.1,0.1-1.4,0.4L8.5,4H7C5.9,4,5,4.9,5,6v14c0,1.1,0.9,2,2,2h10c1.1,0,2-0.9,2-2V6C19,4.9,18.1,4,17,4z M12,3l1,1h-2L12,3z M17,20H7V6h10V20z' },
-  { id: 'Apron (Celemek)', category: 'Tas & Merchandise', name: 'Apron / Celemek', price: 55000, desc: 'Kanvas Drill', image: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?q=80&w=800&auto=format&fit=crop', icon: 'M15,2c0-0.6-0.4-1-1-1H10C9.4,1,9,1.4,9,2v2c0,0.6,0.4,1,1,1h4c0.6,0,1-0.4,1-1V2z M17,7c-0.6,0-1,0.4-1,1v1h-1v-1c0-0.6-0.4-1-1-1h-4C9.4,7,9,7.4,9,8v1H8V8c0-0.6-0.4-1-1-1S6,7.4,6,8v4c0,2.2,1.8,4,4,4h4c2.2,0,4-1.8,4-4V8C18,7.4,17.6,7,17,7z M12,20c-3.3,0-6-2.7-6-6v-1h12v1C18,17.3,15.3,20,12,20z' },
-  { id: 'Goodie Bag (Spunbond)', category: 'Tas & Merchandise', name: 'Tas Spunbond', price: 5000, desc: 'Goodie Bag Murah', image: 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?q=80&w=800&auto=format&fit=crop', icon: 'M19,6h-3c0-2.2-1.8-4-4-4S8,3.8,8,6H5C3.9,6,3,6.9,3,8v12c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V8C21,6.9,20.1,6,19,6z M12,4c1.1,0,2,0.9,2,2h-4C10,4.9,10.9,4,12,4z M19,20H5V8h3v2c0,0.6,0.4,1,1,1s1-0.4,1-1V8h4v2c0,0.6,0.4,1,1,1s1-0.4,1-1V8h3V20z' },
-  // Packaging
-  { id: 'Polymailer Sablon', category: 'Packaging', name: 'Plastik Polymailer', price: 2000, desc: 'Tebal & Glossy', image: 'https://images.unsplash.com/photo-1586880244406-556ebe35f282?q=80&w=800&auto=format&fit=crop', icon: 'M20,4H4C2.9,4,2.01,4.9,2.01,6L2,18c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,8l-8,5L4,8V6l8,5l8-5V8z' },
-  { id: 'Paper Bag', category: 'Packaging', name: 'Paper Bag Kraft', price: 3500, desc: 'Kertas Coklat', image: 'https://images.unsplash.com/photo-1587522501438-e6d8a436940a?q=80&w=800&auto=format&fit=crop', icon: 'M19,6h-3c0-2.2-1.8-4-4-4S8,3.8,8,6H5C3.9,6,3,6.9,3,8v12c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V8C21,6.9,20.1,6,19,6z M12,4c1.1,0,2,0.9,2,2h-4C10,4.9,10.9,4,12,4z M19,20H5V8h3v2c0,0.6,0.4,1,1,1s1-0.4,1-1V8h4v2c0,0.6,0.4,1,1,1s1-0.4,1-1V8h3V20z' },
-  { id: 'Corrugated Box', category: 'Packaging', name: 'Box Sepatu/Hampers', price: 8000, desc: 'Kardus Tebal', image: 'https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?q=80&w=800&auto=format&fit=crop', icon: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' }
-];
-
-const COLOR_SWATCHES = [
-  { name: 'Hitam', hex: '#000000' },
-  { name: 'Putih', hex: '#FFFFFF' },
-  { name: 'Navy', hex: '#1e3a8a' },
-  { name: 'Maroon', hex: '#7f1d1d' },
-  { name: 'Abu Misty', hex: '#d1d5db' },
-  { name: 'Hijau Botol', hex: '#14532d' },
-  { name: 'Kuning', hex: '#eab308' },
-  { name: 'Merah', hex: '#dc2626' },
-  { name: 'Natural/Krem', hex: '#FDFBF7' },
-  { name: 'Coklat Kraft', hex: '#D2B48C' },
-  { name: 'Transparan', hex: '#ffffff' },
-  { name: 'Custom', hex: '#f3f4f6' }
 ];
 
 const TR = {
@@ -391,7 +358,7 @@ export default function DesignRequest() {
 
   const fetchCustomProducts = React.useCallback(async () => {
     try {
-      const res = await api.get('/products?productType=SABLON_TEMPLATE&limit=50');
+      const res = await api.get('/products?businessType=SABLON_SERVICE&limit=1000');
       if (res.data?.success) {
         setCustomProducts(res.data.data);
       }
@@ -453,85 +420,7 @@ export default function DesignRequest() {
   const [specModalProduct, setSpecModalProduct] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
 
-  const MOCKUP_FILES = {
-    // 24s Lengan Panjang
-    'putih_24s_panjang_Depan': 'kaos polos Cotton Combed 24s lengan panjang depan putih..jfif',
-    'putih_24s_panjang_Belakang': 'kaos polos Cotton Combed 24s lengan panjang belakang putih..jfif',
-    'hitam_24s_panjang_Depan': 'kaos polos Cotton Combed 30s lengan panjang depan..jfif',
-    'hitam_24s_panjang_Belakang': 'kaos polos Cotton Combed 30s lengan panjang belakang..jfif',
 
-    // 30s & 24s Lengan Pendek
-    'putih_30s_Depan': 'kaos polos Cotton Combed 24s depan putih..jfif',
-    'putih_30s_Belakang': 'kaos polos Cotton Combed 24s belakang putih..jfif',
-    'hitam_30s_Depan': 'kaos polos Cotton Combed 24s depan..jfif',
-    'hitam_30s_Belakang': 'kaos polos Cotton Combed 24s belakang..jfif',
-    'abu misty_30s_Depan': 'kaos polos Cotton Combed 30s abu misty depan..jfif',
-    'abu misty_30s_Belakang': 'kaos polos Cotton Combed 30s abu misty belakang.jfif',
-    'hijau botol_30s_Depan': 'kaos polos Cotton Combed 30s hijau botol depan..jfif',
-    'hijau botol_30s_Belakang': 'kaos polos Cotton Combed 30s hijau botol belakang..jfif',
-    'kuning_30s_Depan': 'kaos polos Cotton Combed 30s kuning depan..jfif',
-    'kuning_30s_Belakang': 'kaos polos Cotton Combed 30s kuning belakang..jfif',
-    'maroon_30s_Depan': 'kaos polos Cotton Combed 30s maroon depan.jfif',
-    'maroon_30s_Belakang': 'kaos polos Cotton Combed 30s maroon belakang.jfif',
-    'merah_30s_Depan': 'kaos polos Cotton Combed 30s merah depan..jfif',
-    'merah_30s_Belakang': 'kaos polos Cotton Combed 30s merah balakang..jfif',
-    'navy_30s_Depan': 'kaos polos Cotton Combed 30s navy depan.jfif',
-    'navy_30s_Belakang': 'kaos polos Cotton Combed 30s navy balakang..jfif',
-
-    // Hoodie
-    'abu misty_hoodie_Depan': 'hoodie abu misty depan.jfif',
-    'abu misty_hoodie_Belakang': 'hoodie abu misty belakang.jfif',
-    'hijau botol_hoodie_Depan': 'hoodie hijau botol depan.jfif',
-    'hijau botol_hoodie_Belakang': 'hoodie hijau botol belakang.jfif',
-    'hitam_hoodie_Depan': 'hoodie hitam depan.jfif',
-    'hitam_hoodie_Belakang': 'hoodie hitam belakang.jfif',
-    'kuning_hoodie_Depan': 'hoodie kuning depan.jfif',
-    'kuning_hoodie_Belakang': 'hoodie kuning belakang.jfif',
-    'maroon_hoodie_Depan': 'hoodie maroon depan.jfif',
-    'maroon_hoodie_Belakang': 'hoodie maroon belakang.jfif',
-    'merah_hoodie_Depan': 'hoodie merah depan.jfif',
-    'merah_hoodie_Belakang': 'hoodie merah belkang.jfif',
-    'navy_hoodie_Depan': 'hoodie navy depan.jfif',
-    'navy_hoodie_Belakang': 'hoodie navy belakang.jfif',
-    'putih_hoodie_Depan': 'hoodie putih depan.jfif',
-    'putih_hoodie_Belakang': 'hoodie putih belakang.jfif',
-
-    // Lacoste (Polo)
-    'abu misty_polo_Depan': 'lacoste kaos polo abu misty depan.jfif',
-    'abu misty_polo_Belakang': 'lacoste kaos polo abu misty belakang.jfif',
-    'hijau botol_polo_Depan': 'lacoste kaos polo hijau botol depan.jfif',
-    'hijau botol_polo_Belakang': 'lacoste kaos polo hijau botol belakang.jfif',
-    'hitam_polo_Depan': 'lacoste kaos polo hitam depan.jfif',
-    'hitam_polo_Belakang': 'lacoste kaos polo hitam belakang.jfif',
-    'kuning_polo_Depan': 'lacoste kaos polo kuning depan.jfif',
-    'kuning_polo_Belakang': 'lacoste kaos polo kuning belakang.jfif',
-    'maroon_polo_Depan': 'lacoste kaos polo maroon depan.jfif',
-    'maroon_polo_Belakang': 'lacoste kaos polo maroon belakang.jfif',
-    'merah_polo_Depan': 'lacoste kaos polo merah depan.jfif',
-    'merah_polo_Belakang': 'lacoste kaos polo merah belakang.jfif',
-    'navy_polo_Depan': 'lacoste kaos polo navy depan.jfif',
-    'navy_polo_Belakang': 'lacoste kaos polo navy belakang.jfif',
-    'putih_polo_Depan': 'lacoste kaos polo putih depan.jfif',
-    'putih_polo_Belakang': 'lacoste kaos polo putih belakang.jfif',
-
-    // Tas & Merchandise
-    'hitam_totekanvas_Depan': 'Tote Bag Kanvas hitam.jfif',
-    'putih_totekanvas_Depan': 'Tote Bag Kanvas putih.jfif',
-    'abu misty_totekanvas_Depan': 'Tote Bag Kanvas abu misty.jfif',
-    'krem_toteblacu_Depan': 'Tote Bag Blacu krem.jfif',
-    'hitam_drawstring_Depan': 'Drawstring Bag hitam.jfif',
-    'hitam_apron_Depan': 'apron hitam.jfif',
-    'coklat_apron_Depan': 'apron kanvas coklat.jfif',
-    'navy_apron_Depan': 'apron navy.jfif',
-    'hitam_spunbond_Depan': 'Goodie Bag Spunbond hitam.jpg',
-    'putih_spunbond_Depan': 'Goodie Bag Spunbond putih.jfif',
-
-    // Packaging
-    'hitam_polymailer_Depan': 'Polymailer hitam.jfif',
-    'putih_polymailer_Depan': 'Polymailer putih.jfif',
-    'coklat_paperbag_Depan': 'Paper Bag Kraft  coklat kraft.jfif',
-    'coklat_corrugated_Depan': 'Corrugated Box coklat.jfif'
-  };
 
   // getAvailableColors now derives entirely from variants
   const getAvailableColors = (productData, category) => {
@@ -550,7 +439,7 @@ export default function DesignRequest() {
     }
 
     // Fallback if no variants are set
-    return COLOR_SWATCHES.filter(c => ['Hitam', 'Putih'].includes(c.name));
+    return [];
   };
 
   const getMockupImage = (productData, colorName, side) => {
@@ -640,8 +529,8 @@ export default function DesignRequest() {
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
     resolver: zodResolver(designSchema),
     defaultValues: {
-      quantity: 0,
-      productTypeForSablon: 'Cotton Combed 30s',
+      quantity: 1,
+      productTypeForSablon: '',
       printTechnique: 'DTF',
       numberOfColors: 1,
       sizeBreakdown: '',
@@ -1173,6 +1062,24 @@ export default function DesignRequest() {
                           {getAvailableColors(customProducts.find(p => p.id === watch('productTypeForSablon')), activeCategory).map(color => {
                             const isSelected = watch('colorPreferences') === color.name && !customColor;
                             const isOutOfStock = color.id !== undefined && color.stock <= 0;
+                            
+                            // Use Pill UI for Packaging
+                            if (activeCategory === 'Packaging') {
+                              return (
+                                <button
+                                  key={color.name}
+                                  type="button"
+                                  disabled={isOutOfStock}
+                                  onClick={() => { setCustomColor(''); setValue('colorPreferences', color.name, { shouldValidate: true }); }}
+                                  className={`px-4 py-2 rounded-full border-2 text-sm font-semibold transition-all ${isSelected ? 'border-black bg-black text-white shadow-md dark:border-white dark:bg-white dark:text-black' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'} ${isOutOfStock ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                >
+                                  {color.name.split(' (')[0]}
+                                  {isOutOfStock && ' (Habis)'}
+                                </button>
+                              );
+                            }
+
+                            // Use Circle Swatch UI for other categories
                             return (
                               <div key={color.name} className="flex flex-col items-center space-y-1">
                                 <button
@@ -1399,7 +1306,7 @@ export default function DesignRequest() {
                                 <div
                                   className="absolute inset-0"
                                   style={{
-                                    backgroundColor: customColor || COLOR_SWATCHES.find(c => c.name === watch('colorPreferences'))?.hex || '#ffffff',
+                                    backgroundColor: customColor || getAvailableColors(customProducts.find(p => p.id === watch('productTypeForSablon')), activeCategory).find(c => c.name === watch('colorPreferences'))?.hex || '#ffffff',
                                     mixBlendMode: 'multiply',
                                     opacity: 0.9
                                   }}
@@ -1499,7 +1406,7 @@ export default function DesignRequest() {
 
                   {/* Dynamic Pricing Estimator */}
                   {(() => {
-                    const selectedProduct = customProducts.find(p => p.id === watch('productTypeForSablon')) || PRODUCT_CATALOG.find(p => p.id === watch('productTypeForSablon'));
+                    const selectedProduct = customProducts.find(p => p.id === watch('productTypeForSablon'));
                     const basePrice = selectedProduct?.price || 0;
 
                     let techPrice = 0;

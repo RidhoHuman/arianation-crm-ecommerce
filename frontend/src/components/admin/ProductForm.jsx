@@ -5,7 +5,7 @@ import api from '../../services/api';
 import useCategoryStore from '../../store/categoryStore';
 import useCollectionStore from '../../store/collectionStore';
 import useProductTypeStore from '../../store/productTypeStore';
-import { FiSave, FiArrowLeft, FiImage, FiPlus, FiTrash2, FiInfo, FiX } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiImage, FiPlus, FiTrash2, FiInfo, FiX, FiEdit } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 
 export default function ProductForm({ defaultBusinessType }) {
@@ -43,6 +43,7 @@ export default function ProductForm({ defaultBusinessType }) {
       collectionIds: [],
       productType: businessType === 'SABLON_SERVICE' ? 'SABLON_TEMPLATE' : 'KAOS',
       isActive: true,
+      trackStock: true,
       isSale: false,
       salePrice: 0,
       tags: '',
@@ -63,6 +64,7 @@ export default function ProductForm({ defaultBusinessType }) {
   const currentImageUrls = watch('imageUrls') || [];
   const currentProductType = watch('productType');
   const isSaleActive = watch('isSale');
+  const isTrackStock = watch('trackStock');
 
   useEffect(() => {
     fetchCategories({ businessType });
@@ -89,6 +91,7 @@ export default function ProductForm({ defaultBusinessType }) {
             collectionIds: data.collectionIds || [],
             productType: data.productType || (data.businessType === 'SABLON_SERVICE' ? 'SABLON_TEMPLATE' : 'KAOS'),
             isActive: data.isActive,
+            trackStock: data.trackStock !== undefined ? data.trackStock : true,
             isSale: data.isSale,
             salePrice: data.salePrice || 0,
             tags: data.tags || '',
@@ -167,12 +170,32 @@ export default function ProductForm({ defaultBusinessType }) {
 
       // 3. Upload Variant Images
       const finalVariants = [...data.variants];
-      for (const [idxStr, file] of Object.entries(variantFiles)) {
+      for (const [keyStr, fileOrRef] of Object.entries(variantFiles)) {
+        if (!fileOrRef) continue;
+        
+        let idxStr = keyStr;
+        let side = 'front';
+        if (keyStr.includes('_')) {
+          [idxStr, side] = keyStr.split('_');
+        }
         const idx = parseInt(idxStr, 10);
-        if (file && finalVariants[idx]) {
-          const url = await uploadImage(file);
-          if (url) {
-            finalVariants[idx].imageUrl = url;
+        
+        if (finalVariants[idx]) {
+          let urlToSet = null;
+          if (fileOrRef === 'MAIN_IMAGE') {
+            urlToSet = finalImageUrl;
+          } else if (typeof fileOrRef === 'string' && fileOrRef.startsWith('GALLERY_')) {
+            const galIdx = parseInt(fileOrRef.split('_')[1], 10);
+            urlToSet = finalImageUrls[currentImageUrls.length + galIdx];
+          } else if (fileOrRef instanceof File) {
+            urlToSet = await uploadImage(fileOrRef);
+          }
+
+          if (urlToSet) {
+            if (side === 'front') finalVariants[idx].imageUrl = urlToSet;
+            if (side === 'back') finalVariants[idx].imageUrlBack = urlToSet;
+            if (side === 'left') finalVariants[idx].imageUrlLeft = urlToSet;
+            if (side === 'right') finalVariants[idx].imageUrlRight = urlToSet;
           }
         }
       }
@@ -276,21 +299,23 @@ export default function ProductForm({ defaultBusinessType }) {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Harga (Rp) *</label>
                   <input
                     type="number"
-                    {...register('price', { required: 'Harga wajib diisi' })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all"
+                    {...(isTrackStock ? register('price', { required: 'Harga wajib diisi' }) : { value: 0 })}
+                    disabled={!isTrackStock}
+                    className={`w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all ${!isTrackStock ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
                     placeholder="0"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Stok Tersedia *</label>
                   <input
-                    type="number"
-                    {...register('stockQuantity')}
-                    disabled={variantFields.length > 0}
-                    className={`w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all ${variantFields.length > 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
+                    type={isTrackStock ? "number" : "text"}
+                    {...(isTrackStock ? register('stockQuantity') : { value: '∞' })}
+                    disabled={variantFields.length > 0 || !isTrackStock}
+                    className={`w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all ${variantFields.length > 0 || !isTrackStock ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''} ${!isTrackStock ? 'text-center font-bold text-lg' : ''}`}
                     placeholder="0"
                   />
-                  {variantFields.length > 0 && <p className="text-[10px] text-orange-500 mt-1">Diambil otomatis dari total stok varian.</p>}
+                  {variantFields.length > 0 && isTrackStock && <p className="text-[10px] text-orange-500 mt-1">Diambil otomatis dari total stok varian.</p>}
+                  {!isTrackStock && <p className="text-[10px] text-blue-500 mt-1 font-medium">Stok & Harga diabaikan (Bypass) karena mode Tanpa Batas / Bawa Sendiri.</p>}
                 </div>
               </div>
             </div>
@@ -323,7 +348,7 @@ export default function ProductForm({ defaultBusinessType }) {
                       type="text" 
                       value={variantSizes}
                       onChange={(e) => setVariantSizes(e.target.value)}
-                      placeholder="S, M, L, XL" 
+                      placeholder={businessType === 'SABLON_SERVICE' ? "mis: S, M, L atau 10x15cm, One Size" : "S, M, L, XL"} 
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none" 
                     />
                   </div>
@@ -359,40 +384,59 @@ export default function ProductForm({ defaultBusinessType }) {
                   {variantFields.map((field, index) => (
                     <div key={field.id} className="grid grid-cols-12 gap-3 items-end bg-gray-50 p-4 rounded-xl border border-gray-200">
                       <div className="col-span-1 flex flex-col items-center justify-end pb-1">
-                        <label className="block text-xs font-medium text-gray-600 mb-1 text-center w-full">Foto</label>
-                        <div className="relative w-[34px] h-[34px] group">
-                          {(variantFiles[index] || watch(`variants.${index}.imageUrl`)) && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setVariantFiles(prev => {
-                                  const newFiles = { ...prev };
-                                  delete newFiles[index];
-                                  return newFiles;
-                                });
-                                setValue(`variants.${index}.imageUrl`, '', { shouldDirty: true });
-                              }}
-                              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-[2px] shadow-sm z-20 hover:bg-red-600 hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
-                              title="Hapus Foto"
-                            >
-                              <FiX size={10} strokeWidth={3} />
-                            </button>
-                          )}
-                          <div
-                            onClick={() => setActiveVariantImageIndex(index)}
-                            className="w-full h-full border border-gray-300 rounded-md bg-white flex items-center justify-center overflow-hidden hover:border-black cursor-pointer relative z-10"
-                            title="Pilih Foto Varian"
-                          >
-                            {variantFiles[index] ? (
-                              <img src={URL.createObjectURL(variantFiles[index])} alt="preview" className="w-full h-full object-cover" />
-                            ) : watch(`variants.${index}.imageUrl`) ? (
-                              <img src={watch(`variants.${index}.imageUrl`)} alt="variant" className="w-full h-full object-cover" />
-                            ) : (
-                              <FiImage className="text-gray-400 group-hover:text-black transition-colors" />
-                            )}
-                          </div>
+                        <label className="block text-[10px] font-medium text-gray-600 mb-1 text-center w-full leading-tight">Foto<br/>(4 Sisi)</label>
+                        <div className="grid grid-cols-2 gap-1 w-[40px] h-[40px]">
+                          {[
+                            { side: 'front', label: 'Depan', field: 'imageUrl' },
+                            { side: 'back', label: 'Belakang', field: 'imageUrlBack' },
+                            { side: 'left', label: 'Kiri', field: 'imageUrlLeft' },
+                            { side: 'right', label: 'Kanan', field: 'imageUrlRight' }
+                          ].map((item) => {
+                            const key = `${index}_${item.side}`;
+                            const fileOrRef = variantFiles[key];
+                            const watchedUrl = watch(`variants.${index}.${item.field}`);
+                            
+                            return (
+                              <div key={item.side} className="relative w-[18px] h-[18px] group" title={`Pilih Foto ${item.label}`}>
+                                {(fileOrRef || watchedUrl) && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      setVariantFiles(prev => {
+                                        const newFiles = { ...prev };
+                                        delete newFiles[key];
+                                        return newFiles;
+                                      });
+                                      setValue(`variants.${index}.${item.field}`, '', { shouldDirty: true });
+                                    }}
+                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-[1px] shadow-sm z-20 hover:bg-red-600 hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+                                  >
+                                    <FiX size={8} strokeWidth={3} />
+                                  </button>
+                                )}
+                                <div
+                                  onClick={() => setActiveVariantImageIndex(key)}
+                                  className="w-full h-full border border-gray-300 rounded bg-white flex items-center justify-center overflow-hidden hover:border-black cursor-pointer relative z-10"
+                                >
+                                  {fileOrRef ? (
+                                    <img src={
+                                      fileOrRef === 'MAIN_IMAGE' 
+                                        ? (mainImageFile ? URL.createObjectURL(mainImageFile) : (currentImageUrl || ''))
+                                        : (typeof fileOrRef === 'string' && fileOrRef.startsWith('GALLERY_'))
+                                          ? (galleryFiles[parseInt(fileOrRef.split('_')[1])] ? URL.createObjectURL(galleryFiles[parseInt(fileOrRef.split('_')[1])]) : '')
+                                          : (fileOrRef instanceof File ? URL.createObjectURL(fileOrRef) : '')
+                                    } alt="preview" className="w-full h-full object-cover" />
+                                  ) : watchedUrl ? (
+                                    <img src={watchedUrl} alt="variant" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-[8px] font-bold text-gray-400 group-hover:text-black">{item.label.charAt(0)}</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                       <div className="col-span-2">
@@ -429,17 +473,19 @@ export default function ProductForm({ defaultBusinessType }) {
                       <div className="col-span-2">
                         <label className="block text-xs font-medium text-gray-600 mb-1">Stok</label>
                         <input
-                          type="number"
-                          {...register(`variants.${index}.stockQuantity`)}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-black outline-none"
+                          type={isTrackStock ? "number" : "text"}
+                          {...(isTrackStock ? register(`variants.${index}.stockQuantity`) : { value: '∞' })}
+                          disabled={!isTrackStock}
+                          className={`w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-black outline-none ${!isTrackStock ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-center font-bold text-lg' : ''}`}
                         />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-xs font-medium text-gray-600 mb-1">+ Harga</label>
                         <input
                           type="number"
-                          {...register(`variants.${index}.additionalPrice`)}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-black outline-none"
+                          {...(isTrackStock ? register(`variants.${index}.additionalPrice`) : { value: 0 })}
+                          disabled={!isTrackStock}
+                          className={`w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-black outline-none ${!isTrackStock ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                         />
                       </div>
                       <div className="col-span-1 flex justify-end pb-1">
@@ -494,31 +540,33 @@ export default function ProductForm({ defaultBusinessType }) {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Koleksi (Bisa lebih dari satu)</label>
-                <div className="space-y-2 max-h-40 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
-                  {collections.length === 0 ? (
-                    <p className="text-xs text-gray-500 italic text-center py-2">Belum ada koleksi</p>
-                  ) : collections.map(col => (
-                    <label key={col.id} className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        value={col.id}
-                        {...register('collectionIds')}
-                        className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
-                      />
-                      <span className="text-sm text-gray-700">{col.name}</span>
-                    </label>
-                  ))}
+              {businessType === 'FASHION_RETAIL' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Koleksi (Bisa lebih dari satu)</label>
+                  <div className="space-y-2 max-h-40 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
+                    {collections.length === 0 ? (
+                      <p className="text-xs text-gray-500 italic text-center py-2">Belum ada koleksi</p>
+                    ) : collections.map(col => (
+                      <label key={col.id} className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          value={col.id}
+                          {...register('collectionIds')}
+                          className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
+                        />
+                        <span className="text-sm text-gray-700">{col.name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags (pisahkan koma)</label>
                 <input
                   {...register('tags')}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none"
-                  placeholder="hitam, katun, murah"
+                  placeholder={businessType === 'SABLON_SERVICE' ? "kertas, plastik, tas-kertas" : "hitam, katun, murah"}
                 />
               </div>
               <input type="hidden" {...register('productType')} />
@@ -529,22 +577,51 @@ export default function ProductForm({ defaultBusinessType }) {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Foto Utama</label>
-                <div className="relative border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden aspect-square">
-                  {mainImageFile ? (
-                    <img src={URL.createObjectURL(mainImageFile)} alt="Preview" className="w-full h-full object-cover" />
-                  ) : currentImageUrl ? (
-                    <img src={currentImageUrl} alt="Current" className="w-full h-full object-cover" />
+                <div className="relative border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden aspect-square group">
+                  {(mainImageFile || currentImageUrl) ? (
+                    <>
+                      <img 
+                        src={mainImageFile ? URL.createObjectURL(mainImageFile) : currentImageUrl} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover" 
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-20">
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('mainImageInput').click()}
+                          className="bg-white text-gray-900 p-2 rounded-full hover:bg-gray-200 transition-colors shadow-md"
+                          title="Ganti Foto"
+                        >
+                          <FiEdit className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMainImageFile(null);
+                            setValue('imageUrl', '');
+                          }}
+                          className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-md"
+                          title="Hapus Foto"
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </>
                   ) : (
-                    <div className="text-center text-gray-400">
+                    <div 
+                      className="text-center text-gray-400 w-full h-full flex flex-col justify-center cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => document.getElementById('mainImageInput').click()}
+                    >
                       <FiImage className="mx-auto h-12 w-12 mb-2" />
-                      <span className="text-xs">Klik / Drag Foto</span>
+                      <span className="text-xs font-medium">Klik / Drag Foto</span>
                     </div>
                   )}
                   <input
+                    id="mainImageInput"
                     type="file"
                     accept="image/*"
                     onChange={(e) => setMainImageFile(e.target.files[0])}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="hidden"
                   />
                 </div>
               </div>
@@ -605,6 +682,17 @@ export default function ProductForm({ defaultBusinessType }) {
                 </label>
               </div>
 
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-800">Lacak Stok (Track Stock)</h4>
+                  <p className="text-xs text-gray-500">Jika dimatikan, stok tidak akan pernah habis (Bypass). Khusus untuk item "Bawa Sendiri".</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" {...register('trackStock')} className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
               {businessType !== 'SABLON_SERVICE' && (
                 <div className="flex items-center justify-between">
                   <div>
@@ -658,71 +746,122 @@ export default function ProductForm({ defaultBusinessType }) {
 
       {/* Variant Image Picker Modal */}
       {activeVariantImageIndex !== null && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-bold text-gray-800">Pilih Foto Varian</h3>
-              <button onClick={() => setActiveVariantImageIndex(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
-                <FiX />
-              </button>
-            </div>
-            
-            <div className="p-4 overflow-y-auto">
-              <div className="mb-6">
-                <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Upload Foto Baru</p>
-                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <FiPlus className="text-gray-400 mb-2" size={24} />
-                    <p className="text-sm text-gray-600 font-medium">Klik untuk upload foto</p>
-                  </div>
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files[0]) {
-                        setVariantFiles(prev => ({ ...prev, [activeVariantImageIndex]: e.target.files[0] }));
-                        setActiveVariantImageIndex(null);
-                      }
-                    }} 
-                  />
-                </label>
-              </div>
+        (() => {
+          let activeVariantIdx = activeVariantImageIndex;
+          let activeVariantSide = 'front';
+          if (typeof activeVariantImageIndex === 'string' && activeVariantImageIndex.includes('_')) {
+            const parts = activeVariantImageIndex.split('_');
+            activeVariantIdx = parts[0];
+            activeVariantSide = parts[1];
+          }
+          const sideLabel = activeVariantSide === 'front' ? 'Depan' : activeVariantSide === 'back' ? 'Belakang' : activeVariantSide === 'left' ? 'Kiri' : 'Kanan';
+          const watchField = activeVariantSide === 'front' ? 'imageUrl' : activeVariantSide === 'back' ? 'imageUrlBack' : activeVariantSide === 'left' ? 'imageUrlLeft' : 'imageUrlRight';
 
-              {((currentImageUrl && currentImageUrl !== '') || currentImageUrls.length > 0) && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Pilih dari Galeri Produk</p>
-                  <div className="grid grid-cols-4 gap-3">
-                    {currentImageUrl && currentImageUrl !== '' && (
-                      <button 
-                        onClick={() => {
-                          setValue(`variants.${activeVariantImageIndex}.imageUrl`, currentImageUrl, { shouldDirty: true });
-                          setActiveVariantImageIndex(null);
-                        }}
-                        className="aspect-square border border-gray-200 rounded-lg overflow-hidden hover:border-black hover:shadow-md transition-all relative group"
-                      >
-                        <div className="absolute top-1 left-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded uppercase font-bold z-10">Utama</div>
-                        <img src={currentImageUrl} alt="Main" className="w-full h-full object-cover" />
-                      </button>
-                    )}
-                    {currentImageUrls.map((url, i) => url && (
-                      <button 
-                        key={i}
-                        onClick={() => {
-                          setValue(`variants.${activeVariantImageIndex}.imageUrl`, url, { shouldDirty: true });
-                          setActiveVariantImageIndex(null);
-                        }}
-                        className="aspect-square border border-gray-200 rounded-lg overflow-hidden hover:border-black hover:shadow-md transition-all group"
-                      >
-                        <img src={url} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
+          return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="font-bold text-gray-800">Pilih Foto Varian ({sideLabel})</h3>
+                  <button onClick={() => setActiveVariantImageIndex(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+                    <FiX />
+                  </button>
                 </div>
-              )}
+                
+                <div className="p-4 overflow-y-auto">
+                  <div className="mb-6">
+                    <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Upload Foto Baru</p>
+                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <FiPlus className="text-gray-400 mb-2" size={24} />
+                        <p className="text-sm text-gray-600 font-medium">Klik untuk upload foto</p>
+                      </div>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files[0]) {
+                            setVariantFiles(prev => ({ ...prev, [activeVariantImageIndex]: e.target.files[0] }));
+                            setActiveVariantImageIndex(null);
+                          }
+                        }} 
+                      />
+                    </label>
+                  </div>
+
+                  {(mainImageFile || galleryFiles.length > 0) && (
+                    <div className="mb-6">
+                      <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Media yang Sedang Diupload</p>
+                      <div className="grid grid-cols-4 gap-3">
+                        {mainImageFile && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setVariantFiles(prev => ({ ...prev, [activeVariantImageIndex]: 'MAIN_IMAGE' }));
+                              setActiveVariantImageIndex(null);
+                            }}
+                            className="aspect-square border border-gray-200 rounded-lg overflow-hidden hover:border-black hover:shadow-md transition-all relative group"
+                          >
+                            <div className="absolute top-1 left-1 bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded uppercase font-bold z-10">Utama Baru</div>
+                            <img src={URL.createObjectURL(mainImageFile)} alt="Main New" className="w-full h-full object-cover" />
+                          </button>
+                        )}
+                        {galleryFiles.map((file, i) => (
+                          <button 
+                            key={`gal-new-${i}`}
+                            type="button"
+                            onClick={() => {
+                              setVariantFiles(prev => ({ ...prev, [activeVariantImageIndex]: `GALLERY_${i}` }));
+                              setActiveVariantImageIndex(null);
+                            }}
+                            className="aspect-square border border-gray-200 rounded-lg overflow-hidden hover:border-black hover:shadow-md transition-all group relative"
+                          >
+                            <div className="absolute top-1 left-1 bg-gray-500 text-white text-[8px] px-1.5 py-0.5 rounded uppercase font-bold z-10">Galeri Baru</div>
+                            <img src={URL.createObjectURL(file)} alt={`Gallery New ${i}`} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {((!mainImageFile && currentImageUrl && currentImageUrl !== '') || currentImageUrls.length > 0) && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Pilih dari Galeri Produk</p>
+                      <div className="grid grid-cols-4 gap-3">
+                        {!mainImageFile && currentImageUrl && currentImageUrl !== '' && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setValue(`variants.${activeVariantIdx}.${watchField}`, currentImageUrl, { shouldDirty: true });
+                              setActiveVariantImageIndex(null);
+                            }}
+                            className="aspect-square border border-gray-200 rounded-lg overflow-hidden hover:border-black hover:shadow-md transition-all relative group"
+                          >
+                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded uppercase font-bold z-10">Utama</div>
+                            <img src={currentImageUrl} alt="Main" className="w-full h-full object-cover" />
+                          </button>
+                        )}
+                        {currentImageUrls.map((url, i) => url && (
+                          <button 
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              setValue(`variants.${activeVariantIdx}.${watchField}`, url, { shouldDirty: true });
+                              setActiveVariantImageIndex(null);
+                            }}
+                            className="aspect-square border border-gray-200 rounded-lg overflow-hidden hover:border-black hover:shadow-md transition-all group"
+                          >
+                            <img src={url} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          );
+        })()
       )}
     </div>
   );

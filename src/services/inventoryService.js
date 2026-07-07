@@ -126,12 +126,16 @@ class InventoryService {
    */
   async deductStockForOrder(productId, quantity, orderId) {
     const product = await knex('product')
-      .select('readyStock')
+      .select('readyStock', 'trackStock')
       .where('id', productId)
       .first();
 
     if (!product) {
       throw new NotFoundError('Produk tidak ditemukan');
+    }
+
+    if (product.trackStock === 0 || product.trackStock === false) {
+      return { productId, soldQuantity: quantity, remainingStock: 'UNLIMITED (Bypass)' };
     }
 
     const currentStock = product.readyStock || 0;
@@ -315,17 +319,25 @@ class InventoryService {
    * Get inventory analytics
    */
   async getInventoryAnalytics() {
-    // Total stok (sum of all items)
+    // Total stok (sum of all items), exclude untracked or Bawa Sendiri
     const totalStock = await knex('product')
       .where('isActive', true)
+      .where(function() {
+        this.where('trackStock', 1).orWhere('trackStock', true);
+      })
+      .whereNot('productName', 'like', '%Bawa Sendiri%')
       .sum('stockQuantity as total')
       .first()
       .then(r => r.total || 0);
 
-    // Low stock products (count of product types)
+    // Low stock products (count of product types), exclude untracked or Bawa Sendiri
     const lowStockProducts = await knex('product')
       .where('isActive', true)
       .where('stockQuantity', '<', 10)
+      .where(function() {
+        this.where('trackStock', 1).orWhere('trackStock', true);
+      })
+      .whereNot('productName', 'like', '%Bawa Sendiri%')
       .count('* as count')
       .first()
       .then(r => r.count || 0);

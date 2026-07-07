@@ -11,7 +11,7 @@ const getAllProducts = async (req, res, next) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
-    const { categoryId, category, collectionId, collection, businessType, productType, excludeType, isActive, search, minPrice, maxPrice, tag, isSale, type } =
+    const { categoryId, category, collectionId, collection, businessType, productType, excludeType, isActive, search, minPrice, maxPrice, tag, isSale, type, sortBy, sortOrder } =
       req.query;
 
     // Build Knex query dengan filter
@@ -57,10 +57,13 @@ const getAllProducts = async (req, res, next) => {
       }
     }
     
-    // Map URL type (e.g., 't-shirts', 'hoodies') using product_type_master slug
+    // Map URL type (e.g., 't-shirts', 'hoodies') using product_type_master slug or id
     if (type) {
       query = query.leftJoin('product_type_master', 'product.productTypeId', 'product_type_master.id')
-                   .where('product_type_master.slug', type);
+                   .where(function() {
+                     this.where('product_type_master.slug', type)
+                         .orWhere('product_type_master.id', type);
+                   });
     }
 
     if (businessType) query = query.where('product.businessType', businessType);
@@ -85,6 +88,14 @@ const getAllProducts = async (req, res, next) => {
     if (minPrice) query = query.where('product.price', '>=', parseFloat(minPrice));
     if (maxPrice) query = query.where('product.price', '<=', parseFloat(maxPrice));
 
+    let sortColumn = 'createdAt';
+    let sortDirection = 'desc';
+    if (sortBy === 'stock') sortColumn = 'stockQuantity';
+    else if (sortBy === 'price') sortColumn = 'price';
+    else if (sortBy === 'name') sortColumn = 'productName';
+    
+    if (sortOrder === 'asc') sortDirection = 'asc';
+
     const [products, countResult] = await Promise.all([
       query.clone()
         .select(
@@ -102,11 +113,12 @@ const getAllProducts = async (req, res, next) => {
           'product.isSale',
           'product.salePrice',
           'product.imageUrls',
+          'product.trackStock',
           'product.createdAt',
           'product.updatedAt',
           'productCategory.categoryName as categoryName'
         )
-        .orderBy('createdAt', 'desc')
+        .orderBy(`product.${sortColumn}`, sortDirection)
         .limit(limit)
         .offset(skip),
       query.clone().count('* as count').first(),
@@ -182,6 +194,7 @@ const createProduct = async (req, res, next) => {
       isActive,
       variants,
       imageUrls,
+      trackStock,
     } = req.body;
 
     // Calculate total stock if variants exist
@@ -210,6 +223,7 @@ const createProduct = async (req, res, next) => {
       isSale: isSale === true || isSale === 'true' || isSale === 1 || isSale === '1',
       salePrice: salePrice ? parseFloat(salePrice) : null,
       isActive: isActive === undefined ? true : (isActive === true || isActive === 'true' || isActive === 1 || isActive === '1'),
+      trackStock: trackStock === undefined ? true : (trackStock === true || trackStock === 'true' || trackStock === 1 || trackStock === '1'),
       imageUrls: imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null,
       variants: variants // pass variants to productService.create
     });
@@ -239,7 +253,7 @@ const updateProduct = async (req, res, next) => {
       require('fs').appendFileSync('debug-error.log', 'UPDATE PRODUCT PAYLOAD: ' + JSON.stringify(req.body) + '\n');
     } catch(e) {}
 
-    const { productName, description, descriptionEn, price, stockQuantity, imageUrl, imageUrls, isActive, tags, isSale, salePrice, categoryId, productTypeId, variants } = req.body;
+    const { productName, description, descriptionEn, price, stockQuantity, imageUrl, imageUrls, isActive, tags, isSale, salePrice, categoryId, productTypeId, variants, trackStock } = req.body;
 
     const existing = await productService.findById(id);
     if (!existing) {
@@ -257,6 +271,7 @@ const updateProduct = async (req, res, next) => {
     if (tags !== undefined) updateData.tags = tags;
     if (isSale !== undefined) updateData.isSale = isSale === true || isSale === 'true' || isSale === 1 || isSale === '1';
     if (salePrice !== undefined) updateData.salePrice = salePrice ? parseFloat(salePrice) : null;
+    if (trackStock !== undefined) updateData.trackStock = trackStock === true || trackStock === 'true' || trackStock === 1 || trackStock === '1';
     if (imageUrls !== undefined) updateData.imageUrls = imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (productTypeId !== undefined) updateData.productTypeId = productTypeId === '' ? null : productTypeId;
@@ -512,6 +527,35 @@ const deleteProductColor = async (req, res, next) => {
   }
 };
 
+const bulkDeleteProducts = async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid or empty product IDs provided' });
+    }
+    const knex = require('../config/knex');
+    await knex('product').whereIn('id', ids).update({ deletedAt: new Date(), isActive: false });
+    return sendSuccess(res, { count: ids.length }, 'Products bulk deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const bulkUpdateStatus = async (req, res, next) => {
+  try {
+    const { ids, isActive } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0 || isActive === undefined) {
+      return res.status(400).json({ success: false, message: 'Invalid request body' });
+    }
+    const knex = require('../config/knex');
+    const activeVal = isActive === true || isActive === 'true' || isActive === 1 ? 1 : 0;
+    await knex('product').whereIn('id', ids).update({ isActive: activeVal, updatedAt: new Date() });
+    return sendSuccess(res, { count: ids.length }, 'Products bulk status updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
@@ -525,4 +569,6 @@ module.exports = {
   addProductColor,
   updateProductColor,
   deleteProductColor,
+  bulkDeleteProducts,
+  bulkUpdateStatus,
 };

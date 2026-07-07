@@ -62,13 +62,16 @@ export default function ProductsListing() {
   const activeTypes = types.filter(t => t.isActive);
 
   const categoryFilter = searchParams.get('category') || '';
-  const activeCategory = activeCategories.find((c) => c.slug === categoryFilter || c.id === categoryFilter);
+  const activeCategory = activeCategories.find((c) => c.slug === categoryFilter) || 
+                         activeCategories.find((c) => c.id === categoryFilter);
 
   const collectionFilter = searchParams.get('collection') || '';
-  const activeCollection = activeCollections.find((c) => c.slug === collectionFilter || c.id === collectionFilter);
+  const activeCollection = activeCollections.find((c) => c.slug === collectionFilter) || 
+                           activeCollections.find((c) => c.id === collectionFilter);
 
   const typeFilter = searchParams.get('type') || '';
-  const activeType = activeTypes.find((t) => t.slug === typeFilter || t.id === typeFilter);
+  const activeType = activeTypes.find((t) => t.slug === typeFilter) || 
+                     activeTypes.find((t) => t.id === typeFilter);
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
 

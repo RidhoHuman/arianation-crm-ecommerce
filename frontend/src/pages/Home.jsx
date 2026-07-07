@@ -189,63 +189,67 @@ export default function HomePage() {
         </section>
 
         {/* FEATURED COLLECTIONS (ZIG-ZAG LAYOUT) */}
-        <section className="py-10">
-          {displayCollections.slice(0, 2).map((col, index) => {
-            const isEven = index % 2 === 0;
-            // Provide translated labels for common collections
-            let translatedColName = col.name;
-            if (language === 'ID') {
-              if (col.name === 'Best Seller') translatedColName = 'Paling Laku';
-              if (col.name === 'New Arrivals') translatedColName = 'Pendatang Baru';
-              if (col.name === 'Heritage') translatedColName = 'Warisan Budaya';
-              if (col.name === 'Everyday') translatedColName = 'Harian';
-              if (col.name === 'Outdoor') translatedColName = 'Luar Ruangan';
-              if (col.name === 'Active') translatedColName = 'Aktif';
-              if (col.name === 'Street') translatedColName = 'Jalanan';
-            }
+        <section className="py-16 md:py-24 bg-white dark:bg-black">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6">
+            <div className="space-y-20 md:space-y-32">
+              {displayCollections.slice(0, 2).map((col, index) => {
+                const isEven = index % 2 === 0;
+                // Provide translated labels for common collections
+                let translatedColName = col.name;
+                if (language === 'ID') {
+                  if (col.name === 'Best Seller') translatedColName = 'Paling Laku';
+                  if (col.name === 'New Arrivals') translatedColName = 'Pendatang Baru';
+                  if (col.name === 'Heritage') translatedColName = 'Warisan Budaya';
+                  if (col.name === 'Everyday') translatedColName = 'Harian';
+                  if (col.name === 'Outdoor') translatedColName = 'Luar Ruangan';
+                  if (col.name === 'Active') translatedColName = 'Aktif';
+                  if (col.name === 'Street') translatedColName = 'Jalanan';
+                }
 
-            const translatedDesc = col.description
-              ? (language === 'EN' && col.description === 'Jelajahi koleksi eksklusif ini.' ? 'Explore this exclusive collection.' : col.description)
-              : (language === 'EN' ? 'Explore this exclusive collection.' : 'Jelajahi koleksi eksklusif ini.');
+                const translatedDesc = col.description
+                  ? (language === 'EN' && col.description === 'Jelajahi koleksi eksklusif ini.' ? 'Explore this exclusive collection.' : col.description)
+                  : (language === 'EN' ? 'Explore this exclusive collection.' : 'Jelajahi koleksi eksklusif ini.');
 
-            return (
-              <div key={col.id} className="w-full flex flex-col md:flex-row min-h-[500px]">
-                {/* Image Side */}
-                <div className={`w-full md:w-1/2 relative ${isEven ? 'md:order-1' : 'md:order-2'}`}>
-                  <img
-                    src={col.imageUrl || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80'}
-                    alt={translatedColName}
-                    className="w-full h-full object-cover aspect-square md:aspect-auto absolute inset-0"
-                  />
-                </div>
+                return (
+                  <div key={col.id} className="w-full flex flex-col md:flex-row items-center gap-8 md:gap-16">
+                    {/* Image Side */}
+                    <div className={`w-full md:w-1/2 flex items-center justify-center ${isEven ? 'md:order-1' : 'md:order-2'}`}>
+                      <img
+                        src={col.imageUrl || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80'}
+                        alt={translatedColName}
+                        className="w-full max-w-lg aspect-square object-contain"
+                      />
+                    </div>
 
-                {/* Text Side */}
-                <div className={`w-full md:w-1/2 flex items-center justify-center p-12 md:p-24 bg-gray-50 dark:bg-gray-900 ${isEven ? 'md:order-2' : 'md:order-1'}`}>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5 }}
-                    className="max-w-md w-full"
-                  >
-                    <div className="text-xs font-bold text-aria-maroon tracking-widest uppercase mb-4">{t.collectionLabel}</div>
-                    <h3 className="text-4xl md:text-5xl font-black text-aria-charcoal dark:text-white mb-6 tracking-tighter">
-                      {translatedColName}
-                    </h3>
-                    <p className="text-gray-700 dark:text-gray-300 mb-8 leading-relaxed font-medium text-lg">
-                      {translatedDesc}
-                    </p>
-                    <Link
-                      to={`/products?collection=${col.slug || col.id}`}
-                      className="inline-flex items-center text-sm font-bold tracking-widest uppercase text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors border-b-2 border-black dark:border-white pb-1"
-                    >
-                      {t.explore} →
-                    </Link>
-                  </motion.div>
-                </div>
-              </div>
-            );
-          })}
+                    {/* Text Side */}
+                    <div className={`w-full md:w-1/2 flex items-center justify-start ${isEven ? 'md:order-2 md:pl-12' : 'md:order-1 md:pr-12'}`}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5 }}
+                        className="max-w-md w-full"
+                      >
+                        <div className="text-xs font-bold text-aria-maroon tracking-widest uppercase mb-4">{t.collectionLabel}</div>
+                        <h3 className="text-4xl md:text-5xl font-black text-aria-charcoal dark:text-white mb-6 tracking-tighter">
+                          {translatedColName}
+                        </h3>
+                        <p className="text-gray-700 dark:text-gray-300 mb-8 leading-relaxed font-medium text-lg">
+                          {translatedDesc}
+                        </p>
+                        <Link
+                          to={`/products?collection=${col.slug || col.id}`}
+                          className="inline-flex items-center text-sm font-bold tracking-widest uppercase text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors border-b-2 border-black dark:border-white pb-1"
+                        >
+                          {t.explore} →
+                        </Link>
+                      </motion.div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
         {/* CUSTOM SABLON CTA - Static with Split Layout */}

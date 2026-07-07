@@ -16,6 +16,8 @@ const {
   addProductColor,
   updateProductColor,
   deleteProductColor,
+  bulkDeleteProducts,
+  bulkUpdateStatus,
 } = require('../controllers/productController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
@@ -45,6 +47,10 @@ router.post(
 );
 router.put('/:id', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), updateProduct);
 router.delete('/:id', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), deleteProduct);
+
+// Bulk actions
+router.post('/bulk-delete', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), bulkDeleteProducts);
+router.patch('/bulk-status', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), bulkUpdateStatus);
 router.post(
   '/:id/variants',
   generalLimiter,
