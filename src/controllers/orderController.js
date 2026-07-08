@@ -80,6 +80,12 @@ const getOrderById = async (req, res, next) => {
       ...item,
       product: { productName: item.productName }
     }));
+    
+    // Attach designRequest if this is a Sablon order
+    const designRequest = await knex('designRequest').where('orderId', id).first();
+    if (designRequest) {
+      order.designRequest = designRequest;
+    }
 
     return sendSuccess(res, order, MESSAGES.ORDER_FOUND);
   } catch (error) {
@@ -90,12 +96,23 @@ const getOrderById = async (req, res, next) => {
 const createOrder = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { paymentMethod, deliveryAddress, notes, items, usePoints, voucherCode, shippingCourier, shippingCost } = req.body;
+    const { paymentMethod, deliveryAddress, notes, items, usePoints, voucherCode, shippingCourier, shippingCost, deliveryType } = req.body;
+
+    let finalShippingCost = shippingCost;
+    let finalCourier = shippingCourier;
+    let finalDeliveryType = deliveryType || 'SHIPPING';
+
+    if (finalDeliveryType === 'PICKUP') {
+      finalShippingCost = 0;
+      finalCourier = 'SELF_PICKUP';
+    }
 
     const user = await knex('user').where('id', userId).first();
     let discountFromPoints = 0;
 
     let orderItems = [];
+    let hasSablon = false;
+    let hasRetail = false;
 
     if (items && Array.isArray(items) && items.length > 0) {
       const productIds = [...new Set(items.map((item) => item.productId))];
@@ -110,8 +127,8 @@ const createOrder = async (req, res, next) => {
       const variantsById = new Map(variants.map((v) => [v.id, v]));
 
       // 1. Guardrail: Block Mixed Cart
-      const hasRetail = products.some(p => p.businessType === 'FASHION_RETAIL');
-      const hasSablon = products.some(p => p.businessType === 'SABLON_SERVICE');
+      hasRetail = products.some(p => p.businessType === 'FASHION_RETAIL');
+      hasSablon = products.some(p => p.businessType === 'SABLON_SERVICE');
       
       if (hasRetail && hasSablon) {
         throw new BadRequestError('Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah');
@@ -150,8 +167,8 @@ const createOrder = async (req, res, next) => {
       }
 
       // 1. Guardrail: Block Mixed Cart (Retail & Sablon together)
-      const hasRetail = cartItems.some(item => item.businessType === 'FASHION_RETAIL');
-      const hasSablon = cartItems.some(item => item.businessType === 'SABLON_SERVICE');
+      hasRetail = cartItems.some(item => item.businessType === 'FASHION_RETAIL');
+      hasSablon = cartItems.some(item => item.businessType === 'SABLON_SERVICE');
       
       if (hasRetail && hasSablon) {
         throw new BadRequestError('Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah');
@@ -168,78 +185,82 @@ const createOrder = async (req, res, next) => {
 
     const totalAmount = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
 
-    let finalAmount = totalAmount; // Subtotal
-    let tierDiscountAmount = 0;
-    let tierDiscountPercentage = 0;
-
-    // 1. Tier Discount
-    if (userId) {
-      const metrics = await knex('customerMetrics').where('userId', userId).first();
-      const currentTier = metrics?.currentTier || 'BRONZE';
-      
-      if (currentTier === 'SILVER') tierDiscountPercentage = 5;
-      else if (currentTier === 'GOLD') tierDiscountPercentage = 10;
-      else if (currentTier === 'PLATINUM') tierDiscountPercentage = 15;
-
-      if (tierDiscountPercentage > 0) {
-        tierDiscountAmount = Math.floor(totalAmount * (tierDiscountPercentage / 100));
-        finalAmount -= tierDiscountAmount;
-      }
-    }
-
-    // 2. Voucher Discount
-    let voucherDiscountAmount = 0;
-    let validVoucherCode = null;
-    let usedVoucherId = null;
-
-    if (voucherCode) {
-      const voucher = await knex('voucher').where('code', voucherCode.toUpperCase()).first();
-      if (voucher && voucher.isActive && (!voucher.expiresAt || new Date(voucher.expiresAt) > new Date()) && (!voucher.usageLimit || voucher.usedCount < voucher.usageLimit) && finalAmount >= voucher.minPurchase) {
-        if (voucher.type === 'PERCENTAGE') {
-          voucherDiscountAmount = Math.floor(finalAmount * (voucher.value / 100));
-          if (voucher.maxDiscount > 0 && voucherDiscountAmount > voucher.maxDiscount) {
-            voucherDiscountAmount = Number(voucher.maxDiscount);
-          }
-        } else {
-          voucherDiscountAmount = Number(voucher.value);
-        }
-
-        if (voucherDiscountAmount > finalAmount) {
-          voucherDiscountAmount = finalAmount;
-        }
-
-        finalAmount -= voucherDiscountAmount;
-        validVoucherCode = voucher.code;
-        usedVoucherId = voucher.id;
-      } else {
-        throw new BadRequestError('Kode voucher tidak valid atau syarat tidak terpenuhi');
-      }
-    }
-
-    // 3. Points Discount
     let pointsToDeduct = 0;
-    if (usePoints && user && user.rewardPoints > 0) {
-      discountFromPoints = user.rewardPoints * 1000;
-      if (discountFromPoints > finalAmount) {
-        pointsToDeduct = Math.ceil(finalAmount / 1000);
-      } else {
-        pointsToDeduct = user.rewardPoints;
-      }
-      finalAmount -= (pointsToDeduct * 1000);
-    }
-
-    // 4. Floor Limit Safeguard
-    if (finalAmount < 0) {
-      finalAmount = 0;
-    }
-
-    // 5. Add Shipping Cost (For Retail)
-    if (shippingCost && !hasSablon) {
-      finalAmount += Number(shippingCost);
-    }
+    let usedVoucherId = null;
 
     // Buat order dan order items dalam transaksi
     const order = await knex.transaction(async (trx) => {
+      let finalAmount = totalAmount; // Subtotal
+      let tierDiscountAmount = 0;
+      let tierDiscountPercentage = 0;
+
+      // 1. Tier Discount
+      if (userId) {
+        const metrics = await trx('customerMetrics').where('userId', userId).first();
+        const currentTier = metrics?.currentTier || 'BRONZE';
+        
+        if (currentTier === 'SILVER') tierDiscountPercentage = 5;
+        else if (currentTier === 'GOLD') tierDiscountPercentage = 10;
+        else if (currentTier === 'PLATINUM') tierDiscountPercentage = 15;
+
+        if (tierDiscountPercentage > 0) {
+          tierDiscountAmount = Math.floor(totalAmount * (tierDiscountPercentage / 100));
+          finalAmount -= tierDiscountAmount;
+        }
+      }
+
+      // 2. Voucher Discount (WITH ROW LOCKING)
+      let voucherDiscountAmount = 0;
+      let validVoucherCode = null;
+
+      if (voucherCode) {
+        const voucher = await trx('voucher').where('code', voucherCode.toUpperCase()).forUpdate().first();
+        if (voucher && voucher.isActive && (!voucher.expiresAt || new Date(voucher.expiresAt) > new Date()) && (!voucher.usageLimit || voucher.usedCount < voucher.usageLimit) && finalAmount >= voucher.minPurchase) {
+          if (voucher.type === 'PERCENTAGE') {
+            voucherDiscountAmount = Math.floor(finalAmount * (voucher.value / 100));
+            if (voucher.maxDiscount > 0 && voucherDiscountAmount > voucher.maxDiscount) {
+              voucherDiscountAmount = Number(voucher.maxDiscount);
+            }
+          } else {
+            voucherDiscountAmount = Number(voucher.value);
+          }
+
+          if (voucherDiscountAmount > finalAmount) {
+            voucherDiscountAmount = finalAmount;
+          }
+
+          finalAmount -= voucherDiscountAmount;
+          validVoucherCode = voucher.code;
+          usedVoucherId = voucher.id;
+        } else {
+          throw new BadRequestError('Kode voucher tidak valid, kedaluwarsa, atau kuota habis');
+        }
+      }
+
+      // 3. Points Discount (WITH ROW LOCKING)
+      if (usePoints && userId) {
+        const lockedUser = await trx('user').where('id', userId).forUpdate().first();
+        if (lockedUser && lockedUser.rewardPoints > 0) {
+          let discountFromPoints = lockedUser.rewardPoints * 1000;
+          if (discountFromPoints > finalAmount) {
+            pointsToDeduct = Math.ceil(finalAmount / 1000);
+          } else {
+            pointsToDeduct = lockedUser.rewardPoints;
+          }
+          finalAmount -= (pointsToDeduct * 1000);
+        }
+      }
+
+      // 4. Floor Limit Safeguard
+      if (finalAmount < 0) {
+        finalAmount = 0;
+      }
+
+      // 5. Add Shipping Cost (For Retail)
+      if (finalShippingCost && !hasSablon) {
+        finalAmount += Number(finalShippingCost);
+      }
+
       const orderId = require('cuid')();
 
       await trx('order').insert({
@@ -253,8 +274,9 @@ const createOrder = async (req, res, next) => {
         voucherDiscountAmount,
         paymentMethod,
         deliveryAddress: deliveryAddress ? JSON.stringify(deliveryAddress) : null,
-        shippingCourier: shippingCourier || null,
-        shippingCost: shippingCost && !hasSablon ? Number(shippingCost) : null,
+        deliveryType: finalDeliveryType,
+        shippingCourier: finalCourier || null,
+        shippingCost: finalShippingCost && !hasSablon ? Number(finalShippingCost) : null,
         notes: notes || null,
         status: 'PENDING',
         createdAt: new Date(),
@@ -744,15 +766,15 @@ const createGuestOrder = async (req, res, next) => {
 
 const getShippingRates = async (req, res, next) => {
   try {
-    const { destinationPostalCode, items } = req.body;
+    const { destinationPostalCode, items, weight } = req.body;
     
     if (!destinationPostalCode) {
       throw new BadRequestError('Kode pos tujuan wajib diisi');
     }
 
-    let totalWeight = 0;
+    let totalWeight = weight ? Number(weight) : 0;
     
-    if (items && Array.isArray(items) && items.length > 0) {
+    if (totalWeight === 0 && items && Array.isArray(items) && items.length > 0) {
       const productIds = items.map(i => i.productId);
       const products = await knex('product').whereIn('id', productIds).select('id', 'weight');
       const productsById = new Map(products.map(p => [p.id, p]));
@@ -782,7 +804,7 @@ const getShippingRates = async (req, res, next) => {
 const createPelunasanInvoice = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { shippingCourier, shippingCost } = req.body;
+    const { shippingCourier, shippingCost, deliveryAddress, deliveryType } = req.body;
 
     const order = await orderService.findById(id);
     if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
@@ -791,20 +813,48 @@ const createPelunasanInvoice = async (req, res, next) => {
       throw new BadRequestError('Pesanan belum siap untuk pelunasan');
     }
 
-    if (!shippingCourier || shippingCost === undefined) {
+    let finalShippingCost = shippingCost;
+    let finalCourier = shippingCourier;
+    let finalDeliveryType = deliveryType || 'SHIPPING';
+
+    if (finalDeliveryType === 'PICKUP') {
+      finalShippingCost = 0;
+      finalCourier = 'SELF_PICKUP';
+    }
+
+    if (!finalCourier || finalShippingCost === undefined) {
       throw new BadRequestError('Opsi pengiriman harus dipilih');
     }
 
     const payments = await knex('payment').where('orderId', id).where('status', 'COMPLETED');
     const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
     
-    const remainingToPay = order.totalAmount - totalPaid + Number(shippingCost);
+    let baseAmount = order.totalAmount;
+    const designRequest = await knex('designRequest').where('orderId', id).first();
+    if (designRequest && designRequest.estimatedPrice) {
+      baseAmount = designRequest.estimatedPrice;
+    }
+    
+    const remainingToPay = baseAmount - totalPaid + Number(finalShippingCost);
 
     await knex('order').where('id', id).update({
-      shippingCourier,
-      shippingCost: Number(shippingCost),
+      shippingCourier: finalCourier,
+      shippingCost: Number(finalShippingCost),
+      deliveryType: finalDeliveryType,
+      totalAmount: baseAmount,
+      ...(deliveryAddress && { deliveryAddress: JSON.stringify(deliveryAddress) }),
       updatedAt: new Date()
     });
+
+    if (remainingToPay <= 0) {
+      await orderFulfillmentService.updateOrderStatus(
+        id,
+        'READY_TO_SHIP',
+        req.user?.id || 'SYSTEM',
+        'Pesanan lunas 100% dan metode pickup dipilih, loncat langsung ke siap diambil.'
+      );
+      return sendSuccess(res, { paymentUrl: null, skipped: true }, 'Tidak ada biaya tambahan, pesanan siap diambil.');
+    }
 
     const paymentId = require('cuid')();
     

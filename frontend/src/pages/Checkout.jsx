@@ -10,6 +10,7 @@ import useUIStore from '../store/uiStore';
 import api from '../services/api';
 import SEOHead from '../components/SEOHead';
 import Breadcrumb from '../components/Breadcrumb';
+import ShippingMethodSelector from '../components/checkout/ShippingMethodSelector';
 
 const CHECKOUT_TRANSLATIONS = {
   ID: {
@@ -47,7 +48,7 @@ export default function Checkout() {
   const setLoading = useUIStore((s) => s.setLoading);
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(1); // 1: Choose, 2: Address, 3: Review, 4: Success
+  const [step, setStep] = useState(1); // 1: Choose, 2: Address, 2.5: Shipping, 3: Review, 4: Success
   const [checkoutType, setCheckoutType] = useState(null);
   const [orderError, setOrderError] = useState(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -55,6 +56,15 @@ export default function Checkout() {
   const [usePoints, setUsePoints] = useState(false);
   const [profile, setProfile] = useState(null);
   const pointsValue = user?.rewardPoints ? user.rewardPoints * 1000 : 0;
+
+  // NEW STATES FOR BITESHIP
+  const [shippingRates, setShippingRates] = useState([]);
+  const [selectedShipping, setSelectedShipping] = useState(null);
+  const [fetchingRates, setFetchingRates] = useState(false);
+  const [shippingError, setShippingError] = useState(null);
+  const [deliveryType, setDeliveryType] = useState('SHIPPING');
+  
+  const isSablonOrder = cartItems.some(item => item.businessType === 'SABLON_SERVICE');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -148,6 +158,47 @@ export default function Checkout() {
     finalTotal = Math.max(0, finalTotal - pointsDeducted);
   }
 
+  // ADD SHIPPING COST
+  if (!isSablonOrder && selectedShipping) {
+    finalTotal += selectedShipping.price;
+  }
+
+  const handleAddressSubmit = async (data) => {
+    if (isSablonOrder) {
+      setStep(2.5);
+      return;
+    }
+    
+    setFetchingRates(true);
+    setShippingError(null);
+    setSelectedShipping(null);
+    setStep(2.5);
+    
+    try {
+      const itemsPayload = cartItems.map((item) => ({
+        productId: item.originalId || item.id,
+        quantity: item.quantity,
+        weight: item.weight || 250
+      }));
+      
+      const totalWeight = cartItems.reduce((sum, item) => sum + ((item.weight || 250) * item.quantity), 0);
+      
+      const res = await api.post('/orders/shipping-rates', {
+        destinationPostalCode: data.postalCode,
+        items: itemsPayload,
+        weight: totalWeight
+      });
+      
+      const rates = res.data?.data?.pricing || [];
+      setShippingRates(rates);
+    } catch (err) {
+      console.error('Failed to fetch shipping rates', err);
+      setShippingError(err.response?.data?.message || 'Gagal mengambil tarif pengiriman. Pastikan kode pos valid atau hubungi admin.');
+    } finally {
+      setFetchingRates(false);
+    }
+  };
+
   const handleApplyVoucher = async (codeToApply) => {
     const code = typeof codeToApply === 'string' ? codeToApply : voucherInput;
     if (!code) return;
@@ -209,7 +260,7 @@ export default function Checkout() {
           <div className="flex gap-4 mb-12 text-xs font-semibold tracking-widest uppercase border-b border-gray-200 dark:border-gray-800 pb-4">
             <span className={step === 1 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>01. Account</span>
             <span className="text-gray-300 dark:text-gray-700">/</span>
-            <span className={step === 2 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>02. Shipping</span>
+            <span className={step === 2 || step === 2.5 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>02. Shipping</span>
             <span className="text-gray-300 dark:text-gray-700">/</span>
             <span className={step === 3 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>03. Payment</span>
           </div>
@@ -270,7 +321,17 @@ export default function Checkout() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               <div>
                 <h2 className="text-lg font-medium tracking-widest uppercase mb-8 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">Shipping Details</h2>
-                <form id="shipping-form" onSubmit={handleSubmit(() => setStep(3))} className="space-y-6">
+                
+                <div className="flex gap-4 mb-8">
+                  <button type="button" onClick={() => { setDeliveryType('SHIPPING'); setSelectedShipping(null); }} className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${deliveryType === 'SHIPPING' ? 'border-2 border-aria-charcoal dark:border-white bg-gray-50 dark:bg-gray-900 text-aria-charcoal dark:text-white' : 'border border-gray-200 dark:border-gray-800 text-gray-500 hover:border-aria-charcoal dark:hover:border-white'}`}>🚚 Kirim ke Alamat</button>
+                  <button type="button" onClick={() => { 
+                    setDeliveryType('PICKUP'); 
+                    setSelectedShipping({ price: 0, courier_name: 'Ambil di Toko', courier_service_code: 'SELF_PICKUP' }); 
+                  }} className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${deliveryType === 'PICKUP' ? 'border-2 border-aria-charcoal dark:border-white bg-gray-50 dark:bg-gray-900 text-aria-charcoal dark:text-white' : 'border border-gray-200 dark:border-gray-800 text-gray-500 hover:border-aria-charcoal dark:hover:border-white'}`}>🏪 Ambil di Toko</button>
+                </div>
+
+                {deliveryType === 'SHIPPING' ? (
+                <form id="shipping-form" onSubmit={handleSubmit(handleAddressSubmit)} className="space-y-6">
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -337,6 +398,27 @@ export default function Checkout() {
                     </button>
                   </div>
                 </form>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="bg-amber-50 border border-amber-200 p-6 rounded text-amber-800">
+                      <p className="text-sm">Anda memilih untuk mengambil pesanan sendiri di gudang kami. Anda tidak perlu mengisi alamat pengiriman.</p>
+                    </div>
+                    <div className="flex gap-4 pt-4">
+                      <button type="button" onClick={() => {
+                        if (isAuthenticated) {
+                          navigate('/cart');
+                        } else {
+                          setStep(1);
+                        }
+                      }} className="w-1/3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-widest uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors">
+                        Back
+                      </button>
+                      <button type="button" onClick={() => setStep(2.5)} className="w-2/3 bg-aria-charcoal dark:bg-white text-white dark:text-black py-4 text-sm font-medium tracking-widest uppercase hover:bg-aria-maroon transition-colors">
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Cart Summary sidebar */}
@@ -433,6 +515,14 @@ export default function Checkout() {
                     )}
                   </div>
                 )}
+                
+                {/* Shipping Selection Preview in Cart Summary */}
+                {!isSablonOrder && selectedShipping && (
+                  <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-charcoal dark:text-white pt-2">
+                    <span>Ongkos Kirim ({selectedShipping.courier_name})</span>
+                    <span>+ Rp {selectedShipping.price.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
 
                 {/* Points Toggle */}
                 {isAuthenticated && user?.rewardPoints > 0 && (
@@ -461,6 +551,118 @@ export default function Checkout() {
             </div>
           )}
 
+          {/* Step 2.5: Shipping Selection */}
+          {step === 2.5 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              <div>
+                <h2 className="text-lg font-medium tracking-widest uppercase mb-8 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">Shipping Method</h2>
+                
+                {fetchingRates ? (
+                  <div className="flex flex-col items-center justify-center p-8 space-y-4">
+                    <div className="w-8 h-8 border-2 border-aria-charcoal dark:border-white border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-xs font-medium tracking-widest uppercase text-gray-500">Mencari kurir terbaik...</p>
+                  </div>
+                ) : shippingError ? (
+                  <div className="border border-red-200 bg-red-50 dark:bg-red-900/20 p-6 mb-6 text-center">
+                    <p className="text-sm text-red-600 dark:text-red-400 mb-4">{shippingError}</p>
+                    <button 
+                      onClick={() => handleAddressSubmit(watch())}
+                      className="bg-red-600 text-white px-6 py-3 text-xs font-semibold tracking-widest uppercase hover:bg-red-700"
+                    >
+                      Coba Lagi
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-8">
+                      <ShippingMethodSelector 
+                        deliveryType={deliveryType}
+                        onChangeType={(type) => {
+                          setDeliveryType(type);
+                          if (type === 'PICKUP') {
+                            setSelectedShipping({ price: 0, courier_name: 'Ambil di Toko', courier_service_code: 'SELF_PICKUP' });
+                          } else {
+                            setSelectedShipping(null);
+                          }
+                        }}
+                        shippingCost={selectedShipping?.price || 0}
+                        shippingCourier={selectedShipping?.courier_service_code}
+                        onCourierSelect={(c) => setSelectedShipping(c)}
+                        couriers={shippingRates}
+                        isSablonOrder={isSablonOrder}
+                      />
+                    </div>
+                    
+                    <div className="flex gap-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+                      <button type="button" onClick={() => setStep(2)} className="w-1/3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-widest uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors">
+                        Back
+                      </button>
+                      <button 
+                        onClick={() => setStep(3)}
+                        disabled={!selectedShipping && !isSablonOrder}
+                        className="w-2/3 bg-aria-charcoal dark:bg-white text-white dark:text-black py-4 text-sm font-medium tracking-widest uppercase hover:bg-aria-maroon transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Continue to Payment
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* Cart Summary sidebar reused */}
+              <div className="bg-gray-50 dark:bg-gray-900/50 p-6 self-start border border-gray-200 dark:border-gray-800">
+                <h3 className="text-sm font-medium tracking-widest uppercase mb-4 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">Order Summary</h3>
+                <div className="space-y-4 mb-4">
+                  {cartItems.map(item => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400 truncate mr-4 uppercase tracking-wider text-xs">
+                        {item.quantity}x {item.productName} 
+                        {item.size && ` - ${item.size}`}
+                      </span>
+                      <span className="font-medium text-aria-charcoal dark:text-white">Rp {(item.price * item.quantity).toLocaleString('id-ID')}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between text-base font-semibold uppercase tracking-widest border-t border-gray-200 dark:border-gray-800 pt-4 dark:text-white">
+                  <span>Subtotal</span>
+                  <span>Rp {cartTotal.toLocaleString('id-ID')}</span>
+                </div>
+                {tierDiscountAmount > 0 && (
+                  <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 pt-2">
+                    <span>{profile?.currentTier} TIER DISCOUNT ({tierDiscountPercentage}%)</span>
+                    <span>- Rp {tierDiscountAmount.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+                {appliedVoucher && (
+                  <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400 pt-2">
+                    <span className="flex items-center gap-2">
+                      VOUCHER: {appliedVoucher.code}
+                    </span>
+                    <span>- Rp {voucherDiscountAmount.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+                {usePoints && (
+                  <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-maroon dark:text-yellow-400 pt-2">
+                    <span>Aria Points</span>
+                    <span>- Rp {pointsDeducted.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+                
+                {!isSablonOrder && selectedShipping && (
+                  <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-charcoal dark:text-white pt-2">
+                    <span>Ongkos Kirim ({selectedShipping.courier_name})</span>
+                    <span>+ Rp {selectedShipping.price.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between text-lg font-bold uppercase tracking-widest border-t border-gray-200 dark:border-gray-800 pt-4 mt-4 dark:text-white">
+                  <span>Total</span>
+                  <span>Rp {finalTotal.toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Step 3: Review & Payment */}
           {step === 3 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -468,15 +670,24 @@ export default function Checkout() {
                 <h2 className="text-lg font-medium tracking-widest uppercase mb-8 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">Payment</h2>
                 
                 <div className="mb-8 border border-gray-200 dark:border-gray-800 p-6 dark:bg-black">
-                  <h3 className="text-xs font-semibold tracking-widest uppercase text-gray-500 mb-4">Shipping To</h3>
-                  <p className="text-sm text-gray-800 dark:text-gray-300 leading-relaxed uppercase tracking-wide">
-                    {watch('firstName')} {watch('lastName')}<br/>
-                    {watch('address')}<br/>
-                    {watch('city')}, {watch('postalCode')}<br/>
-                    {watch('country')}<br/>
-                    {watch('phone')} | {watch('email')}
-                  </p>
-                  <button onClick={() => setStep(2)} className="mt-4 text-xs font-semibold tracking-widest uppercase text-aria-charcoal dark:text-white underline underline-offset-4">
+                  <h3 className="text-xs font-semibold tracking-widest uppercase text-gray-500 mb-4">
+                    {deliveryType === 'PICKUP' ? 'Metode Pengiriman' : 'Shipping To'}
+                  </h3>
+                  {deliveryType === 'PICKUP' ? (
+                     <p className="text-sm text-gray-800 dark:text-gray-300 leading-relaxed uppercase tracking-wide">
+                        AMBIL DI TOKO (SELF PICKUP)<br/>
+                        Gudang Arianation
+                     </p>
+                  ) : (
+                    <p className="text-sm text-gray-800 dark:text-gray-300 leading-relaxed uppercase tracking-wide">
+                      {watch('firstName')} {watch('lastName')}<br/>
+                      {watch('address')}<br/>
+                      {watch('city')}, {watch('postalCode')}<br/>
+                      {watch('country')}<br/>
+                      {watch('phone')} | {watch('email')}
+                    </p>
+                  )}
+                  <button onClick={() => setStep(2.5)} className="mt-4 text-xs font-semibold tracking-widest uppercase text-aria-charcoal dark:text-white underline underline-offset-4">
                     Edit Details
                   </button>
                 </div>
@@ -497,7 +708,7 @@ export default function Checkout() {
                 )}
 
                 <div className="flex gap-4">
-                  <button type="button" onClick={() => setStep(2)} className="w-1/3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-widest uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors">
+                  <button type="button" onClick={() => setStep(2.5)} className="w-1/3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-widest uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors">
                     Back
                   </button>
                   <button 
@@ -517,31 +728,37 @@ export default function Checkout() {
 
                         if (checkoutType === 'guest') {
                           response = await api.post('/orders/guest', {
-                            guestEmail: addressData.email,
-                            firstName: addressData.firstName,
-                            lastName: addressData.lastName,
-                            address: addressData.address,
-                            city: addressData.city,
-                            postalCode: addressData.postalCode,
-                            phone: addressData.phone,
+                            guestEmail: addressData.email || user?.email || 'guest@example.com',
+                            firstName: addressData.firstName || user?.fullName?.split(' ')[0] || 'Guest',
+                            lastName: addressData.lastName || user?.fullName?.split(' ')[1] || '',
+                            address: deliveryType === 'PICKUP' ? null : (addressData.address || 'Gudang'),
+                            city: deliveryType === 'PICKUP' ? null : (addressData.city || 'Malang'),
+                            postalCode: deliveryType === 'PICKUP' ? null : (addressData.postalCode || '12345'),
+                            phone: addressData.phone || '081234567890',
                             items: itemsPayload,
                             paymentMethod: 'XENDIT',
                             voucherCode: appliedVoucher?.code || null,
+                            deliveryType: deliveryType,
+                            shippingCourier: isSablonOrder ? null : (selectedShipping ? `${selectedShipping.courier_name} - ${selectedShipping.courier_service_name}` : null),
+                            shippingCost: isSablonOrder ? null : (selectedShipping ? selectedShipping.price : null),
                           });
                         } else {
                           response = await api.post('/orders', {
-                            deliveryAddress: {
-                              fullName: `${addressData.firstName} ${addressData.lastName}`.trim(),
-                              addressLine1: addressData.address,
-                              city: addressData.city,
-                              state: addressData.city,
-                              postalCode: addressData.postalCode,
-                              country: addressData.country,
+                            deliveryType: deliveryType,
+                            deliveryAddress: deliveryType === 'PICKUP' ? null : {
+                              fullName: `${addressData.firstName || user?.fullName || 'Customer'} ${addressData.lastName || ''}`.trim(),
+                              addressLine1: addressData.address || 'Gudang',
+                              city: addressData.city || 'Malang',
+                              postalCode: addressData.postalCode || '12345',
+                              phone: addressData.phone || user?.phone || '081234567890',
+                              email: addressData.email || user?.email || 'customer@example.com'
                             },
                             items: itemsPayload,
                             paymentMethod: 'XENDIT',
                             usePoints,
                             voucherCode: appliedVoucher?.code || null,
+                            shippingCourier: isSablonOrder ? null : (selectedShipping ? `${selectedShipping.courier_name} - ${selectedShipping.courier_service_name}` : null),
+                            shippingCost: isSablonOrder ? null : (selectedShipping ? selectedShipping.price : null),
                           });
                         }
 

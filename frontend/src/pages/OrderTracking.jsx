@@ -175,7 +175,7 @@ export default function OrderTracking() {
             )}
 
             {/* Payment Instructions if Pending */}
-            {(order.paymentStatus === 'PENDING' || order.paymentStatus === 'UNPAID') && (
+            {(order.paymentStatus === 'PENDING' || order.paymentStatus === 'UNPAID') && !['CANCELLED', 'ABANDONED'].includes(order.status) && (
               <div className="bg-aria-charcoal dark:bg-gray-800 text-white p-8 border border-transparent colorblind:border-aria-cb-warning colorblind:border-2">
                 <h3 className="font-display text-xl uppercase tracking-widest mb-4">{t.paymentTitle}</h3>
                 
@@ -208,6 +208,24 @@ export default function OrderTracking() {
                     </div>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* WAITING_FINAL_PAYMENT Call to Action */}
+            {order.status === 'WAITING_FINAL_PAYMENT' && order.userId === currentUser?.id && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-400 p-8 border border-amber-200 dark:border-amber-700/50">
+                <h3 className="font-display text-xl uppercase tracking-widest mb-4">Pesanan Selesai Diproduksi</h3>
+                <p className="text-sm leading-relaxed mb-6 uppercase tracking-widest">
+                  Pesanan Sablon Anda telah selesai diproduksi. Silakan pilih metode pengiriman (Ambil di Toko / Kurir) dan lakukan pelunasan untuk melanjutkan pengiriman.
+                </p>
+                <div className="flex gap-4">
+                  <Link 
+                    to={`/checkout-pelunasan/${order.id}`} 
+                    className="bg-amber-600 text-white hover:bg-amber-700 px-6 py-3 text-sm font-bold uppercase tracking-widest transition-colors inline-block text-center"
+                  >
+                    Lanjutkan Pelunasan
+                  </Link>
+                </div>
               </div>
             )}
 

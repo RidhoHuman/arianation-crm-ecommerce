@@ -47,6 +47,7 @@ const useCartStore = create((set, get) => ({
           quantity: item.quantity,
           imageUrl: item.imageUrl,
           size: item.variantName || '',
+          businessType: item.businessType || 'FASHION_RETAIL',
           color: '' 
         }));
         set({ items: mappedItems });

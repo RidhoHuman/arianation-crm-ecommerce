@@ -126,7 +126,7 @@ const checkoutCustomSablonDP = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { id } = req.params; // designRequest ID
-    const { paymentMethod, usePoints } = req.body;
+    const { paymentMethod, usePoints, paymentType = 'DP' } = req.body;
 
     const user = await knex('user').where('id', userId).first();
     const designRequest = await knex('designRequest').where('id', id).where('userId', userId).first();
@@ -147,21 +147,24 @@ const checkoutCustomSablonDP = async (req, res, next) => {
       throw new BadRequestError('Estimated price is not set. Please contact admin.');
     }
 
-    const dpAmount = Math.floor(designRequest.estimatedPrice / 2);
-    let finalAmount = dpAmount;
+    let grandTotal = Number(designRequest.estimatedPrice);
     let pointsToDeduct = 0;
 
     if (usePoints && user && user.rewardPoints > 0) {
       const discountFromPoints = user.rewardPoints * 1000;
-      if (discountFromPoints > finalAmount) {
-        pointsToDeduct = Math.ceil(finalAmount / 1000);
+      if (discountFromPoints > grandTotal) {
+        pointsToDeduct = Math.ceil(grandTotal / 1000);
       } else {
         pointsToDeduct = user.rewardPoints;
       }
-      finalAmount -= (pointsToDeduct * 1000);
+      grandTotal -= (pointsToDeduct * 1000);
     }
 
-    if (finalAmount < 0) finalAmount = 0;
+    if (grandTotal < 0) grandTotal = 0;
+
+    const isFull = paymentType === 'FULL';
+    const amountToPay = isFull ? grandTotal : Math.floor(grandTotal / 2);
+    let finalAmount = amountToPay;
 
     // 1. STATE LOCKING - DATABASE TRANSACTION
     const orderId = require('cuid')();
@@ -192,7 +195,7 @@ const checkoutCustomSablonDP = async (req, res, next) => {
           userId,
           points: pointsToDeduct,
           type: 'SPENT',
-          description: `DP Sablon untuk pesanan ${orderId.slice(0, 8)}`,
+          description: `${isFull ? 'Lunas' : 'DP'} Sablon untuk pesanan ${orderId.slice(0, 8)}`,
           createdAt: new Date(),
         });
       }
@@ -213,12 +216,13 @@ const checkoutCustomSablonDP = async (req, res, next) => {
         mobileNumber: user.phone || '081234567890'
       };
 
+      const paymentId = require('cuid')();
       const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
       const invoiceRequest = {
-        externalId: order.id,
+        externalId: paymentId,
         amount: finalAmount,
         payerEmail: customer.email,
-        description: `DP Sablon AriaNation #${order.orderNumber}`,
+        description: `${isFull ? 'Pelunasan' : 'DP'} Sablon AriaNation #${order.orderNumber}`,
         customer: customer,
         successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
         failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`
@@ -230,6 +234,7 @@ const checkoutCustomSablonDP = async (req, res, next) => {
       
       // Insert Payment Record
       await paymentService.create({
+        id: paymentId,
         orderId: order.id,
         amount: finalAmount,
         paymentMethod: paymentMethod || 'XENDIT',
@@ -237,7 +242,7 @@ const checkoutCustomSablonDP = async (req, res, next) => {
         transactionId: order.id,
         qrisUrl: paymentUrl,
         xenditId: xenditId,
-        paymentType: 'DP'
+        paymentType: isFull ? 'FULL' : 'DP'
       });
 
     } catch (err) {
@@ -259,10 +264,10 @@ const checkoutCustomSablonDP = async (req, res, next) => {
         });
       }
 
-      throw new BadRequestError('Gagal membuat tagihan DP Xendit. Poin Anda telah dikembalikan otomatis.');
+      throw new BadRequestError('Gagal membuat tagihan Xendit. Poin Anda telah dikembalikan otomatis.');
     }
 
-    return sendSuccess(res, { orderId, paymentUrl }, 'Checkout DP berhasil dibuat');
+    return sendSuccess(res, { orderId, paymentUrl }, 'Checkout berhasil dibuat');
   } catch (error) {
     next(error);
   }

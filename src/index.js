@@ -8,6 +8,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 const knex = require('./config/knex');
 const app = require('./app');
+const cronService = require('./services/cronService');
 
 const PORT = process.env.PORT || 3001;
 
@@ -24,6 +25,9 @@ const startServer = async () => {
       console.log(`\n🚀 Server running on http://localhost:${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV}`);
       console.log(`🗄️  Database: arianation_db\n`);
+      
+      // Initialize Background Cron Jobs
+      cronService.initCronJobs();
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

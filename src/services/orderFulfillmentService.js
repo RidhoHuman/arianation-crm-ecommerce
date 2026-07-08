@@ -123,13 +123,17 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
 
     const previousStatus = order.status;
 
-    // Update order status
-    await trx('order')
-      .where('id', orderId)
+    // Update order status with optimistic locking (Race condition prevention)
+    const updatedRows = await trx('order')
+      .where({ id: orderId, status: order.status })
       .update({
         status: newStatus,
         updatedAt: new Date(),
       });
+
+    if (updatedRows === 0) {
+      throw new BadRequestError('Race condition: Order status was changed by another process');
+    }
 
     // Award points if DELIVERED and order belongs to a user
     if (newStatus === 'DELIVERED' && order.userId) {
@@ -246,6 +250,11 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
       title: 'Order Issue ⚠️',
       message: 'There was an issue with your order. Please contact support.',
       type: 'FAILED',
+    },
+    ABANDONED: {
+      title: 'Pesanan Dibatalkan Otomatis ❌',
+      message: 'Mohon Maaf, pesanan Sablon Anda telah dibatalkan oleh sistem karena melewati batas waktu pelunasan 7 hari. Sesuai S&K, Uang Muka (DP) tidak dapat dikembalikan.',
+      type: 'ABANDONED',
     },
   };
 

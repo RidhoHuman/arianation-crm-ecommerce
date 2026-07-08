@@ -93,7 +93,7 @@ const sendOrderNotification = async (notificationId) => {
     if (!notification) throw new Error('Notification not found');
 
     const order = await knex('order')
-      .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt')
+      .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt', 'deliveryType')
       .where('id', notification.orderId)
       .first();
 

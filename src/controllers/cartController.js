@@ -18,7 +18,7 @@ const getCart = async (req, res, next) => {
     const items = await knex('cartItem')
       .where('cartId', cart.id)
       .select('cartItem.*', 
-        knex.raw('p.productName, p.price as productPrice, p.imageUrl, p.isActive')
+        knex.raw('p.productName, p.price as productPrice, p.imageUrl, p.isActive, p.businessType')
       )
       .leftJoin('product as p', 'cartItem.productId', 'p.id')
       .orderBy('cartItem.createdAt', 'desc');

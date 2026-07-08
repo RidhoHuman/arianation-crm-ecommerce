@@ -506,6 +506,11 @@ function OrdersTab({ t }) {
                   <Link to={`/order-tracking/${order.id}`} className="text-xs font-semibold uppercase tracking-wider text-aria-maroon dark:text-amber-400 hover:underline flex items-center gap-1">
                     {t.orders.detail} <ChevronIcon />
                   </Link>
+                  {order.status === 'DELIVERED' && (
+                    <Link to={`/order-tracking/${order.id}`} className="text-[10px] font-semibold uppercase tracking-wider bg-aria-maroon text-white hover:bg-black dark:hover:bg-gray-800 px-3 py-1.5 rounded-lg flex items-center gap-1 mt-2 transition-colors shadow-sm">
+                      <StarIcon /> Beri Ulasan
+                    </Link>
+                  )}
                   <a href={`/invoice/${order.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 mt-2">
                     <DownloadIcon /> Download Invoice
                   </a>
@@ -623,6 +628,21 @@ function SablonTab({ t }) {
                     <p className="text-xs font-semibold">{req.purpose || '-'}</p>
                   </div>
                 </div>
+
+                {req.status === 'APPROVED' && (
+                  <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-6 flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Estimasi Harga</p>
+                      <p className="text-lg font-bold text-aria-maroon dark:text-amber-400">Rp {Number(req.estimatedPrice || 0).toLocaleString()}</p>
+                    </div>
+                    <Link 
+                      to={`/checkout-sablon/${req.id}`} 
+                      className="px-6 py-3 bg-aria-charcoal dark:bg-white text-white dark:text-aria-charcoal text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors rounded-xl flex items-center gap-2"
+                    >
+                      Lanjutkan Pembayaran
+                    </Link>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -5,8 +5,10 @@ import { FiSave, FiSettings } from 'react-icons/fi';
 export default function StoreSettingsManager() {
   const [settings, setSettings] = useState({
     welcome_bonus_points: '',
-    best_seller_threshold: ''
+    best_seller_threshold: '',
+    pickup_instructions: ''
   });
+  const [couriers, setCouriers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -17,8 +19,14 @@ export default function StoreSettingsManager() {
 
   const fetchSettings = async () => {
     try {
-      const res = await api.get('/admin/settings');
-      setSettings(res.data.data);
+      const [resSettings, resCouriers] = await Promise.all([
+        api.get('/admin/settings'),
+        api.get('/admin/couriers')
+      ]);
+      setSettings(resSettings.data.data);
+      if (resCouriers.data.data) {
+        setCouriers(resCouriers.data.data);
+      }
     } catch (error) {
       alert('Gagal memuat pengaturan toko');
       console.error(error);
@@ -47,6 +55,16 @@ export default function StoreSettingsManager() {
       console.error(error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleCourier = async (code, currentStatus) => {
+    try {
+      await api.put(`/admin/couriers/${code}/toggle`, { isActive: !currentStatus });
+      setCouriers(prev => prev.map(c => c.code === code ? { ...c, isActive: !currentStatus } : c));
+    } catch (error) {
+      alert('Gagal mengubah status kurir');
+      console.error(error);
     }
   };
 
@@ -127,6 +145,62 @@ export default function StoreSettingsManager() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Omnichannel Settings */}
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-aria-charcoal dark:text-gray-300 mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+              Omnichannel (Logistik & Pickup)
+            </h3>
+            
+            <div className="grid grid-cols-1 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Instruksi "Ambil di Toko"
+                </label>
+                <textarea
+                  name="pickup_instructions"
+                  value={settings.pickup_instructions || ''}
+                  onChange={handleChange}
+                  rows={4}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                  placeholder="Contoh: Silakan datang ke toko dengan membawa KTP dan ID Pesanan..."
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Instruksi ini akan ditampilkan kepada kustomer saat mereka memilih opsi "Ambil di Toko", dan juga akan disertakan dalam email konfirmasi. Gunakan baris baru (Enter) untuk memisahkan poin.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Courier Management */}
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-aria-charcoal dark:text-gray-300 mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+              Manajemen Kurir (Biteship)
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {couriers.map((courier) => (
+                <div key={courier.code} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-gray-800 dark:text-gray-200 uppercase">{courier.name}</span>
+                    <span className="text-xs text-gray-500">{courier.code}</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={Boolean(courier.isActive)} 
+                      onChange={() => handleToggleCourier(courier.code, Boolean(courier.isActive))}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-aria-maroon"></div>
+                  </label>
+                </div>
+              ))}
+            </div>
+            {couriers.length === 0 && (
+              <p className="text-sm text-gray-500 italic">Belum ada data kurir dari Biteship.</p>
+            )}
           </div>
 
           <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end items-center gap-4">

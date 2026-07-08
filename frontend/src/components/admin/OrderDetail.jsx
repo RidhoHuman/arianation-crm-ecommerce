@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { FiArrowLeft, FiMapPin, FiCreditCard, FiPackage, FiTruck, FiClock, FiFileText } from 'react-icons/fi';
+import { FiArrowLeft, FiMapPin, FiCreditCard, FiPackage, FiTruck, FiClock, FiFileText, FiCheckCircle } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 
 export default function OrderDetail() {
@@ -12,6 +12,8 @@ export default function OrderDetail() {
   const [error, setError] = useState('');
   const [updateLoading, setUpdateLoading] = useState(false);
   const [status, setStatus] = useState('');
+  const [actualWeight, setActualWeight] = useState(250);
+  const [pickupLoading, setPickupLoading] = useState(false);
 
   useEffect(() => {
     fetchOrderDetail();
@@ -43,6 +45,34 @@ export default function OrderDetail() {
     }
   };
 
+  const handleCompletePickup = async () => {
+    if (!window.confirm("Pastikan kustomer sudah menerima barang. Lanjutkan?")) return;
+    try {
+      setUpdateLoading(true);
+      await api.put(`/admin/orders/${id}/complete-pickup`);
+      toast.success('Pickup selesai! Status menjadi DELIVERED.');
+      await fetchOrderDetail();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal menyelesaikan pickup');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  const handleRequestPickup = async () => {
+    if (!window.confirm(`Request pickup untuk kurir ${order.shippingCourier}?`)) return;
+    try {
+      setPickupLoading(true);
+      await api.put(`/admin/orders/${id}/pickup`, { actualWeight });
+      toast.success('Pickup kurir berhasil diminta!');
+      await fetchOrderDetail();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gagal request pickup kurir');
+    } finally {
+      setPickupLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -69,6 +99,7 @@ export default function OrderDetail() {
     SHIPPED: 'bg-indigo-100 text-indigo-800',
     DELIVERED: 'bg-green-100 text-green-800',
     CANCELLED: 'bg-red-100 text-red-800',
+    READY_TO_SHIP: 'bg-teal-100 text-teal-800'
   };
 
   let deliveryAddress = {};
@@ -91,6 +122,16 @@ export default function OrderDetail() {
             <span className={`text-xs px-3 py-1 rounded-full font-bold ${statusColors[order.status] || 'bg-gray-100 text-gray-800'}`}>
               {order.status}
             </span>
+            {order.deliveryType === 'PICKUP' && (
+              <span className="text-xs px-3 py-1 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                🏪 Ambil di Toko
+              </span>
+            )}
+            {order.deliveryType === 'SHIPPING' && (
+              <span className="text-xs px-3 py-1 rounded-full font-bold bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1">
+                🚚 Kirim via Kurir
+              </span>
+            )}
           </h2>
           <p className="text-gray-500 text-sm mt-1 flex items-center gap-2">
             <FiClock /> Dibuat pada {new Date(order.createdAt).toLocaleString('id-ID')}
@@ -106,6 +147,9 @@ export default function OrderDetail() {
             <option value="PENDING">PENDING</option>
             <option value="CONFIRMED">CONFIRMED</option>
             <option value="PROCESSING">PROCESSING</option>
+            <option value="IN_PRODUCTION">IN_PRODUCTION (Sablon)</option>
+            <option value="WAITING_FINAL_PAYMENT">WAITING_FINAL_PAYMENT (Sablon)</option>
+            <option value="READY_TO_SHIP">READY_TO_SHIP (Siap Diambil/Kirim)</option>
             <option value="SHIPPED">SHIPPED</option>
             <option value="DELIVERED">DELIVERED</option>
             <option value="CANCELLED">CANCELLED</option>
@@ -117,6 +161,36 @@ export default function OrderDetail() {
           >
             {updateLoading ? 'Update...' : 'Update Status'}
           </button>
+          
+          {order.deliveryType === 'PICKUP' && order.status === 'READY_TO_SHIP' && (
+            <button
+              onClick={handleCompletePickup}
+              disabled={updateLoading}
+              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              <FiCheckCircle /> Serahkan Barang
+            </button>
+          )}
+
+          {order.deliveryType === 'SHIPPING' && order.status === 'READY_TO_SHIP' && !order.trackingNumber && (
+            <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-300">
+              <input 
+                type="number" 
+                value={actualWeight}
+                onChange={(e) => setActualWeight(e.target.value)}
+                placeholder="Berat (gram)"
+                className="w-24 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+              />
+              <span className="text-xs text-gray-500">gram</span>
+              <button
+                onClick={handleRequestPickup}
+                disabled={pickupLoading || !order.shippingCourier}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <FiTruck /> {pickupLoading ? 'Requesting...' : 'Request Pickup Kurir'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -444,14 +444,7 @@ const getOrderDetail = async (req, res, next) => {
     const { id } = req.params;
 
     const order = await knex('order')
-      .select(
-        'id',
-        'orderNumber',
-        'totalAmount',
-        'status',
-        'createdAt',
-        'updatedAt'
-      )
+      .select('*')
       .where('id', id)
       .first();
 
@@ -1352,6 +1345,52 @@ const requestPickup = async (req, res, next) => {
   }
 };
 
+const completePickup = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const order = await knex('order').where({ id }).first();
+    if (!order) throw new NotFoundError('Pesanan tidak ditemukan');
+    
+    if (order.status !== 'READY_TO_SHIP' || order.deliveryType !== 'PICKUP') {
+        throw new BadRequestError('Pesanan ini belum siap diambil atau bukan pesanan Pickup.');
+    }
+
+    await knex('order').where('id', id).update({
+      status: 'DELIVERED', 
+      updatedAt: new Date()
+    });
+
+    try {
+      const orderFulfillmentService = require('../services/orderFulfillmentService');
+      await orderFulfillmentService.updateOrderStatus(
+        id,
+        'DELIVERED',
+        req.user.id,
+        'Pesanan telah diambil oleh customer',
+        'Self Pickup Selesai'
+      );
+    } catch(err) { console.error('Failed to update fulfillment timeline:', err.message); }
+
+    try {
+      const notificationService = require('../services/notificationService');
+      const notif = await notificationService.queueNotification({
+        orderId: order.id,
+        userId: order.userId || null,
+        type: 'DELIVERED',
+        title: 'Pesanan Selesai 🎉',
+        message: 'Terima kasih telah berkunjung dan mengambil pesanan Anda di Arianation!',
+      });
+      await notificationService.sendOrderNotification(notif.id);
+    } catch (err) {
+      console.error('[Admin Controller] Error sending pickup completion notification:', err.message);
+    }
+
+    return sendSuccess(res, null, 'Pickup berhasil dikonfirmasi');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboard,
   getProducts,
@@ -1378,5 +1417,6 @@ module.exports = {
   getAuditLogs,
   getCouriers,
   toggleCourier,
-  requestPickup
+  requestPickup,
+  completePickup
 };

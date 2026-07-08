@@ -31,6 +31,8 @@ import HomePage from './pages/Home';
 import AboutPage from './pages/About';
 import AdminPage from './pages/Admin';
 import CheckoutPage from './pages/Checkout';
+import CheckoutPelunasan from './pages/CheckoutPelunasan';
+import CheckoutSablon from './pages/CheckoutSablon';
 import DashboardPage from './pages/Dashboard';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
@@ -62,6 +64,8 @@ function AnimatedRoutes() {
           <Route path="/categories/:slug" element={<PageTransition><CategoryPage /></PageTransition>} />
           <Route path="/cart" element={<PageTransition><CartPage /></PageTransition>} />
           <Route path="/checkout" element={<PageTransition><CheckoutPage /></PageTransition>} />
+          <Route path="/checkout-pelunasan/:id" element={<PageTransition><CheckoutPelunasan /></PageTransition>} />
+          <Route path="/checkout-sablon/:id" element={<PageTransition><CheckoutSablon /></PageTransition>} />
           <Route path="/order-tracking/:id" element={<PageTransition><OrderTracking /></PageTransition>} />
           <Route path="/invoice/:id" element={<PageTransition><InvoicePage /></PageTransition>} />
           <Route path="/dashboard" element={<PageTransition><DashboardPage /></PageTransition>} />

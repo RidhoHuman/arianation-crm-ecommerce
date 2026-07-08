@@ -35,9 +35,9 @@ const {
   processRefund,
   // Audit Logs
   getAuditLogs,
-  // Couriers
   getCouriers,
   toggleCourier,
+  completePickup,
 } = require('../controllers/adminController');
 
 const {
@@ -83,6 +83,7 @@ router.get('/orders/:id', getOrderDetail);
 router.put('/orders/:id/status', updateOrderStatus);
 router.put('/orders/:id/tracking', updateOrderTracking);
 router.put('/orders/:id/pickup', requestPickup);
+router.put('/orders/:id/complete-pickup', completePickup);
 router.put('/orders/:id/cancel', cancelOrder);
 router.get('/orders/export/csv', exportOrders);
 
