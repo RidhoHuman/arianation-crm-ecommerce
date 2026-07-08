@@ -14,8 +14,10 @@ const {
   getOrderStatusHistory,
   getOrderTimeline,
   getOrderNotifications,
+  getShippingRates,
+  createPelunasanInvoice,
 } = require('../controllers/orderController');
-const { createCustomOrder } = require('../controllers/customOrderController');
+const { createCustomOrder, checkoutCustomSablonDP } = require('../controllers/customOrderController');
 const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
 const { uploadCustomOrderFiles } = require('../middleware/upload');
@@ -111,10 +113,12 @@ const guestCheckoutLimiter = rateLimit({
 });
 
 router.post('/guest', guestCheckoutLimiter, createGuestOrder);
+router.post('/shipping-rates', optionalAuth, getShippingRates);
 
 // Routes that can be accessed by both guests (via order ID) and authenticated users
 router.get('/:id', optionalAuth, getOrderById);
 router.get('/:id/tracking', optionalAuth, getOrderTracking);
+router.post('/:id/pelunasan', optionalAuth, createPelunasanInvoice);
 
 // All other order routes require authentication
 router.use(generalLimiter, authenticate);
@@ -122,6 +126,7 @@ router.use(generalLimiter, authenticate);
 router.get('/', getAllOrders);
 router.post('/', validateBody(schemas.createOrder), validateCreateOrderRequest, createOrder);
 router.post('/custom-sablon', uploadCustomOrderFiles, createCustomOrder);
+router.post('/custom-sablon/:id/checkout', checkoutCustomSablonDP);
 router.put('/:id/status', authorize('ADMIN', 'OWNER', 'DESIGN_STAFF'), updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);
 

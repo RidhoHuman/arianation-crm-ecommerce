@@ -107,36 +107,45 @@ const createPayment = async (req, res, next) => {
       paymentData.accountName = accountName;
     }
 
-    // Midtrans Snap Token Generation
-    const { snap } = require('../config/midtrans');
-    
+    // Xendit Invoice Generation
+    const { Xendit } = require('xendit-node');
+    const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
+
     // Fallback if customer details not fully provided by frontend
     const customer = req.user ? {
-      first_name: req.user.fullName,
+      givenNames: req.user.fullName,
       email: req.user.email,
-      phone: req.user.phone || '081234567890'
-    } : customerDetails;
-
-    const parameter = {
-      transaction_details: {
-        order_id: transactionId,
-        gross_amount: order.totalAmount
-      },
-      customer_details: customer,
+      mobileNumber: req.user.phone || '081234567890'
+    } : {
+      givenNames: customerDetails?.first_name || 'Guest',
+      email: customerDetails?.email || 'guest@example.com',
+      mobileNumber: customerDetails?.phone || '081234567890'
     };
 
-    let snapToken = null;
-    let snapRedirectUrl = null;
+    let invoiceUrl = null;
+    let paymentResponse = null;
 
     try {
-      const snapResponse = await snap.createTransaction(parameter);
-      snapToken = snapResponse.token;
-      snapRedirectUrl = snapResponse.redirect_url;
-      paymentData.qrisUrl = snapRedirectUrl; // We can repurpose this for the snap URL
-    } catch (midtransError) {
-      console.error('Midtrans Snap Error:', midtransError.message);
-      // If Midtrans fails, we can either throw error or fallback to manual. We throw to be strict.
-      throw new BadRequestError('Gagal memproses pembayaran melalui payment gateway');
+      const invoiceRequest = {
+        externalId: transactionId,
+        amount: order.totalAmount,
+        payerEmail: customer.email,
+        description: `Pembayaran Pesanan #${orderId} di AriaNation`,
+        customer: customer,
+        successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${orderId}`,
+        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`
+      };
+
+      const response = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
+      invoiceUrl = response.invoiceUrl;
+      paymentResponse = response;
+      
+      // Save the generated Invoice ID to xenditId for reference and invoiceUrl to qrisUrl
+      paymentData.xenditId = response.id;
+      paymentData.qrisUrl = invoiceUrl; 
+    } catch (xenditError) {
+      console.error('Xendit Error:', xenditError);
+      throw new BadRequestError('Gagal memproses pembayaran melalui Xendit');
     }
 
     let payment;
@@ -151,8 +160,8 @@ const createPayment = async (req, res, next) => {
       message: MESSAGES.PAYMENT_CREATED,
       data: {
         ...payment,
-        snapToken,
-        snapRedirectUrl
+        paymentUrl: invoiceUrl,
+        xenditResponse: paymentResponse
       }
     });
   } catch (error) {

@@ -1,6 +1,9 @@
 const knex = require('../config/knex');
-const { sendCreated } = require('../utils/response');
+const { sendCreated, sendSuccess } = require('../utils/response');
 const { MESSAGES } = require('../utils/constants');
+const { Xendit } = require('xendit-node');
+const paymentService = require('../services/paymentService');
+const { BadRequestError, NotFoundError } = require('../utils/errors');
 
 const createCustomOrder = async (req, res, next) => {
   try {
@@ -119,6 +122,153 @@ const createCustomOrder = async (req, res, next) => {
   }
 };
 
+const checkoutCustomSablonDP = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params; // designRequest ID
+    const { paymentMethod, usePoints } = req.body;
+
+    const user = await knex('user').where('id', userId).first();
+    const designRequest = await knex('designRequest').where('id', id).where('userId', userId).first();
+
+    if (!designRequest) {
+      throw new NotFoundError('Design request not found');
+    }
+
+    if (designRequest.status !== 'APPROVED') {
+      throw new BadRequestError('Design request must be APPROVED to proceed with payment');
+    }
+
+    if (designRequest.orderId) {
+      throw new BadRequestError('This design request has already been checked out');
+    }
+
+    if (!designRequest.estimatedPrice || designRequest.estimatedPrice <= 0) {
+      throw new BadRequestError('Estimated price is not set. Please contact admin.');
+    }
+
+    const dpAmount = Math.floor(designRequest.estimatedPrice / 2);
+    let finalAmount = dpAmount;
+    let pointsToDeduct = 0;
+
+    if (usePoints && user && user.rewardPoints > 0) {
+      const discountFromPoints = user.rewardPoints * 1000;
+      if (discountFromPoints > finalAmount) {
+        pointsToDeduct = Math.ceil(finalAmount / 1000);
+      } else {
+        pointsToDeduct = user.rewardPoints;
+      }
+      finalAmount -= (pointsToDeduct * 1000);
+    }
+
+    if (finalAmount < 0) finalAmount = 0;
+
+    // 1. STATE LOCKING - DATABASE TRANSACTION
+    const orderId = require('cuid')();
+    await knex.transaction(async (trx) => {
+      // Create Order
+      await trx('order').insert({
+        id: orderId,
+        orderNumber: `SAB-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        userId,
+        totalAmount: finalAmount,
+        paymentMethod: paymentMethod || 'XENDIT',
+        status: 'UNPAID', // Initial status
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // Update Design Request with Order ID
+      await trx('designRequest').where('id', id).update({
+        orderId,
+        updatedAt: new Date(),
+      });
+
+      // Deduct Points
+      if (pointsToDeduct > 0) {
+        await trx('user').where('id', userId).decrement('rewardPoints', pointsToDeduct);
+        await trx('pointHistory').insert({
+          id: require('cuid')(),
+          userId,
+          points: pointsToDeduct,
+          type: 'SPENT',
+          description: `DP Sablon untuk pesanan ${orderId.slice(0, 8)}`,
+          createdAt: new Date(),
+        });
+      }
+    });
+
+    const order = await knex('order').where('id', orderId).first();
+
+    // 2. CALL XENDIT AFTER TRANSACTION
+    let paymentUrl = null;
+    let xenditId = null;
+
+    try {
+      const customerNameParts = user?.fullName ? user.fullName.split(' ') : [];
+      const customer = {
+        givenNames: customerNameParts[0] || 'Customer',
+        ...(customerNameParts.length > 1 && { surname: customerNameParts.slice(1).join(' ') }),
+        email: user.email,
+        mobileNumber: user.phone || '081234567890'
+      };
+
+      const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
+      const invoiceRequest = {
+        externalId: order.id,
+        amount: finalAmount,
+        payerEmail: customer.email,
+        description: `DP Sablon AriaNation #${order.orderNumber}`,
+        customer: customer,
+        successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
+        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`
+      };
+
+      const xenditResponse = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
+      paymentUrl = xenditResponse.invoiceUrl;
+      xenditId = xenditResponse.id;
+      
+      // Insert Payment Record
+      await paymentService.create({
+        orderId: order.id,
+        amount: finalAmount,
+        paymentMethod: paymentMethod || 'XENDIT',
+        status: 'PENDING',
+        transactionId: order.id,
+        qrisUrl: paymentUrl,
+        xenditId: xenditId,
+        paymentType: 'DP'
+      });
+
+    } catch (err) {
+      console.error('Xendit DP Invoice Error:', err.message);
+
+      // MANUAL ROLLBACK
+      await knex('order').where('id', orderId).update({ status: 'FAILED' });
+      await knex('designRequest').where('id', id).update({ orderId: null });
+      
+      if (pointsToDeduct > 0) {
+        await knex('user').where('id', userId).increment('rewardPoints', pointsToDeduct);
+        await knex('pointHistory').insert({
+          id: require('cuid')(),
+          userId,
+          points: pointsToDeduct,
+          type: 'REFUNDED',
+          description: `Pengembalian DP karena tagihan gagal (Pesanan ${order.id.slice(0, 8)})`,
+          createdAt: new Date(),
+        });
+      }
+
+      throw new BadRequestError('Gagal membuat tagihan DP Xendit. Poin Anda telah dikembalikan otomatis.');
+    }
+
+    return sendSuccess(res, { orderId, paymentUrl }, 'Checkout DP berhasil dibuat');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
-  createCustomOrder
+  createCustomOrder,
+  checkoutCustomSablonDP
 };

@@ -65,18 +65,9 @@ export default function Checkout() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    // Dynamically load Midtrans Snap script
-    const snapScriptUrl = 'https://app.sandbox.midtrans.com/snap/snap.js';
-    const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY;
-    
-    let script = document.querySelector(`script[src="${snapScriptUrl}"]`);
-    if (!script) {
-      script = document.createElement('script');
-      script.src = snapScriptUrl;
-      script.setAttribute('data-client-key', clientKey);
-      script.async = true;
-      document.head.appendChild(script);
-    }
+    // Payment Gateway switched to Xendit. 
+    // Xendit handles UI redirection natively via Invoice URLs, 
+    // no need to inject external scripts like Midtrans snap.js here.
   }, []);
 
   const { register, handleSubmit, formState: { errors }, watch } = useForm({
@@ -493,9 +484,9 @@ export default function Checkout() {
 
                 <div className="mb-8 border border-aria-charcoal dark:border-white p-6 relative overflow-hidden dark:bg-black">
                   <div className="absolute top-0 right-0 bg-aria-charcoal dark:bg-white text-white dark:text-black text-[10px] uppercase tracking-widest px-3 py-1">Selected</div>
-                  <h3 className="text-sm font-semibold tracking-widest uppercase text-aria-charcoal dark:text-white mb-2">Bank Transfer</h3>
+                  <h3 className="text-sm font-semibold tracking-widest uppercase text-aria-charcoal dark:text-white mb-2">Xendit Secure Payment</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed uppercase tracking-wider">
-                    Make your payment directly into our bank account. Your order will not be shipped until the funds have cleared in our account.
+                    Pay securely using Virtual Account (Bank Transfer), QRIS, e-Wallets, or Credit Card via Xendit payment gateway.
                   </p>
                 </div>
 
@@ -534,7 +525,7 @@ export default function Checkout() {
                             postalCode: addressData.postalCode,
                             phone: addressData.phone,
                             items: itemsPayload,
-                            paymentMethod: 'BANK_TRANSFER',
+                            paymentMethod: 'XENDIT',
                             voucherCode: appliedVoucher?.code || null,
                           });
                         } else {
@@ -548,7 +539,7 @@ export default function Checkout() {
                               country: addressData.country,
                             },
                             items: itemsPayload,
-                            paymentMethod: 'BANK_TRANSFER',
+                            paymentMethod: 'XENDIT',
                             usePoints,
                             voucherCode: appliedVoucher?.code || null,
                           });
@@ -557,31 +548,12 @@ export default function Checkout() {
                         setLoading(false);
                         const orderData = response.data?.data;
                         if (orderData) {
-                          clearCart();
-                          if (orderData.snapToken && window.snap) {
-                            window.snap.pay(orderData.snapToken, {
-                              onSuccess: function(result) {
-                                setCreatedOrderId(orderData.orderId || orderData.id);
-                                setOrderSuccess(true);
-                                setStep(4);
-                              },
-                              onPending: function(result) {
-                                setCreatedOrderId(orderData.orderId || orderData.id);
-                                setOrderSuccess(true);
-                                setStep(4);
-                              },
-                              onError: function(result) {
-                                setOrderError('Payment failed!');
-                              },
-                              onClose: function() {
-                                setCreatedOrderId(orderData.orderId || orderData.id);
-                                setOrderSuccess(true);
-                                setStep(4);
-                              }
-                            });
-                          } else if (orderData.paymentUrl) {
+                          clearCart(true);
+                          // Handle Xendit Redirect
+                          if (orderData.paymentUrl) {
                             window.location.href = orderData.paymentUrl;
                           } else {
+                            // Fallback if no URL
                             const id = orderData.orderId || orderData.id;
                             if (id) {
                               setCreatedOrderId(id);

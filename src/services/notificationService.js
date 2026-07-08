@@ -6,20 +6,16 @@ const { renderOrderNotificationEmail } = require('./emailTemplates');
 const FROM_EMAIL = process.env.FROM_EMAIL || 'no-reply@arianation.local';
 
 function createTransporter() {
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : undefined;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const user = process.env.EMAIL_USER || process.env.SMTP_USER;
+  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
 
-  if (!host || !port || !user || !pass) {
+  if (!user || !pass) {
     // Return null transporter to fallback to console logging
     return null;
   }
 
   return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
+    service: 'gmail',
     auth: { user, pass },
   });
 }
@@ -135,7 +131,7 @@ const sendOrderNotification = async (notificationId) => {
     }
 
     const mailOptions = {
-      from: FROM_EMAIL,
+      from: `"${process.env.STORE_NAME || 'Arianation E-Commerce'}" <${process.env.EMAIL_USER || process.env.SMTP_USER || FROM_EMAIL}>`,
       to: to || notification.recipientEmail,
       subject: email.subject,
       text: email.text,

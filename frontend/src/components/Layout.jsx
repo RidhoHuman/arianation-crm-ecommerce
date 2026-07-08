@@ -10,6 +10,7 @@ import useCollectionStore from '../store/collectionStore';
 import useProductTypeStore from '../store/productTypeStore';
 import RewardBanner from './RewardBanner';
 import SearchDrawer from './SearchDrawer';
+import NotificationBell from './NotificationBell';
 
 export const getTranslatedCategoryName = (name, lang) => {
   if (!name) return '';
@@ -274,6 +275,8 @@ export default function Layout() {
             >
               <Search className="w-4 h-4 lg:w-5 lg:h-5" />
             </button>
+            
+            {isAuthenticated && user && <NotificationBell />}
 
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3 xl:gap-5">

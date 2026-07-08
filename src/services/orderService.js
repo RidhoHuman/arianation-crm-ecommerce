@@ -66,6 +66,8 @@ const orderService = {
         'order.status',
         'order.totalAmount as totalPrice',
         'payment.status as paymentStatus',
+        'payment.method as paymentMethod',
+        'payment.qrisUrl as paymentUrl',
         'order.deliveryAddress',
         'orderTracking.trackingNumber',
         'order.createdAt',

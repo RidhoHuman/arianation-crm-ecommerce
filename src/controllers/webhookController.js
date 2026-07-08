@@ -1,5 +1,6 @@
 const orderFulfillmentService = require('../services/orderFulfillmentService');
 const paymentService = require('../services/paymentService');
+const notificationService = require('../services/notificationService');
 const knex = require('../config/knex');
 const { coreApi } = require('../config/midtrans');
 
@@ -17,40 +18,72 @@ const handleXenditWebhook = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Missing external_id' });
     }
 
-    // external_id adalah orderId dari sistem kita
-    const orderId = external_id;
+    // external_id from Xendit is now our payment.id
+    const paymentId = external_id;
 
     if (status === 'PAID' || status === 'SETTLED') {
-      // 1. Update status pesanan menggunakan fulfillment service
-      await orderFulfillmentService.updateOrderStatus(
-        orderId,
-        'CONFIRMED',
-        'SYSTEM',
-        'Payment successful via Xendit',
-        `Xendit Invoice ID: ${id}, Method: ${payment_method}`
-      );
+      // Find payment by payment.id (external_id)
+      const existingPayment = await paymentService.findById(paymentId) || await knex('payment').where('id', paymentId).first();
+      
+      if (!existingPayment) {
+        return res.status(404).json({ success: false, message: 'Payment not found' });
+      }
+      
+      const orderId = existingPayment.orderId;
 
-      // 2. Simpan atau update record pembayaran
-      const existingPayment = await paymentService.findByOrderId(orderId);
-      if (existingPayment) {
-        await paymentService.updateStatus(existingPayment.id, 'COMPLETED', id);
-      } else {
-        await paymentService.create({
+      if (existingPayment.status !== 'COMPLETED') {
+        const order = await knex('order').where('id', orderId).first();
+        if (!order) {
+           return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        // Branching logic for order status
+        let newOrderStatus = 'PAID_WAITING_APPROVAL'; // Default for Retail & Sablon DP
+        if (order.status === 'WAITING_FINAL_PAYMENT') {
+          newOrderStatus = 'READY_TO_SHIP'; // Sablon Pelunasan
+        }
+
+        // 1. Update status pesanan menggunakan fulfillment service
+        // Transaction is handled inside orderFulfillmentService
+        await orderFulfillmentService.updateOrderStatus(
           orderId,
-          paymentMethod: payment_method || 'XENDIT',
-          amount,
-          status: 'COMPLETED',
-          transactionId: id
-        });
+          newOrderStatus,
+          'SYSTEM',
+          'Payment successful via Xendit',
+          `Xendit Invoice ID: ${id}, Method: ${payment_method}`
+        );
+
+        // 2. Simpan atau update record pembayaran
+        await paymentService.updateStatus(existingPayment.id, 'COMPLETED', id);
+
+        // 3. Trigger Notification immediately
+        try {
+          const notif = await notificationService.queueNotification({
+            orderId,
+            userId: order.userId || null,
+            type: newOrderStatus,
+            title: 'Pembayaran Berhasil 💸',
+            message: 'Terima kasih, pembayaran Anda telah kami terima dan pesanan Anda sedang kami proses.',
+          });
+          await notificationService.sendOrderNotification(notif.id);
+        } catch (err) {
+          console.error('[Xendit Webhook] Error sending notification:', err.message);
+        }
+      } else {
+        console.log(`[Xendit Webhook] Payment ${paymentId} is already PAID. Skipping duplicate processing.`);
       }
     } else if (status === 'EXPIRED') {
-      await orderFulfillmentService.updateOrderStatus(
-        orderId,
-        'CANCELLED',
-        'SYSTEM',
-        'Payment expired',
-        `Xendit Invoice ID: ${id}`
-      );
+      const existingPayment = await knex('payment').where('id', paymentId).first();
+      if (existingPayment && existingPayment.status !== 'FAILED' && existingPayment.status !== 'COMPLETED') {
+        await orderFulfillmentService.updateOrderStatus(
+          existingPayment.orderId,
+          'CANCELLED',
+          'SYSTEM',
+          'Payment expired',
+          `Xendit Invoice ID: ${id}`
+        );
+        await paymentService.updateStatus(existingPayment.id, 'FAILED');
+      }
     }
 
     // Selalu balas 200 OK ke Xendit agar tidak di-retry terus-menerus
@@ -102,18 +135,48 @@ const handleMidtransWebhook = async (req, res, next) => {
 
     // Update payment status
     if (paymentStatus !== payment.status) {
+      if (paymentStatus === 'COMPLETED' && payment.status === 'COMPLETED') {
+         // Prevent duplicate
+         console.log(`[Midtrans Webhook] Transaction ${transactionId} already COMPLETED. Idempotency check passed.`);
+         return res.status(200).json({ success: true, message: 'Webhook received' });
+      }
+
+      const order = await knex('order').where('id', payment.orderId).first();
+      if (!order) {
+        return res.status(404).json({ success: false, message: 'Order not found' });
+      }
+
       await paymentService.updateStatus(payment.id, paymentStatus);
       
       // Update order status based on payment
       if (paymentStatus === 'COMPLETED') {
+        let newOrderStatus = 'PAID_WAITING_APPROVAL';
+        if (order.status === 'WAITING_FINAL_PAYMENT') {
+          newOrderStatus = 'READY_TO_SHIP';
+        }
+
         await orderFulfillmentService.updateOrderStatus(
           payment.orderId,
-          'CONFIRMED',
+          newOrderStatus,
           'SYSTEM',
           'Payment successful via Midtrans',
           `Midtrans Transaction ID: ${statusResponse.transaction_id}`
         );
-      } else if (paymentStatus === 'FAILED') {
+        
+        // Trigger Notification
+        try {
+          const notif = await notificationService.queueNotification({
+            orderId: payment.orderId,
+            userId: order.userId || null,
+            type: newOrderStatus,
+            title: 'Pembayaran Berhasil 💸',
+            message: 'Terima kasih, pembayaran Anda telah kami terima dan pesanan Anda sedang kami proses.',
+          });
+          await notificationService.sendOrderNotification(notif.id);
+        } catch (err) {
+          console.error('[Midtrans Webhook] Error sending notification:', err.message);
+        }
+      } else if (paymentStatus === 'FAILED' && order.status !== 'CANCELLED') {
         await orderFulfillmentService.updateOrderStatus(
           payment.orderId,
           'CANCELLED',
@@ -122,6 +185,8 @@ const handleMidtransWebhook = async (req, res, next) => {
           `Midtrans Transaction ID: ${statusResponse.transaction_id}`
         );
       }
+    } else {
+      console.log(`[Midtrans Webhook] Transaction ${transactionId} status unchanged (${payment.status}). Idempotency check passed.`);
     }
 
     return res.status(200).json({ success: true, message: 'Webhook received' });

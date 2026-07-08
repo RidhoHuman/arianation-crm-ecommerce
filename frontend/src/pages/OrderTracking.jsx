@@ -178,15 +178,36 @@ export default function OrderTracking() {
             {(order.paymentStatus === 'PENDING' || order.paymentStatus === 'UNPAID') && (
               <div className="bg-aria-charcoal dark:bg-gray-800 text-white p-8 border border-transparent colorblind:border-aria-cb-warning colorblind:border-2">
                 <h3 className="font-display text-xl uppercase tracking-widest mb-4">{t.paymentTitle}</h3>
-                <p className="text-sm text-gray-300 dark:text-gray-400 leading-relaxed mb-6 uppercase tracking-widest">
-                  {t.paymentDesc}
-                </p>
-                <div className="bg-black/30 dark:bg-black/50 p-6 border border-white/10 dark:border-white/5 text-sm uppercase tracking-wider font-medium space-y-2">
-                  <p><span className="text-gray-400 dark:text-gray-500 inline-block w-28">{t.bank}</span> BCA (Bank Central Asia)</p>
-                  <p><span className="text-gray-400 dark:text-gray-500 inline-block w-28">{t.account}</span> 8273 4829 10</p>
-                  <p><span className="text-gray-400 dark:text-gray-500 inline-block w-28">{t.name}</span> Arianation Official</p>
-                  <p><span className="text-gray-400 dark:text-gray-500 inline-block w-28">{t.amount}</span> Rp {(order.totalPrice || order.totalAmount)?.toLocaleString('id-ID')}</p>
-                </div>
+                
+                {order.paymentMethod === 'XENDIT' && order.paymentUrl ? (
+                  <>
+                    <p className="text-sm text-gray-300 dark:text-gray-400 leading-relaxed mb-6 uppercase tracking-widest">
+                      {language === 'ID' 
+                        ? 'Pesanan Anda sedang menunggu pembayaran melalui Xendit. Silakan lanjutkan pembayaran dengan mengklik tombol di bawah ini.' 
+                        : 'Your order is pending payment via Xendit. Please continue your payment by clicking the button below.'}
+                    </p>
+                    <div className="flex gap-4">
+                      <a 
+                        href={order.paymentUrl} 
+                        className="bg-white text-black hover:bg-gray-200 px-6 py-3 text-sm font-bold uppercase tracking-widest transition-colors inline-block text-center"
+                      >
+                        {language === 'ID' ? 'Bayar Sekarang' : 'Pay Now'}
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-300 dark:text-gray-400 leading-relaxed mb-6 uppercase tracking-widest">
+                      {t.paymentDesc}
+                    </p>
+                    <div className="bg-black/30 dark:bg-black/50 p-6 border border-white/10 dark:border-white/5 text-sm uppercase tracking-wider font-medium space-y-2">
+                      <p><span className="text-gray-400 dark:text-gray-500 inline-block w-28">{t.bank}</span> BCA (Bank Central Asia)</p>
+                      <p><span className="text-gray-400 dark:text-gray-500 inline-block w-28">{t.account}</span> 8273 4829 10</p>
+                      <p><span className="text-gray-400 dark:text-gray-500 inline-block w-28">{t.name}</span> Arianation Official</p>
+                      <p><span className="text-gray-400 dark:text-gray-500 inline-block w-28">{t.amount}</span> Rp {(order.totalPrice || order.totalAmount)?.toLocaleString('id-ID')}</p>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

@@ -7,7 +7,8 @@ const { NotFoundError, BadRequestError, AuthorizationError } = require('../utils
 const { MESSAGES } = require('../utils/constants');
 const orderFulfillmentService = require('../services/orderFulfillmentService');
 const paymentService = require('../services/paymentService');
-const { snap } = require('../config/midtrans');
+const notificationService = require('../services/notificationService');
+const { Xendit } = require('xendit-node');
 
 const getAllOrders = async (req, res, next) => {
   try {
@@ -49,8 +50,13 @@ const getOrderById = async (req, res, next) => {
       throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
     }
 
-    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
-      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    if (order.userId !== null) {
+      if (!req.user) {
+        throw new AuthorizationError('You must be logged in to view this order');
+      }
+      if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+        throw new AuthorizationError(MESSAGES.FORBIDDEN);
+      }
     }
 
     // Attach user info if userId exists
@@ -84,7 +90,7 @@ const getOrderById = async (req, res, next) => {
 const createOrder = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { paymentMethod, deliveryAddress, notes, items, usePoints, voucherCode } = req.body;
+    const { paymentMethod, deliveryAddress, notes, items, usePoints, voucherCode, shippingCourier, shippingCost } = req.body;
 
     const user = await knex('user').where('id', userId).first();
     let discountFromPoints = 0;
@@ -102,6 +108,14 @@ const createOrder = async (req, res, next) => {
 
       const productsById = new Map(products.map((p) => [p.id, p]));
       const variantsById = new Map(variants.map((v) => [v.id, v]));
+
+      // 1. Guardrail: Block Mixed Cart
+      const hasRetail = products.some(p => p.businessType === 'FASHION_RETAIL');
+      const hasSablon = products.some(p => p.businessType === 'SABLON_SERVICE');
+      
+      if (hasRetail && hasSablon) {
+        throw new BadRequestError('Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah');
+      }
 
       orderItems = items.map((item) => {
         const product = productsById.get(item.productId);
@@ -126,10 +140,21 @@ const createOrder = async (req, res, next) => {
       });
     } else {
       const cart = await knex('shoppingCart').where('userId', userId).first();
-      const cartItems = cart ? await knex('cartItem').where('cartId', cart.id) : [];
+      const cartItems = cart ? await knex('cartItem')
+        .join('product', 'cartItem.productId', '=', 'product.id')
+        .select('cartItem.*', 'product.businessType')
+        .where('cartId', cart.id) : [];
 
       if (!cartItems || cartItems.length === 0) {
         throw new BadRequestError(MESSAGES.CART_EMPTY);
+      }
+
+      // 1. Guardrail: Block Mixed Cart (Retail & Sablon together)
+      const hasRetail = cartItems.some(item => item.businessType === 'FASHION_RETAIL');
+      const hasSablon = cartItems.some(item => item.businessType === 'SABLON_SERVICE');
+      
+      if (hasRetail && hasSablon) {
+        throw new BadRequestError('Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah');
       }
 
       orderItems = cartItems.map((item) => ({
@@ -208,6 +233,11 @@ const createOrder = async (req, res, next) => {
       finalAmount = 0;
     }
 
+    // 5. Add Shipping Cost (For Retail)
+    if (shippingCost && !hasSablon) {
+      finalAmount += Number(shippingCost);
+    }
+
     // Buat order dan order items dalam transaksi
     const order = await knex.transaction(async (trx) => {
       const orderId = require('cuid')();
@@ -223,6 +253,8 @@ const createOrder = async (req, res, next) => {
         voucherDiscountAmount,
         paymentMethod,
         deliveryAddress: deliveryAddress ? JSON.stringify(deliveryAddress) : null,
+        shippingCourier: shippingCourier || null,
+        shippingCost: shippingCost && !hasSablon ? Number(shippingCost) : null,
         notes: notes || null,
         status: 'PENDING',
         createdAt: new Date(),
@@ -266,51 +298,98 @@ const createOrder = async (req, res, next) => {
       return await trx('order').where('id', orderId).first();
     });
 
-    if (!items) {
+    // Always clear the checked-out items from the user's cart
+    if (userId) {
       const cart = await knex('shoppingCart').where('userId', userId).first();
-      if (cart) {
-        await knex('cartItem').where('cartId', cart.id).delete();
+      if (cart && orderItems.length > 0) {
+        const productIds = orderItems.map(it => it.productId);
+        await knex('cartItem')
+          .where('cartId', cart.id)
+          .whereIn('productId', productIds)
+          .delete();
       }
     }
 
-    // Call Midtrans Snap
-    let paymentUrl = null;
-    let snapToken = null;
+    // Queue 'Waiting for Payment' Notification
     try {
+      await notificationService.queueNotification({
+        orderId: order.id,
+        userId: userId || null,
+        recipientEmail: user ? user.email : (deliveryAddress?.email || null),
+        type: 'PENDING',
+        title: 'Menunggu Pembayaran',
+        message: `Pesanan ${order.orderNumber} berhasil dibuat. Segera lakukan pembayaran agar pesanan dapat diproses.`,
+      });
+    } catch (notifErr) {
+      console.error('Failed to queue PENDING notification:', notifErr.message);
+    }
+
+    // Generate Xendit Invoice
+    let paymentUrl = null;
+    let snapToken = null; // Kept for compatibility if frontend still destructs it
+    try {
+      const paymentId = require('cuid')();
+      const customerNameParts = user?.fullName ? user.fullName.split(' ') : [];
       const customer = user ? {
-        first_name: user.fullName?.split(' ')[0] || 'Customer',
-        last_name: user.fullName?.split(' ').slice(1).join(' ') || '',
+        givenNames: customerNameParts[0] || 'Customer',
+        ...(customerNameParts.length > 1 && { surname: customerNameParts.slice(1).join(' ') }),
         email: user.email,
-        phone: user.phone || '081234567890'
+        mobileNumber: user.phone || '081234567890'
       } : {
-        first_name: 'Customer',
+        givenNames: 'Customer',
         email: deliveryAddress?.email || 'customer@example.com'
       };
 
-      const parameter = {
-        transaction_details: {
-          order_id: order.id,
-          gross_amount: finalAmount
-        },
-        customer_details: customer,
+      const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
+      const invoiceRequest = {
+        externalId: paymentId,
+        amount: finalAmount,
+        payerEmail: customer.email,
+        description: `Pesanan AriaNation #${order.orderNumber || order.id}`,
+        customer: customer,
+        successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
+        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`
       };
 
-      const snapResponse = await snap.createTransaction(parameter);
+      const xenditResponse = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
+      paymentUrl = xenditResponse.invoiceUrl;
       
       // Save payment locally
       await paymentService.create({
+        id: paymentId,
         orderId: order.id,
         amount: finalAmount,
-        paymentMethod: paymentMethod || 'MIDTRANS',
+        paymentMethod: paymentMethod || 'XENDIT',
         status: 'PENDING',
         transactionId: order.id,
-        qrisUrl: snapResponse.redirect_url
+        qrisUrl: paymentUrl,
+        xenditId: xenditResponse.id
       });
-
-      paymentUrl = snapResponse.redirect_url;
-      snapToken = snapResponse.token;
     } catch (err) {
-      console.error('Midtrans Snap Error:', err.message);
+      console.error('Xendit Invoice Error Details:', err.response ? JSON.stringify(err.response, null, 2) : err.message);
+      console.error('Xendit Request Data:', JSON.stringify(invoiceRequest, null, 2));
+
+      // 2. Guardrail: Manual Rollback for State Locking if Xendit fails
+      await knex('order').where('id', order.id).update({ status: 'FAILED' });
+      
+      if (pointsToDeduct > 0) {
+        await knex('user').where('id', userId).increment('rewardPoints', pointsToDeduct);
+        
+        await knex('pointHistory').insert({
+          id: require('cuid')(),
+          userId,
+          points: pointsToDeduct,
+          type: 'REFUNDED',
+          description: `Pengembalian poin karena tagihan gagal (Pesanan ${order.id.slice(0, 8)})`,
+          createdAt: new Date(),
+        });
+      }
+      
+      if (usedVoucherId) {
+        await knex('voucher').where('id', usedVoucherId).decrement('usedCount', 1);
+      }
+      
+      throw new BadRequestError('Gagal membuat tagihan pembayaran. Saldo poin dan voucher Anda telah dikembalikan otomatis.');
     }
 
     return sendCreated(res, { ...order, paymentUrl, snapToken }, MESSAGES.ORDER_CREATED);
@@ -370,8 +449,13 @@ const getOrderTracking = async (req, res, next) => {
     const order = await orderService.findById(id);
     if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
-    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
-      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    if (order.userId !== null) {
+      if (!req.user) {
+        throw new AuthorizationError('You must be logged in to view this tracking information');
+      }
+      if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+        throw new AuthorizationError(MESSAGES.FORBIDDEN);
+      }
     }
 
     const tracking = await knex('orderTracking').where('orderId', id).first();
@@ -394,8 +478,13 @@ const getOrderStatusHistory = async (req, res, next) => {
     const order = await orderService.findById(id);
     if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
-    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
-      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    if (order.userId !== null) {
+      if (!req.user) {
+        throw new AuthorizationError('You must be logged in to view this order history');
+      }
+      if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+        throw new AuthorizationError(MESSAGES.FORBIDDEN);
+      }
     }
 
     const history = await orderFulfillmentService.getOrderStatusHistory(id);
@@ -413,8 +502,13 @@ const getOrderTimeline = async (req, res, next) => {
     const order = await orderService.findById(id);
     if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
-    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
-      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    if (order.userId !== null) {
+      if (!req.user) {
+        throw new AuthorizationError('You must be logged in to view this order timeline');
+      }
+      if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+        throw new AuthorizationError(MESSAGES.FORBIDDEN);
+      }
     }
 
     const timeline = await orderFulfillmentService.getOrderTimeline(id);
@@ -432,8 +526,13 @@ const getOrderNotifications = async (req, res, next) => {
     const order = await orderService.findById(id);
     if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
 
-    if (req.user?.role === 'CUSTOMER' && order.userId !== null && order.userId !== req.user.id) {
-      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    if (order.userId !== null) {
+      if (!req.user) {
+        throw new AuthorizationError('You must be logged in to view order notifications');
+      }
+      if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+        throw new AuthorizationError(MESSAGES.FORBIDDEN);
+      }
     }
 
     const notifications = await orderFulfillmentService.getOrderNotifications(id);
@@ -446,7 +545,7 @@ const getOrderNotifications = async (req, res, next) => {
 
 const createGuestOrder = async (req, res, next) => {
   try {
-    const { guestEmail, firstName, lastName, address, city, postalCode, phone, items, paymentMethod, notes } = req.body;
+    const { guestEmail, firstName, lastName, address, city, postalCode, phone, items, paymentMethod, notes, shippingCourier, shippingCost } = req.body;
 
     // Validation: required fields
     if (!guestEmail || !firstName || !lastName || !address || !city || !postalCode || !phone) {
@@ -497,6 +596,14 @@ const createGuestOrder = async (req, res, next) => {
       const productsById = new Map(products.map((p) => [p.id, p]));
       const variantsById = new Map(variants.map((v) => [v.id, v]));
 
+      // 1. Guardrail: Block Mixed Cart
+      const hasRetail = products.some(p => p.businessType === 'FASHION_RETAIL');
+      const hasSablon = products.some(p => p.businessType === 'SABLON_SERVICE');
+      
+      if (hasRetail && hasSablon) {
+        throw new BadRequestError('Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah');
+      }
+
       orderItems = items.map((item) => {
         const product = productsById.get(item.productId);
         if (!product || !product.isActive) {
@@ -522,7 +629,10 @@ const createGuestOrder = async (req, res, next) => {
       throw new BadRequestError('At least one item is required');
     }
 
-    const totalAmount = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+    let finalAmount = totalAmount;
+    if (shippingCost && !hasSablon) {
+      finalAmount += Number(shippingCost);
+    }
 
     // Create guest order and items in transaction
     const order = await knex.transaction(async (trx) => {
@@ -540,8 +650,10 @@ const createGuestOrder = async (req, res, next) => {
           city: sanitizedData.city,
           postalCode: sanitizedData.postalCode
         }),
-        totalAmount,
+        totalAmount: finalAmount,
         paymentMethod: paymentMethod || 'PENDING',
+        shippingCourier: shippingCourier || null,
+        shippingCost: shippingCost && !hasSablon ? Number(shippingCost) : null,
         status: 'PENDING',
         notes: sanitizeInput(notes) || null,
         createdAt: new Date(),
@@ -578,44 +690,170 @@ const createGuestOrder = async (req, res, next) => {
       return await trx('order').where('id', orderId).first();
     });
 
-    // Call Midtrans Snap
+    // Generate Xendit Invoice
     let paymentUrl = null;
     let snapToken = null;
     try {
+      const paymentId = require('cuid')();
       const customer = {
-        first_name: sanitizedData.firstName,
-        last_name: sanitizedData.lastName,
+        givenNames: sanitizedData.firstName,
+        surname: sanitizedData.lastName,
         email: sanitizedData.guestEmail,
-        phone: sanitizedData.phone
+        mobileNumber: sanitizedData.phone
       };
 
-      const parameter = {
-        transaction_details: {
-          order_id: order.id,
-          gross_amount: totalAmount
-        },
-        customer_details: customer,
+      const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
+      const invoiceRequest = {
+        externalId: paymentId,
+        amount: finalAmount,
+        payerEmail: customer.email,
+        description: `Pesanan Guest AriaNation #${order.orderNumber || order.id}`,
+        customer: customer,
+        successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
+        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`
       };
 
-      const snapResponse = await snap.createTransaction(parameter);
+      const xenditResponse = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
+      paymentUrl = xenditResponse.invoiceUrl;
       
       // Save payment locally
       await paymentService.create({
+        id: paymentId,
         orderId: order.id,
-        amount: totalAmount,
-        paymentMethod: paymentMethod || 'MIDTRANS',
+        amount: finalAmount,
+        paymentMethod: paymentMethod || 'XENDIT',
         status: 'PENDING',
         transactionId: order.id,
-        qrisUrl: snapResponse.redirect_url
+        qrisUrl: paymentUrl,
+        xenditId: xenditResponse.id
       });
-
-      paymentUrl = snapResponse.redirect_url;
-      snapToken = snapResponse.token;
     } catch (err) {
-      console.error('Midtrans Snap Error:', err.message);
+      console.error('Xendit Invoice Error:', err.message);
+      
+      // 2. Guardrail: Manual Rollback for State Locking if Xendit fails
+      await knex('order').where('id', order.id).update({ status: 'FAILED' });
+      
+      throw new BadRequestError('Gagal membuat tagihan pembayaran. Silakan coba lagi.');
     }
 
     return sendCreated(res, { orderId: order.id, email: sanitizedData.guestEmail, paymentUrl, snapToken }, 'Guest order created successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getShippingRates = async (req, res, next) => {
+  try {
+    const { destinationPostalCode, items } = req.body;
+    
+    if (!destinationPostalCode) {
+      throw new BadRequestError('Kode pos tujuan wajib diisi');
+    }
+
+    let totalWeight = 0;
+    
+    if (items && Array.isArray(items) && items.length > 0) {
+      const productIds = items.map(i => i.productId);
+      const products = await knex('product').whereIn('id', productIds).select('id', 'weight');
+      const productsById = new Map(products.map(p => [p.id, p]));
+      
+      for (const item of items) {
+        const p = productsById.get(item.productId);
+        if (p) {
+          totalWeight += (p.weight || 250) * item.quantity;
+        }
+      }
+    }
+    
+    if (totalWeight === 0) totalWeight = 250; 
+
+    const shippingService = require('../services/shippingService');
+    const rates = await shippingService.getRates({
+      destinationPostalCode,
+      weight: totalWeight
+    });
+
+    return sendSuccess(res, rates, 'Tarif pengiriman berhasil diambil');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createPelunasanInvoice = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { shippingCourier, shippingCost } = req.body;
+
+    const order = await orderService.findById(id);
+    if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
+
+    if (order.status !== 'WAITING_FINAL_PAYMENT') {
+      throw new BadRequestError('Pesanan belum siap untuk pelunasan');
+    }
+
+    if (!shippingCourier || shippingCost === undefined) {
+      throw new BadRequestError('Opsi pengiriman harus dipilih');
+    }
+
+    const payments = await knex('payment').where('orderId', id).where('status', 'COMPLETED');
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    
+    const remainingToPay = order.totalAmount - totalPaid + Number(shippingCost);
+
+    await knex('order').where('id', id).update({
+      shippingCourier,
+      shippingCost: Number(shippingCost),
+      updatedAt: new Date()
+    });
+
+    const paymentId = require('cuid')();
+    
+    let customer = { givenNames: 'Customer', email: 'customer@example.com' };
+    if (order.userId) {
+      const user = await knex('user').where('id', order.userId).first();
+      if (user) {
+        customer = {
+          givenNames: user.fullName || 'Customer',
+          email: user.email,
+          mobileNumber: user.phone || '081234567890'
+        };
+      }
+    } else {
+      try {
+        const addr = JSON.parse(order.deliveryAddress);
+        customer = {
+          givenNames: addr.fullName || 'Customer',
+          email: addr.email || 'customer@example.com',
+          mobileNumber: addr.phone || '081234567890'
+        };
+      } catch (e) {}
+    }
+
+    const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
+    const invoiceRequest = {
+      externalId: paymentId,
+      amount: remainingToPay,
+      payerEmail: customer.email,
+      description: `Pelunasan & Ongkir AriaNation #${order.orderNumber || order.id}`,
+      customer: customer,
+      successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
+      failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout-pelunasan/${order.id}`
+    };
+
+    const xenditResponse = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
+    
+    await paymentService.create({
+      id: paymentId,
+      orderId: order.id,
+      amount: remainingToPay,
+      paymentMethod: 'XENDIT',
+      status: 'PENDING',
+      transactionId: order.id,
+      qrisUrl: xenditResponse.invoiceUrl,
+      xenditId: xenditResponse.id
+    });
+
+    return sendSuccess(res, { paymentUrl: xenditResponse.invoiceUrl }, 'Invoice pelunasan berhasil dibuat');
   } catch (error) {
     next(error);
   }
@@ -632,4 +870,6 @@ module.exports = {
   getOrderStatusHistory,
   getOrderTimeline,
   getOrderNotifications,
+  getShippingRates,
+  createPelunasanInvoice,
 };

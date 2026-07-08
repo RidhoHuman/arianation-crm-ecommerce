@@ -56,3 +56,104 @@ exports.deleteNotification = async (req, res) => {
     res.status(500).json({ success: false, message: 'Gagal menghapus notifikasi' });
   }
 };
+
+/**
+ * CUSTOMER NOTIFICATIONS
+ */
+
+exports.getCustomerNotifications = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    const notifications = await knex('orderNotification')
+      .where('userId', userId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .offset(offset);
+
+    const totalResult = await knex('orderNotification')
+      .where('userId', userId)
+      .count('id as count')
+      .first();
+      
+    const total = totalResult.count;
+    
+    // Fallback unread count if isRead column doesn't exist
+    let unreadCount = 0;
+    try {
+      const unreadResult = await knex('orderNotification')
+        .where('userId', userId)
+        .andWhere('isRead', false)
+        .count('id as count')
+        .first();
+      unreadCount = unreadResult.count;
+    } catch (e) {
+      // Ignored if column missing
+    }
+
+    res.status(200).json({
+      success: true,
+      data: notifications,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        unreadCount
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching customer notifications:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+exports.markCustomerAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    try {
+      await knex('orderNotification')
+        .where('id', id)
+        .andWhere('userId', userId)
+        .update({
+          isRead: true,
+          updatedAt: new Date()
+        });
+    } catch (e) {
+      // Ignore if isRead missing
+    }
+
+    res.status(200).json({ success: true, message: 'Notification marked as read' });
+  } catch (error) {
+    console.error('Error marking customer notification as read:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+exports.markAllCustomerAsRead = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    try {
+      await knex('orderNotification')
+        .where('userId', userId)
+        .andWhere('isRead', false)
+        .update({
+          isRead: true,
+          updatedAt: new Date()
+        });
+    } catch (e) {
+      // Ignore if isRead missing
+    }
+
+    res.status(200).json({ success: true, message: 'All notifications marked as read' });
+  } catch (error) {
+    console.error('Error marking all customer notifications as read:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};

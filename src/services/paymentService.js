@@ -19,7 +19,7 @@ const paymentService = {
       .select(
         'id',
         'orderId',
-        'paymentMethod',
+        'method as paymentMethod',
         'amount',
         'status',
         'transactionId',
@@ -55,7 +55,7 @@ const paymentService = {
       .select(
         'id',
         'orderId',
-        'paymentMethod',
+        'method as paymentMethod',
         'amount',
         'status',
         'transactionId',
@@ -87,19 +87,15 @@ const paymentService = {
   },
 
   // Buat payment baru
-  async create({
-    orderId,
-    paymentMethod,
-    amount,
-    status = 'PENDING',
-    transactionId = null,
-  }) {
-    const id = require('cuid')();
+  async create(data) {
+    const { orderId, paymentMethod, amount, status = 'PENDING', transactionId = null, ...rest } = data;
+    const id = data.id || require('cuid')();
 
     const payment = {
+      ...rest,
       id,
       orderId,
-      paymentMethod,
+      method: paymentMethod || data.method,
       amount,
       status,
       transactionId,
@@ -170,7 +166,7 @@ const paymentService = {
   async findPaymentsByOrder(orderId) {
     const payments = await knex('payment')
       .where('orderId', orderId)
-      .select('id', 'paymentMethod', 'amount', 'status', 'transactionId', 'createdAt')
+      .select('id', 'method as paymentMethod', 'amount', 'status', 'transactionId', 'createdAt')
       .orderBy('createdAt', 'desc');
 
     return payments;

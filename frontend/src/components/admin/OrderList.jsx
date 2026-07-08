@@ -1,18 +1,21 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Semua' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'shipped', label: 'Shipped' },
-  { value: 'delivered', label: 'Delivered' },
-  { value: 'canceled', label: 'Canceled' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'CONFIRMED', label: 'Confirmed' },
+  { value: 'PROCESSING', label: 'Processing' },
+  { value: 'SHIPPED', label: 'Shipped' },
+  { value: 'DELIVERED', label: 'Delivered' },
+  { value: 'CANCELLED', label: 'Canceled' },
 ];
 
 export default function OrderList() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
-  const [statusFilter, setStatusFilter] = useState('pending');
+  const [statusFilter, setStatusFilter] = useState('PENDING');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
@@ -27,7 +30,7 @@ export default function OrderList() {
         const params = {};
         if (statusFilter !== 'all') params.status = statusFilter;
 
-        const response = await api.get('/orders', { params });
+        const response = await api.get('/admin/orders', { params });
         setOrders(response.data.data || []);
       } catch (e) {
         setError(e?.response?.data?.message || 'Gagal memuat daftar PO');
@@ -44,7 +47,7 @@ export default function OrderList() {
       const params = {};
       if (statusFilter !== 'all') params.status = statusFilter;
 
-      const response = await api.get('/orders', { params });
+      const response = await api.get('/admin/orders', { params });
       setOrders(response.data.data || []);
     } catch (e) {
       setError(e?.response?.data?.message || 'Gagal menyegarkan daftar PO');
@@ -56,7 +59,7 @@ export default function OrderList() {
     setMessage(null);
 
     try {
-      const response = await api.put(`/orders/${orderId}/status`, { status: action });
+      const response = await api.put(`/admin/orders/${orderId}/status`, { status: action });
       setMessage(response.data?.message || 'Status pesanan berhasil diperbarui');
       await refreshOrders();
     } catch (e) {
@@ -71,7 +74,7 @@ export default function OrderList() {
     setMessage(null);
 
     try {
-      const response = await api.put(`/orders/${orderId}/cancel`, { reason: 'Admin canceled' });
+      const response = await api.put(`/admin/orders/${orderId}/cancel`, { reason: 'Admin canceled' });
       setMessage(response.data?.message || 'Pesanan dibatalkan');
       await refreshOrders();
     } catch (e) {
@@ -85,7 +88,13 @@ export default function OrderList() {
     const isLoading = actionLoading[order.id];
     return (
       <div className="flex flex-wrap gap-2">
-        {order.status === 'pending' && (
+        <button
+          onClick={() => navigate(`/admin/orders/${order.id}`)}
+          className="rounded-full bg-gray-100 border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200"
+        >
+          Detail
+        </button>
+        {order.status === 'PENDING' && (
           <>
             <button
               type="button"
@@ -101,11 +110,11 @@ export default function OrderList() {
               disabled={isLoading}
               className="rounded-full bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
             >
-              Batalkan
+              Batal
             </button>
           </>
         )}
-        {order.status === 'confirmed' && (
+        {order.status === 'CONFIRMED' && (
           <>
             <button
               type="button"
@@ -121,18 +130,18 @@ export default function OrderList() {
               disabled={isLoading}
               className="rounded-full bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
             >
-              Batalkan
+              Batal
             </button>
           </>
         )}
-        {order.status === 'shipped' && (
+        {order.status === 'SHIPPED' && (
           <button
             type="button"
             onClick={() => updateOrder(order.id, 'DELIVERED')}
             disabled={isLoading}
             className="rounded-full bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
           >
-            Tandai Diterima
+            Selesai
           </button>
         )}
       </div>
@@ -202,25 +211,36 @@ export default function OrderList() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
-                <tr key={order.id} className="border-t border-gray-200 bg-white">
-                  <td className="px-4 py-4 font-semibold text-gray-900">{order.id}</td>
-                  <td className="px-4 py-4 text-gray-700">
-                    {order.product?.productName || order.productId || '—'}
-                  </td>
-                  <td className="px-4 py-4 text-gray-700">{order.customerId || 'Guest'}</td>
-                  <td className="px-4 py-4 text-gray-700">{order.quantity}</td>
-                  <td className="px-4 py-4 text-gray-700">
-                    {order.pricePerUnit ? `Rp ${order.pricePerUnit.toLocaleString('id-ID')}` : '—'}
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : order.status === 'confirmed' ? 'bg-blue-100 text-blue-800' : order.status === 'shipped' ? 'bg-sky-100 text-sky-800' : order.status === 'delivered' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">{getActionButtons(order)}</td>
-                </tr>
-              ))}
+              {orders.map((order) => {
+                let itemsSummary = '—';
+                if (order.items && order.items.length > 0) {
+                  itemsSummary = order.items.map(i => `${i.quantity}x ${i.productName}`).join(', ');
+                }
+                const totalItems = order.items ? order.items.reduce((s, i) => s + i.quantity, 0) : 0;
+                
+                return (
+                  <tr key={order.id} className="border-t border-gray-200 bg-white">
+                    <td className="px-4 py-4 font-semibold text-gray-900">{order.orderNumber}</td>
+                    <td className="px-4 py-4 text-gray-700 text-xs uppercase tracking-wider truncate max-w-[200px]" title={itemsSummary}>
+                      {itemsSummary}
+                    </td>
+                    <td className="px-4 py-4 text-gray-700 text-xs">
+                      <div className="font-semibold">{order.customerName || 'Guest'}</div>
+                      <div className="text-gray-400">{order.customerEmail || '—'}</div>
+                    </td>
+                    <td className="px-4 py-4 text-gray-700">{totalItems}</td>
+                    <td className="px-4 py-4 text-gray-700 font-semibold">
+                      {order.totalAmount ? `Rp ${Number(order.totalAmount).toLocaleString('id-ID')}` : '—'}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : order.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' : order.status === 'SHIPPED' ? 'bg-sky-100 text-sky-800' : order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">{getActionButtons(order)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

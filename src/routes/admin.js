@@ -19,6 +19,7 @@ const {
   updateOrderTracking,
   cancelOrder,
   exportOrders,
+  requestPickup,
   // Design Requests
   getDesignRequests,
   getDesignRequestDetail,
@@ -34,6 +35,9 @@ const {
   processRefund,
   // Audit Logs
   getAuditLogs,
+  // Couriers
+  getCouriers,
+  toggleCourier,
 } = require('../controllers/adminController');
 
 const {
@@ -78,8 +82,15 @@ router.get('/orders', getOrders);
 router.get('/orders/:id', getOrderDetail);
 router.put('/orders/:id/status', updateOrderStatus);
 router.put('/orders/:id/tracking', updateOrderTracking);
+router.put('/orders/:id/pickup', requestPickup);
 router.put('/orders/:id/cancel', cancelOrder);
 router.get('/orders/export/csv', exportOrders);
+
+// ============================================================
+// LOGISTICS / COURIERS
+// ============================================================
+router.get('/couriers', getCouriers);
+router.put('/couriers/:code/toggle', toggleCourier);
 
 // ============================================================
 // DESIGN REQUESTS

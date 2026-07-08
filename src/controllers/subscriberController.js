@@ -56,6 +56,86 @@ exports.unsubscribe = async (req, res) => {
   }
 };
 
+// Background job processor
+const processPromoBlast = async (subscribers, subject, emailData) => {
+  console.log(`[PromoBlast] Starting background job for ${subscribers.length} subscribers...`);
+  
+  const user = process.env.EMAIL_USER || process.env.SMTP_USER;
+  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
+
+  if (!user || !pass) {
+    console.error('[PromoBlast] Missing SMTP credentials! Aborting job.');
+    return;
+  }
+
+  const transporter = createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+
+  let successCount = 0;
+  let failCount = 0;
+
+  // Process in chunks (simulated batching)
+  const batchSize = 10;
+  for (let i = 0; i < subscribers.length; i += batchSize) {
+    const batch = subscribers.slice(i, i + batchSize);
+    
+    // Process batch concurrently
+    const promises = batch.map(async (sub) => {
+      try {
+        await transporter.sendMail({
+          from: `"${process.env.STORE_NAME || 'Arianation E-Commerce'}" <${user}>`,
+          to: sub.email,
+          subject: subject,
+          text: emailData.text,
+          html: emailData.html,
+        });
+        
+        // Push notification to user account if they have one
+        const userRec = await knex('user').where('email', sub.email).first();
+        if (userRec) {
+          const cuid = require('cuid');
+          await knex('orderNotification').insert({
+            id: cuid(),
+            orderId: 'PROMO', // Differentiate from actual order
+            userId: userRec.id,
+            type: 'PROMO',
+            title: subject,
+            message: 'Promo Baru! Cek email Anda untuk info selengkapnya.',
+            emailSent: true,
+            createdAt: new Date(),
+          }).catch(() => {}); // Ignore errors if table structure is strict
+        }
+        
+        return true;
+      } catch (err) {
+        console.error(`[PromoBlast] Failed to send to ${sub.email}:`, err.message);
+        return false;
+      }
+    });
+
+    const results = await Promise.all(promises);
+    successCount += results.filter(r => r).length;
+    failCount += results.filter(r => !r).length;
+    
+    // Tiny delay between batches to avoid rate limits
+    if (i + batchSize < subscribers.length) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+
+  console.log(`[PromoBlast] Job completed. Success: ${successCount}, Failed: ${failCount}`);
+  
+  // Save log/report to database (optional)
+  await knex('admin_notifications').insert({
+    title: 'Laporan Blast Promo',
+    message: `Blast promo "${subject}" selesai. Berhasil: ${successCount}, Gagal: ${failCount}`,
+    type: 'SYSTEM',
+    isRead: false
+  });
+};
+
 exports.sendPromoEmail = async (req, res) => {
   try {
     const { subject, message, useTemplate } = req.body;
@@ -69,70 +149,21 @@ exports.sendPromoEmail = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Tidak ada subscriber yang aktif' });
     }
 
-    // Create transporter based on env variables
-    let transporter;
-    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.warn('SMTP config missing, generating ethereal test account...');
-      const testAccount = await require('nodemailer').createTestAccount();
-      transporter = createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass,
-        },
-      });
-    } else {
-      transporter = createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587', 10),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-    }
-
     // Prepare email HTML
     const emailData = renderPromoEmail({ subject, message, useTemplate });
 
-    // Send emails (In a real app with thousands of users, use a queue like BullMQ)
-    let successCount = 0;
-    let failCount = 0;
-    let previewUrl = null;
+    // Start background job WITHOUT awaiting
+    processPromoBlast(subscribers, subject, emailData).catch(err => {
+      console.error('[PromoBlast] Background job crashed:', err);
+    });
 
-    for (const sub of subscribers) {
-      try {
-        const info = await transporter.sendMail({
-          from: `"AriaNation" <${process.env.SMTP_USER || 'promo@arianation.com'}>`,
-          to: sub.email,
-          subject: subject,
-          text: emailData.text,
-          html: emailData.html,
-        });
-        
-        // Log preview URL if using test account
-        if (info.messageId && require('nodemailer').getTestMessageUrl(info)) {
-            previewUrl = require('nodemailer').getTestMessageUrl(info);
-            console.log(`📧 Preview Promo Email (${sub.email}): ${previewUrl}`);
-        }
-        
-        successCount++;
-      } catch (err) {
-        console.error(`Failed to send to ${sub.email}:`, err.message);
-        failCount++;
-      }
-    }
-
-    res.json({ 
+    // Return 202 Accepted immediately
+    res.status(202).json({ 
       success: true, 
-      message: `Email promo berhasil dikirim ke ${successCount} pelanggan. ${failCount} gagal.`,
-      previewUrl
+      message: `Proses pengiriman blast promo ke ${subscribers.length} pelanggan sedang berjalan di latar belakang.`
     });
   } catch (error) {
-    console.error('Error sending promo email:', error);
-    res.status(500).json({ success: false, message: 'Gagal mengirim email promo' });
+    console.error('Error initiating promo blast:', error);
+    res.status(500).json({ success: false, message: 'Gagal memulai pengiriman email promo' });
   }
 };

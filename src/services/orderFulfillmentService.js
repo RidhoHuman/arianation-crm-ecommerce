@@ -2,16 +2,21 @@
 
 const knex = require('../config/knex');
 const { BadRequestError } = require('../utils/errors');
+const notificationService = require('./notificationService');
 
-// Valid status transitions
 const validTransitions = {
-  PENDING: ['CONFIRMED', 'CANCELLED'],
+  PENDING: ['PAID_WAITING_APPROVAL', 'CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['PROCESSING', 'CANCELLED'],
-  PROCESSING: ['READY_FOR_DELIVERY', 'FAILED'],
+  PAID_WAITING_APPROVAL: ['PROCESSING', 'IN_PRODUCTION', 'CANCELLED'],
+  IN_PRODUCTION: ['WAITING_FINAL_PAYMENT', 'CANCELLED'],
+  WAITING_FINAL_PAYMENT: ['READY_TO_SHIP', 'CANCELLED', 'ABANDONED'],
+  PROCESSING: ['READY_TO_SHIP', 'READY_FOR_DELIVERY', 'FAILED'],
+  READY_TO_SHIP: ['SHIPPED', 'FAILED'],
   READY_FOR_DELIVERY: ['SHIPPED', 'FAILED'],
   SHIPPED: ['DELIVERED', 'FAILED'],
   DELIVERED: [], // Final state
   CANCELLED: [], // Final state
+  ABANDONED: [], // Final state
   FAILED: ['PROCESSING', 'CANCELLED'], // Can retry or cancel
 };
 
@@ -36,25 +41,34 @@ const validateStatusTransition = (currentStatus, newStatus) => {
 
 /**
  * Validate specific transition rules
+ * @param {Object} trx - Knex transaction
  * @param {Object} order - Order object with relations
  * @param {String} newStatus - New status
  * @throws {BadRequestError} if business rules violated
  */
-const validateTransitionRules = async (order, newStatus) => {
-  // PENDING → CONFIRMED: Only if Payment.status = 'COMPLETED'
-  if (order.status === 'PENDING' && newStatus === 'CONFIRMED') {
-    if (!order.payment || order.payment.status !== 'COMPLETED') {
-      throw new BadRequestError('Cannot confirm order without completed payment');
+const validateTransitionRules = async (trx, order, newStatus) => {
+  // Check if it's a Custom Sablon order
+  const isCustomSablon = await trx('designRequest').where('orderId', order.id).first();
+
+  if (isCustomSablon) {
+    if (order.status === 'PAID_WAITING_APPROVAL' && !['IN_PRODUCTION', 'CANCELLED'].includes(newStatus)) {
+      throw new BadRequestError('Custom Sablon orders must go to IN_PRODUCTION after approval');
+    }
+  } else {
+    if (order.status === 'PAID_WAITING_APPROVAL' && !['PROCESSING', 'CANCELLED'].includes(newStatus)) {
+      throw new BadRequestError('Retail orders must go to PROCESSING after approval');
     }
   }
 
-  // CONFIRMED → PROCESSING: Check stock availability (optional for now)
-  if (order.status === 'CONFIRMED' && newStatus === 'PROCESSING') {
-    // Future: Check product stock
+  // PENDING → CONFIRMED / PAID_WAITING_APPROVAL: Only if Payment.status = 'COMPLETED'
+  if (order.status === 'PENDING' && ['CONFIRMED', 'PAID_WAITING_APPROVAL'].includes(newStatus)) {
+    if (!order.payment || order.payment.status !== 'COMPLETED') {
+      throw new BadRequestError('Cannot approve order without completed payment');
+    }
   }
 
-  // READY_FOR_DELIVERY → SHIPPED: Require tracking number
-  if (order.status === 'READY_FOR_DELIVERY' && newStatus === 'SHIPPED') {
+  // READY_TO_SHIP or READY_FOR_DELIVERY → SHIPPED: Require tracking number
+  if (['READY_TO_SHIP', 'READY_FOR_DELIVERY'].includes(order.status) && newStatus === 'SHIPPED') {
     if (!order.tracking || !order.tracking.trackingNumber) {
       throw new BadRequestError('Tracking number required before shipping');
     }
@@ -105,7 +119,7 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
     validateStatusTransition(order.status, newStatus);
 
     // Validate transition rules
-    await validateTransitionRules(orderWithRelations, newStatus);
+    await validateTransitionRules(trx, orderWithRelations, newStatus);
 
     const previousStatus = order.status;
 
@@ -238,8 +252,9 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
   const config = notificationConfig[status];
   if (config) {
     const cuid = require('cuid');
+    const notificationId = cuid();
     await trx('orderNotification').insert({
-      id: cuid(),
+      id: notificationId,
       orderId,
       userId: order.userId || null,
       type: config.type,
@@ -247,6 +262,11 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
       message: config.message,
       emailSent: false,
       createdAt: new Date(),
+    });
+    
+    // Call the notification service to send the email asynchronously
+    notificationService.sendOrderNotification(notificationId).catch(err => {
+      console.error('[NotificationService] Error sending email:', err.message);
     });
   }
 };

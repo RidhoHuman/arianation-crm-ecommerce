@@ -515,12 +515,18 @@ const updateOrderStatus = async (req, res, next) => {
       .first();
     if (!order) throw new NotFoundError('Order not found');
 
+    const updateData = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (status === 'WAITING_FINAL_PAYMENT' && req.body.actualWeight) {
+      updateData.actualWeight = Number(req.body.actualWeight);
+    }
+
     const updated = await knex('order')
       .where('id', id)
-      .update({
-        status,
-        updatedAt: new Date(),
-      });
+      .update(updateData);
 
     if (!updated) throw new NotFoundError('Order not found');
 
@@ -603,17 +609,13 @@ const cancelOrder = async (req, res, next) => {
       throw new ValidationError(`Cannot cancel order with status ${order.status}`);
     }
 
-    await knex('order')
-      .where('id', id)
-      .update({
-        status: 'CANCELLED',
-        updatedAt: new Date(),
-      });
-
-    const cancelled = await knex('order')
-      .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt')
-      .where('id', id)
-      .first();
+    const updatedOrder = await orderFulfillmentService.updateOrderStatus(
+      id,
+      'CANCELLED',
+      req.user.id,
+      'Admin canceled',
+      'Admin cancelled order'
+    );
 
     // Audit log
     await knex('auditLog')
@@ -629,7 +631,7 @@ const cancelOrder = async (req, res, next) => {
       })
       .catch(() => {});
 
-    return sendSuccess(res, cancelled, 'Order cancelled successfully');
+    return sendSuccess(res, updatedOrder, 'Order cancelled successfully');
   } catch (error) {
     next(error);
   }
@@ -1202,6 +1204,154 @@ const uploadImageHandler = async (req, res, next) => {
   }
 };
 
+const getCouriers = async (req, res, next) => {
+  try {
+    const couriers = await knex('couriers').orderBy('name', 'asc');
+    return sendSuccess(res, couriers, 'Daftar kurir berhasil diambil');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const toggleCourier = async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { isActive } = req.body;
+
+    await knex('couriers').where('code', code).update({ isActive });
+    return sendSuccess(res, { code, isActive }, 'Status kurir berhasil diupdate');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const requestPickup = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    const order = await knex('order').where('id', id).first();
+    if (!order) throw new NotFoundError('Pesanan tidak ditemukan');
+
+    if (order.status !== 'READY_TO_SHIP') {
+      throw new BadRequestError('Hanya pesanan berstatus READY_TO_SHIP yang bisa di-pickup');
+    }
+
+    if (!order.shippingCourier) {
+      throw new BadRequestError('Kurir pengiriman belum dipilih untuk pesanan ini');
+    }
+
+    const orderItems = await knex('orderItem')
+      .join('product', 'orderItem.productId', '=', 'product.id')
+      .select('orderItem.*', 'product.productName', 'product.weight')
+      .where('orderId', id);
+
+    let totalWeight = order.actualWeight || 0;
+    
+    const items = orderItems.map(item => {
+      const itemWeight = item.weight || 250;
+      if (!order.actualWeight) totalWeight += itemWeight * item.quantity;
+      return {
+        name: item.productName,
+        description: `Variant: ${item.variantId || 'Default'}`,
+        value: item.unitPrice,
+        weight: itemWeight,
+        quantity: item.quantity
+      };
+    });
+
+    if (totalWeight === 0) totalWeight = 250;
+
+    let customerName = 'Customer';
+    let customerEmail = 'customer@example.com';
+    let customerPhone = '081234567890';
+    let destinationAddress = 'Alamat tidak diketahui';
+    let destinationPostalCode = 12345;
+
+    if (order.deliveryAddress) {
+      try {
+        const addr = JSON.parse(order.deliveryAddress);
+        customerName = addr.fullName || customerName;
+        customerEmail = addr.email || customerEmail;
+        customerPhone = addr.phone || customerPhone;
+        destinationAddress = `${addr.addressLine1}, ${addr.city}`;
+        destinationPostalCode = addr.postalCode || destinationPostalCode;
+      } catch(e) {}
+    }
+
+    const shippingService = require('../services/shippingService');
+    const biteshipResponse = await shippingService.createOrderPickup({
+      orderId: order.id,
+      customerName,
+      customerEmail,
+      customerPhone,
+      destinationAddress,
+      destinationPostalCode,
+      items,
+      courierCode: order.shippingCourier,
+      totalWeight
+    });
+
+    const trackingNumber = biteshipResponse.courier?.waybill_id || biteshipResponse.id; 
+    const biteshipOrderId = biteshipResponse.id;
+
+    await knex('order').where('id', id).update({
+      trackingNumber,
+      biteshipOrderId,
+      status: 'SHIPPED', 
+      updatedAt: new Date()
+    });
+
+    const trackingId = require('cuid')();
+    await knex('orderTracking').insert({
+      id: trackingId,
+      orderId: id,
+      trackingNumber,
+      courier: order.shippingCourier,
+      status: 'SHIPPED',
+      estimatedDelivery: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    await knex('trackingHistory').insert({
+      id: require('cuid')(),
+      trackingId,
+      status: 'SHIPPED',
+      description: 'Kurir telah dipesan, menunggu penjemputan (pickup)',
+      timestamp: new Date()
+    });
+    
+    try {
+      const orderFulfillmentService = require('../services/orderFulfillmentService');
+      await orderFulfillmentService.updateOrderStatus(
+        id,
+        'SHIPPED',
+        req.user.id,
+        'Kurir telah dipesan',
+        `AWB: ${trackingNumber}`
+      );
+    } catch(err) { console.error('Failed to update fulfillment timeline:', err.message); }
+
+    try {
+      const notificationService = require('../services/notificationService');
+      const notif = await notificationService.queueNotification({
+        orderId: order.id,
+        userId: order.userId || null,
+        type: 'SHIPPED',
+        title: 'Pesanan Dikirim 🚚',
+        message: `Pesanan Anda sedang dalam pengiriman menggunakan kurir ${order.shippingCourier.toUpperCase()}. Nomor Resi: ${trackingNumber}`,
+      });
+      await notificationService.sendOrderNotification(notif.id);
+    } catch (err) {
+      console.error('[Admin Controller] Error sending pickup notification:', err.message);
+    }
+
+    return sendSuccess(res, { trackingNumber, biteshipOrderId }, 'Pickup berhasil diminta');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboard,
   getProducts,
@@ -1226,4 +1376,7 @@ module.exports = {
   verifyPayment,
   processRefund,
   getAuditLogs,
+  getCouriers,
+  toggleCourier,
+  requestPickup
 };

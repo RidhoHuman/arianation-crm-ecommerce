@@ -45,6 +45,7 @@ import InvoicePage from './pages/InvoicePage';
 import FAQPage from './pages/FAQPage';
 import PortfolioPage from './pages/Portfolio';
 import OAuthCallback from './pages/OAuthCallback';
+import NotificationsPage from './pages/Notifications';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -72,6 +73,7 @@ function AnimatedRoutes() {
           <Route path="/sablon" element={<Navigate to="/custom-sablon" replace />} />
           <Route path="/portfolio" element={<PageTransition><PortfolioPage /></PageTransition>} />
           <Route path="/faq" element={<PageTransition><FAQPage /></PageTransition>} />
+          <Route path="/notifications" element={<PageTransition><NotificationsPage /></PageTransition>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
 

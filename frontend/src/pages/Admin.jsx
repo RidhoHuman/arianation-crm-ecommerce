@@ -7,6 +7,7 @@ import useAuthStore from '../store/authStore';
 import ProductList from '../components/admin/ProductList';
 import ProductForm from '../components/admin/ProductForm';
 import OrderList from '../components/admin/OrderList';
+import OrderDetail from '../components/admin/OrderDetail';
 import InventoryList from '../components/admin/InventoryList';
 import Dashboard from '../components/admin/Dashboard';
 
@@ -104,6 +105,7 @@ export default function AdminPage() {
           <Route path="products/new" element={<ProductForm />} />
           <Route path="products/edit/:id" element={<ProductForm />} />
           <Route path="orders" element={<OrderList />} />
+          <Route path="orders/:id" element={<OrderDetail />} />
           <Route path="inventory" element={<InventoryList />} />
         </Routes>
       </div>
