@@ -6,6 +6,7 @@ import useAuthStore from '../store/authStore';
 import useUIStore from '../store/uiStore';
 import { useAuth } from '../hooks/useAuth';
 import SEOHead from '../components/SEOHead';
+import { useTranslation } from 'react-i18next';
 
 /* ─── Icons ─── */
 const UserIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
@@ -22,187 +23,6 @@ const ClockIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="no
 const SettingsIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
 const DownloadIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 
-/* ─── Translations ─── */
-const TR = {
-  ID: {
-    pageTitle: 'Akun Saya',
-    tabs: {
-      profile: 'Profil Saya',
-      address: 'Alamat Pengiriman',
-      orders: 'Pesanan Saya',
-      wishlist: 'Wishlist',
-      pointHistory: 'Riwayat Poin',
-      preferences: 'Preferensi',
-      sablon: 'Riwayat Sablon',
-      password: 'Ubah Password',
-      logout: 'Keluar',
-    },
-    profile: {
-      title: 'Informasi Profil',
-      name: 'Nama Lengkap',
-      email: 'Email',
-      phone: 'Nomor Telepon',
-      memberSince: 'Bergabung sejak',
-      saveBtn: 'Simpan Perubahan',
-      saving: 'Menyimpan...',
-      saved: 'Tersimpan!',
-      ariaPoints: 'Aria Points',
-      pointsNote: '1 Poin = Rp 1.000',
-    },
-    address: {
-      title: 'Alamat Pengiriman',
-      address: 'Alamat Lengkap',
-      city: 'Kota',
-      postalCode: 'Kode Pos',
-      province: 'Provinsi',
-      saveBtn: 'Simpan Alamat',
-      saving: 'Menyimpan...',
-      saved: 'Tersimpan!',
-    },
-    orders: {
-      title: 'Pesanan Saya',
-      empty: 'Belum ada pesanan',
-      orderNumber: 'No. Pesanan',
-      date: 'Tanggal',
-      total: 'Total',
-      status: 'Status',
-      detail: 'Lihat Detail',
-      shopNow: 'Belanja Sekarang',
-    },
-    sablon: {
-      title: 'Riwayat Custom Sablon',
-      empty: 'Belum ada request sablon',
-      requestDate: 'Tanggal Request',
-      designType: 'Tipe Desain',
-      status: 'Status',
-      createNew: 'Buat Request Sablon',
-    },
-    password: {
-      title: 'Ubah Password',
-      current: 'Password Saat Ini',
-      new: 'Password Baru',
-      confirm: 'Konfirmasi Password Baru',
-      changeBtn: 'Ubah Password',
-      changing: 'Mengubah...',
-      changed: 'Password berhasil diubah!',
-      mismatch: 'Password baru tidak cocok',
-      minLength: 'Minimal 6 karakter',
-    },
-    logout: {
-      title: 'Keluar dari Akun',
-      desc: 'Apakah Anda yakin ingin keluar dari akun Anda?',
-      btn: 'Ya, Keluar',
-    },
-    wishlist: {
-      title: 'Wishlist Saya',
-      empty: 'Wishlist Anda masih kosong',
-      shopNow: 'Mulai Belanja',
-    },
-    pointHistory: {
-      title: 'Riwayat Aria Points',
-      empty: 'Belum ada riwayat poin',
-      earned: 'Didapat',
-      spent: 'Dipakai',
-    },
-    preferences: {
-      title: 'Preferensi Notifikasi',
-      emailPromo: 'Email Promo & Penawaran Spesial',
-      emailOrderUpdates: 'Update Status Pesanan via Email',
-      saveBtn: 'Simpan Preferensi',
-      saved: 'Tersimpan!',
-      saving: 'Menyimpan...',
-    },
-  },
-  EN: {
-    pageTitle: 'My Account',
-    tabs: {
-      profile: 'My Profile',
-      address: 'Shipping Address',
-      orders: 'My Orders',
-      wishlist: 'Wishlist',
-      pointHistory: 'Points History',
-      preferences: 'Preferences',
-      sablon: 'Sablon History',
-      password: 'Change Password',
-      logout: 'Logout',
-    },
-    profile: {
-      title: 'Profile Information',
-      name: 'Full Name',
-      email: 'Email',
-      phone: 'Phone Number',
-      memberSince: 'Member since',
-      saveBtn: 'Save Changes',
-      saving: 'Saving...',
-      saved: 'Saved!',
-      ariaPoints: 'Aria Points',
-      pointsNote: '1 Point = Rp 1,000',
-    },
-    address: {
-      title: 'Shipping Address',
-      address: 'Full Address',
-      city: 'City',
-      postalCode: 'Postal Code',
-      province: 'Province',
-      saveBtn: 'Save Address',
-      saving: 'Saving...',
-      saved: 'Saved!',
-    },
-    orders: {
-      title: 'My Orders',
-      empty: 'No orders yet',
-      orderNumber: 'Order No.',
-      date: 'Date',
-      total: 'Total',
-      status: 'Status',
-      detail: 'View Detail',
-      shopNow: 'Shop Now',
-    },
-    sablon: {
-      title: 'Custom Sablon History',
-      empty: 'No sablon requests yet',
-      requestDate: 'Request Date',
-      designType: 'Design Type',
-      status: 'Status',
-      createNew: 'Create Sablon Request',
-    },
-    password: {
-      title: 'Change Password',
-      current: 'Current Password',
-      new: 'New Password',
-      confirm: 'Confirm New Password',
-      changeBtn: 'Change Password',
-      changing: 'Changing...',
-      changed: 'Password changed successfully!',
-      mismatch: 'New passwords do not match',
-      minLength: 'Minimum 6 characters',
-    },
-    logout: {
-      title: 'Logout from Account',
-      desc: 'Are you sure you want to logout from your account?',
-      btn: 'Yes, Logout',
-    },
-    wishlist: {
-      title: 'My Wishlist',
-      empty: 'Your wishlist is empty',
-      shopNow: 'Shop Now',
-    },
-    pointHistory: {
-      title: 'Aria Points History',
-      empty: 'No points history yet',
-      earned: 'Earned',
-      spent: 'Spent',
-    },
-    preferences: {
-      title: 'Notification Preferences',
-      emailPromo: 'Promo & Special Offers Email',
-      emailOrderUpdates: 'Order Status Updates Email',
-      saveBtn: 'Save Preferences',
-      saved: 'Saved!',
-      saving: 'Saving...',
-    },
-  },
-};
 
 /* ─── Status Badges ─── */
 const STATUS_COLORS = {
@@ -229,7 +49,7 @@ const StatusBadge = ({ status }) => {
 
 /* ─── Tab Components ─── */
 
-function ProfileTab({ t, profile, onSave }) {
+function ProfileTab({ t, profile, onSave, i18n }) {
   const [form, setForm] = useState({ fullName: '', phone: '' });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -377,7 +197,7 @@ function ProfileTab({ t, profile, onSave }) {
         </div>
         {profile?.createdAt && (
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            {t.profile.memberSince} {new Date(profile.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
+            {t.profile.memberSince} {new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'long' }).format(new Date(profile.createdAt))}
           </p>
         )}
         <button type="submit" disabled={saving}
@@ -456,7 +276,7 @@ function AddressTab({ t, profile, onSave }) {
   );
 }
 
-function OrdersTab({ t }) {
+function OrdersTab({ t, i18n }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -498,8 +318,8 @@ function OrdersTab({ t }) {
                     <StatusBadge status={order.status} />
                   </div>
                   <div className="flex gap-6 text-xs text-gray-400">
-                    <span>{t.orders.date}: {new Date(order.createdAt).toLocaleDateString('id-ID')}</span>
-                    <span>{t.orders.total}: Rp {Number(order.totalAmount || 0).toLocaleString()}</span>
+                    <span>{t.orders.date}: {new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'medium' }).format(new Date(order.createdAt))}</span>
+                    <span>{t.orders.total}: Rp {Number(order.totalAmount || 0).toLocaleString('id-ID')}</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 items-end">
@@ -524,7 +344,7 @@ function OrdersTab({ t }) {
   );
 }
 
-function SablonTab({ t }) {
+function SablonTab({ t, i18n }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -584,12 +404,12 @@ function SablonTab({ t }) {
                       <StatusBadge status={req.status} />
                     </div>
                     <p className="text-xs text-gray-500 uppercase tracking-widest">
-                      ID: {req.id.slice(0,8)} • Diajukan: {new Date(req.createdAt).toLocaleDateString('id-ID')}
+                      ID: {req.id.slice(0,8)} • Diajukan: {new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'short' }).format(new Date(req.createdAt))}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">Target Selesai</p>
-                    <p className="text-sm font-bold">{req.deadline ? new Date(req.deadline).toLocaleDateString('id-ID') : 'TBA'}</p>
+                    <p className="text-sm font-bold">{req.deadline ? new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'short' }).format(new Date(req.deadline)) : 'TBA'}</p>
                   </div>
                 </div>
 
@@ -786,7 +606,7 @@ function WishlistTab({ t }) {
   );
 }
 
-function PointHistoryTab({ t }) {
+function PointHistoryTab({ t, i18n }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -825,7 +645,7 @@ function PointHistoryTab({ t }) {
             <div key={h.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl">
               <div>
                 <p className="text-sm font-semibold dark:text-white">{h.description}</p>
-                <p className="text-xs text-gray-400 mt-1">{new Date(h.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p className="text-xs text-gray-400 mt-1">{new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'long' }).format(new Date(h.createdAt))}</p>
               </div>
               <div className={`font-bold ${h.type === 'EARNED' ? 'text-emerald-500' : 'text-red-500'}`}>
                 {h.type === 'EARNED' ? '+' : '-'}{h.points}
@@ -929,8 +749,8 @@ export default function AccountPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { logout } = useAuth();
-  const language = useUIStore((s) => s.language) || 'ID';
-  const t = TR[language];
+  const { t: rootT, i18n } = useTranslation('translation');
+  const t = rootT('account', { returnObjects: true });
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1104,13 +924,13 @@ export default function AccountPage() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  {activeTab === 'profile' && <ProfileTab t={t} profile={profile} onSave={fetchProfile} />}
+                  {activeTab === 'profile' && <ProfileTab t={t} profile={profile} onSave={fetchProfile} i18n={i18n} />}
                   {activeTab === 'address' && <AddressTab t={t} profile={profile} onSave={fetchProfile} />}
-                  {activeTab === 'orders' && <OrdersTab t={t} />}
+                  {activeTab === 'orders' && <OrdersTab t={t} i18n={i18n} />}
                   {activeTab === 'wishlist' && <WishlistTab t={t} />}
-                  {activeTab === 'pointHistory' && <PointHistoryTab t={t} />}
+                  {activeTab === 'pointHistory' && <PointHistoryTab t={t} i18n={i18n} />}
                   {activeTab === 'preferences' && <PreferencesTab t={t} profile={profile} onSave={fetchProfile} />}
-                  {activeTab === 'sablon' && <SablonTab t={t} />}
+                  {activeTab === 'sablon' && <SablonTab t={t} i18n={i18n} />}
                   {activeTab === 'password' && <PasswordTab t={t} />}
                   {activeTab === 'logout' && <LogoutTab t={t} onLogout={handleLogout} />}
                 </motion.div>

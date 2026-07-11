@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import useBannerStore from '../store/bannerStore';
 import useUIStore from '../store/uiStore';
 
@@ -24,23 +25,7 @@ export default function HeroSlider({ location = 'home' }) {
     return () => clearInterval(interval);
   }, [activeBanners.length]);
 
-  const language = useUIStore((s) => s.language) || 'ID';
-  const TRANSLATIONS = {
-    ID: {
-      heroTitle: 'Gaya Hidup untuk Setiap Momen',
-      heroDesc: 'Pakaian jalanan premium yang dirancang untuk para pemberontak, pendukung, dan petualang. Dirancang dengan tujuan dan semangat.',
-      discoverBtn: 'Belanja Sekarang',
-      customSablonBtn: 'Sablon Kustom'
-    },
-    EN: {
-      heroTitle: 'Lifestyle for Every Moment',
-      heroDesc: 'Premium streetwear crafted for the rebels, the supporters, and the adventurers. Designed with purpose and passion.',
-      discoverBtn: 'Shop Now',
-      customSablonBtn: 'Custom Sablon'
-    }
-  };
-  const t = TRANSLATIONS[language];
-
+  const { t } = useTranslation('translation', { keyPrefix: 'hero' });
   if (isLoading) {
     return (
       <section className="relative h-screen min-h-[600px] w-full bg-aria-charcoal flex items-center justify-center overflow-hidden">
@@ -62,16 +47,16 @@ export default function HeroSlider({ location = 'home' }) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
         </div>
         <div className="relative z-10 text-center max-w-4xl mx-auto px-6 mt-20">
-          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight">{t.heroTitle}</h1>
+          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight">{t('heroTitle')}</h1>
           <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-2xl mx-auto">
-            {t.heroDesc}
+            {t('heroDesc')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mt-4">
             <Link to="/products" className="bg-aria-maroon hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition-colors tracking-wider text-sm uppercase shadow-lg shadow-aria-maroon/20">
-              {t.discoverBtn}
+              {t('discoverBtn')}
             </Link>
             <Link to="/custom-sablon" className="bg-transparent border border-white hover:bg-white hover:text-black text-white font-bold py-3 px-8 rounded-full transition-colors tracking-wider text-sm uppercase backdrop-blur-sm">
-              {t.customSablonBtn}
+              {t('customSablonBtn')}
             </Link>
           </div>
         </div>
@@ -111,23 +96,23 @@ export default function HeroSlider({ location = 'home' }) {
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight drop-shadow-lg">
-              {currentBanner.title || t.heroTitle}
+              {currentBanner.title || t('heroTitle')}
             </h1>
             <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-2xl mx-auto drop-shadow-md">
-              {currentBanner.subtitle || t.heroDesc}
+              {currentBanner.subtitle || t('heroDesc')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mt-4">
               <Link 
                 to={currentBanner.buttonLink || "/products"} 
                 className="bg-aria-maroon hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition-colors tracking-wider text-sm uppercase shadow-lg shadow-aria-maroon/20"
               >
-                {(!currentBanner.buttonText || currentBanner.buttonText.toUpperCase() === 'SHOP NOW' || currentBanner.buttonText.toUpperCase() === 'DISCOVER COLLECTION') ? t.discoverBtn : currentBanner.buttonText}
+                {(!currentBanner.buttonText || currentBanner.buttonText.toUpperCase() === 'SHOP NOW' || currentBanner.buttonText.toUpperCase() === 'DISCOVER COLLECTION') ? t('discoverBtn') : currentBanner.buttonText}
               </Link>
               <Link 
                 to="/custom-sablon" 
                 className="bg-transparent border border-white hover:bg-white hover:text-black text-white font-bold py-3 px-8 rounded-full transition-colors tracking-wider text-sm uppercase backdrop-blur-sm"
               >
-                {t.customSablonBtn}
+                {t('customSablonBtn')}
               </Link>
             </div>
           </motion.div>

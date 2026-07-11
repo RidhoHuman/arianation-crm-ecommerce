@@ -20,9 +20,8 @@ const createCustomOrder = async (req, res, next) => {
     let basePrice = 0;
     let techPrice = 0;
     
-    // Calculate securely using backend Source of Truth
     if (data.productTypeForSablon) {
-      const product = await knex('productTypes').where('id', data.productTypeForSablon).first();
+      const product = await knex('product_type_master').where('id', data.productTypeForSablon).first();
       if (product) basePrice = parseFloat(product.price) || 0;
     }
     
@@ -94,6 +93,7 @@ const createCustomOrder = async (req, res, next) => {
       mockupPreviewUrl,
       canvasMetadata: data.canvasMetadata || null,
       designFileUrl,
+      fileType: 'CUSTOM_SABLON', // Added default fileType to satisfy DB constraints
       estimatedPrice: estimatedTotal,
       status: 'SUBMITTED',
       submittedAt: new Date(),

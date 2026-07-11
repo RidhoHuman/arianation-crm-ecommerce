@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import { useAuth } from '../hooks/useAuth';
@@ -55,37 +56,7 @@ export default function Layout() {
   const toggleLanguage = () => setLanguage(language === 'ID' ? 'EN' : 'ID');
   const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
-  const TRANSLATIONS = {
-    ID: {
-      shop: 'Belanja',
-      collection: 'Koleksi',
-      customSablon: 'Sablon Kustom',
-      about: 'Tentang Kami',
-      login: 'Masuk',
-      logout: 'Keluar',
-      footerDesc: 'Pakaian jalanan premium yang dirancang untuk para pemberontak, pendukung, dan petualang. Lawan norma.',
-      allProducts: 'Semua Produk',
-      contactUs: 'Hubungi Kami',
-      shippingReturns: 'Pengiriman & Pengembalian',
-      support: 'Bantuan',
-      points: 'POIN'
-    },
-    EN: {
-      shop: 'Shop',
-      collection: 'Collection',
-      customSablon: 'Custom Sablon',
-      about: 'About',
-      login: 'Login',
-      logout: 'Logout',
-      footerDesc: 'Premium streetwear crafted for the rebels, the supporters, and the adventurers. Defy the norm.',
-      allProducts: 'All Products',
-      contactUs: 'Contact Us',
-      shippingReturns: 'Shipping & Returns',
-      support: 'Support',
-      points: 'PTS'
-    }
-  };
-  const t = TRANSLATIONS[language] || TRANSLATIONS.ID;
+  const { t } = useTranslation('translation', { keyPrefix: 'layout' });
 
   const { categories, fetchCategories } = useCategoryStore();
   const { collections, fetchCollections } = useCollectionStore();
@@ -177,7 +148,7 @@ export default function Layout() {
                 onMouseLeave={() => setOpenMegaMenu(null)}
               >
                 <button className={`transition-colors py-6 px-1 ${isTransparent ? 'text-white hover:text-gray-300' : 'text-aria-charcoal dark:text-white hover:text-aria-maroon dark:hover:text-gray-300'}`}>
-                  {t.shop}
+                  {t('shop')}
                 </button>
                 {openMegaMenu === 'shop' && (
                   <div className="absolute top-full left-0 w-[600px] bg-white dark:bg-black border border-aria-lightgray dark:border-gray-800 shadow-[0_20px_40px_rgba(0,0,0,0.08)] p-10 grid grid-cols-2 gap-10">
@@ -210,7 +181,7 @@ export default function Layout() {
                 onMouseLeave={() => setOpenMegaMenu(null)}
               >
                 <button className={`transition-colors py-6 px-1 ${isTransparent ? 'text-white hover:text-gray-300' : 'text-aria-charcoal dark:text-white hover:text-aria-maroon dark:hover:text-gray-300'}`}>
-                  {t.collection}
+                  {t('collection')}
                 </button>
                 {openMegaMenu === 'collection' && (
                   <div className="absolute top-full left-0 w-[400px] bg-white dark:bg-black border border-aria-lightgray dark:border-gray-800 shadow-[0_20px_40px_rgba(0,0,0,0.08)] p-10">
@@ -237,11 +208,11 @@ export default function Layout() {
               </div>
 
               <Link to="/custom-sablon" className={`transition-colors py-6 px-1 ${isTransparent ? 'text-white hover:text-gray-300' : 'text-aria-charcoal dark:text-white hover:text-aria-maroon dark:hover:text-gray-300'}`}>
-                {t.customSablon}
+                {t('customSablon')}
               </Link>
 
               <Link to="/about" className={`transition-colors py-6 px-1 ${isTransparent ? 'text-white hover:text-gray-300' : 'text-aria-charcoal dark:text-white hover:text-aria-maroon dark:hover:text-gray-300'}`}>
-                {t.about}
+                {t('about')}
               </Link>
             </nav>
           </div>
@@ -282,22 +253,22 @@ export default function Layout() {
               <div className="flex items-center gap-3 xl:gap-5">
                 {user.rewardPoints !== undefined && (
                   <Link to="/account?tab=profile" className="hidden lg:inline-flex items-center gap-1 text-aria-maroon dark:text-yellow-400 font-bold bg-red-50 dark:bg-yellow-400/10 border border-aria-maroon/20 dark:border-yellow-400/30 px-2 py-1 rounded-sm text-[10px] hover:bg-red-100 dark:hover:bg-yellow-400/20 transition-colors">
-                    {user.rewardPoints} {t.points}
+                    {user.rewardPoints} {t('points')}
                   </Link>
                 )}
                 <Link to={user.role === 'ADMIN' || user.role === 'OWNER' ? "/admin" : "/account"} className={`hidden md:inline-block transition-colors ${isTransparent ? 'text-white hover:text-gray-300' : 'text-aria-charcoal dark:text-gray-300 hover:text-aria-maroon dark:hover:text-white'}`}>
-                  {user.role === 'ADMIN' || user.role === 'OWNER' ? 'Admin' : (language === 'ID' ? 'Akun' : 'Account')}
+                  {user.role === 'ADMIN' || user.role === 'OWNER' ? 'Admin' : t('account')}
                 </Link>
                 <button
                   onClick={handleLogout}
                   className={`hidden md:inline-block transition-colors ${isTransparent ? 'text-white hover:text-red-300' : 'text-gray-500 hover:text-aria-maroon dark:hover:text-red-400'}`}
                 >
-                  {t.logout}
+                  {t('logout')}
                 </button>
               </div>
             ) : (
               <Link to="/login" className={`hidden md:inline-block transition-colors ${isTransparent ? 'text-white hover:text-gray-300' : 'text-aria-charcoal dark:text-gray-300 hover:text-aria-maroon dark:hover:text-white'}`}>
-                {t.login}
+                {t('login')}
               </Link>
             )}
             <Link to="/cart" className={`transition-colors flex items-center relative gap-2 ml-1 ${isTransparent ? 'text-white hover:text-gray-300' : 'text-aria-charcoal dark:text-white hover:text-aria-maroon dark:hover:text-gray-300'}`}>
@@ -317,7 +288,7 @@ export default function Layout() {
             <div className="flex flex-col gap-6 py-4">
               {/* Shop Section */}
               <div>
-                <div className="font-bold text-sm tracking-widest mb-3 border-b border-gray-100 dark:border-gray-800 pb-2 uppercase">{t.shop}</div>
+                <div className="font-bold text-sm tracking-widest mb-3 border-b border-gray-100 dark:border-gray-800 pb-2 uppercase">{t('shop')}</div>
                 <div className="grid grid-cols-2 gap-4 pl-2">
                   <div>
                     <div className="text-[10px] font-bold tracking-widest text-gray-500 mb-2 uppercase">By Category</div>
@@ -344,7 +315,7 @@ export default function Layout() {
 
               {/* Collection Section */}
               <div>
-                <div className="font-bold text-sm tracking-widest mb-3 border-b border-gray-100 dark:border-gray-800 pb-2 uppercase">{t.collection}</div>
+                <div className="font-bold text-sm tracking-widest mb-3 border-b border-gray-100 dark:border-gray-800 pb-2 uppercase">{t('collection')}</div>
                 <div className="flex flex-col gap-3 pl-2">
                   {menuCategories.collection.columns['All Collections'].map(item => (
                     <Link key={item.name} to={item.href} onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-medium hover:text-aria-maroon dark:hover:text-gray-300">
@@ -356,10 +327,10 @@ export default function Layout() {
 
               <div className="border-t border-gray-100 dark:border-gray-800 pt-6 flex flex-col gap-5">
                 <Link to="/custom-sablon" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-sm tracking-widest hover:text-aria-maroon dark:hover:text-gray-300 uppercase">
-                  {t.customSablon}
+                  {t('customSablon')}
                 </Link>
                 <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="font-bold text-sm tracking-widest hover:text-aria-maroon dark:hover:text-gray-300 uppercase">
-                  {t.about}
+                  {t('about')}
                 </Link>
 
                 {isAuthenticated && user && (
@@ -368,7 +339,7 @@ export default function Layout() {
                     onClick={() => setIsMobileMenuOpen(false)} 
                     className="font-bold text-sm tracking-widest text-blue-600 dark:text-blue-400 hover:text-aria-maroon uppercase"
                   >
-                    {user.role === 'ADMIN' || user.role === 'OWNER' ? 'Admin Panel' : (language === 'ID' ? 'Akun Saya' : 'My Account')}
+                    {user.role === 'ADMIN' || user.role === 'OWNER' ? t('adminPanel') : t('account')}
                   </Link>
                 )}
               </div>
@@ -393,23 +364,23 @@ export default function Layout() {
             <div className="col-span-1 md:col-span-2">
               <img src="/logo AriaNation.svg" alt="Arianation Logo" className="w-12 h-12 mb-6 dark:bg-white dark:rounded-full dark:p-0.5 transition-colors" />
               <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
-                {t.footerDesc}
+                {t('footerDesc')}
               </p>
             </div>
             <div>
-              <h3 className="text-xs font-bold text-aria-charcoal dark:text-white mb-6 tracking-widest uppercase">{t.shop}</h3>
+              <h3 className="text-xs font-bold text-aria-charcoal dark:text-white mb-6 tracking-widest uppercase">{t('shop')}</h3>
               <ul className="space-y-4 text-sm text-gray-500 dark:text-gray-400">
-                <li><Link to="/products" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t.allProducts}</Link></li>
-                <li><Link to="/products" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t.collection}</Link></li>
-                <li><Link to="/custom-sablon" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t.customSablon}</Link></li>
+                <li><Link to="/products" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('allProducts')}</Link></li>
+                <li><Link to="/products" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('collection')}</Link></li>
+                <li><Link to="/custom-sablon" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('customSablon')}</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="text-xs font-bold text-aria-charcoal dark:text-white mb-6 tracking-widest uppercase">{t.support}</h3>
+              <h3 className="text-xs font-bold text-aria-charcoal dark:text-white mb-6 tracking-widest uppercase">{t('support')}</h3>
               <ul className="space-y-4 text-sm text-gray-500 dark:text-gray-400">
-                <li><Link to="/contact" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t.contactUs}</Link></li>
+                <li><Link to="/contact" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('contactUs')}</Link></li>
                 <li><Link to="/faq" className="hover:text-aria-maroon dark:hover:text-white transition-colors">FAQ</Link></li>
-                <li><Link to="/shipping" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t.shippingReturns}</Link></li>
+                <li><Link to="/shipping" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('shippingReturns')}</Link></li>
               </ul>
             </div>
           </div>

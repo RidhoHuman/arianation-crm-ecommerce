@@ -11,6 +11,7 @@ import useCategoryStore from '../store/categoryStore';
 import useCollectionStore from '../store/collectionStore';
 import useProductTypeStore from '../store/productTypeStore';
 import useUIStore from '../store/uiStore';
+import { useTranslation } from 'react-i18next';
 
 const getCategoryIcon = (name) => {
   const n = (name || '').toLowerCase();
@@ -45,6 +46,7 @@ const getTranslatedCategoryName = (name, lang) => {
 
 export default function ProductsListing() {
   const language = useUIStore((s) => s.language) || 'ID';
+  const { t } = useTranslation('translation', { keyPrefix: 'productsListing' });
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -139,61 +141,19 @@ export default function ProductsListing() {
     setPage(1);
   };
 
-  const TRANSLATIONS = {
-    ID: {
-      allProducts: 'Semua Produk',
-      searchResult: 'Hasil Pencarian',
-      descCategory: 'Koleksi fashion premium untuk gaya khas Anda.',
-      descType: 'Koleksi premium dari Arianation.',
-      descAll: 'Jelajahi koleksi lengkap produk Arianation. Kualitas terbaik dengan desain versatile untuk berbagai aktivitas.',
-      categoryLabel: 'Kategori',
-      allLabel: 'Semua',
-      searchPlaceholder: 'Cari produk...',
-      searchBtn: 'Cari',
-      loading: 'Loading produk...',
-      noProducts: 'Tidak ada produk ditemukan',
-      viewAll: 'Lihat semua produk',
-      noImage: 'Tidak ada gambar',
-      stockLabel: 'Stok',
-      outOfStock: 'Habis',
-      prev: 'Sebelumnya',
-      next: 'Selanjutnya',
-    },
-    EN: {
-      allProducts: 'All Products',
-      searchResult: 'Search Results',
-      descCategory: 'Premium fashion collection for your signature style.',
-      descType: 'Premium collection from Arianation.',
-      descAll: 'Explore the complete Arianation product collection. The best quality with versatile designs for various activities.',
-      categoryLabel: 'Category',
-      allLabel: 'All',
-      searchPlaceholder: 'Search products...',
-      searchBtn: 'Search',
-      loading: 'Loading products...',
-      noProducts: 'No products found',
-      viewAll: 'View all products',
-      noImage: 'No image',
-      stockLabel: 'Stock',
-      outOfStock: 'Out of Stock',
-      prev: 'Previous',
-      next: 'Next',
-    }
-  };
-  const t = TRANSLATIONS[language];
-
   const getPageTitle = () => {
     if (activeCategory) return `${getTranslatedCategoryName(activeCategory.categoryName || activeCategory.name, language)} Collection`;
     if (activeCollection) return `${activeCollection.collectionName || activeCollection.name} Collection`;
     if (activeType) return `${activeType.typeName} Products`;
-    if (searchQuery) return `${t.searchResult}: ${searchQuery}`;
-    return t.allProducts;
+    if (searchQuery) return `${t('searchResult')}: ${searchQuery}`;
+    return t('allProducts');
   };
 
   const getPageDescription = () => {
-    if (activeCategory) return `Explore our ${getTranslatedCategoryName(activeCategory.categoryName || activeCategory.name, language)} collection. ${activeCategory.description || t.descCategory}`;
-    if (activeCollection) return `Explore our ${activeCollection.collectionName || activeCollection.name} collection. ${activeCollection.description || t.descCategory}`;
-    if (activeType) return `${t.descType} - ${activeType.typeName}`;
-    return t.descAll;
+    if (activeCategory) return `Explore our ${getTranslatedCategoryName(activeCategory.categoryName || activeCategory.name, language)} collection. ${activeCategory.description || t('descCategory')}`;
+    if (activeCollection) return `Explore our ${activeCollection.collectionName || activeCollection.name} collection. ${activeCollection.description || t('descCategory')}`;
+    if (activeType) return `${t('descType')} - ${activeType.typeName}`;
+    return t('descAll');
   };
 
   const productsListStructuredData = {
@@ -257,20 +217,20 @@ export default function ProductsListing() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t.searchPlaceholder}
+                placeholder={t('searchPlaceholder')}
                 className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-aria-charcoal"
               />
               <button
                 type="submit"
                 className="bg-aria-charcoal text-white px-6 py-2 rounded-lg hover:bg-aria-maroon transition"
               >
-                {t.searchBtn}
+                {t('searchBtn')}
               </button>
             </div>
           </form>
 
           <div className="mb-8">
-            <h2 className="text-sm font-bold mb-3 text-gray-700">{t.categoryLabel}</h2>
+            <h2 className="text-sm font-bold mb-3 text-gray-700">{t('categoryLabel')}</h2>
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => handleCategoryChange('')}
@@ -279,7 +239,7 @@ export default function ProductsListing() {
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                   }`}
               >
-                {t.allLabel}
+                {t('allLabel')}
               </button>
               {activeCategories.map((cat) => {
                 const catIdentifier = cat.slug || cat.id;
@@ -307,15 +267,15 @@ export default function ProductsListing() {
           )}
 
           {loading ? (
-            <p className="text-center py-12">{t.loading}</p>
+            <p className="text-center py-12">{t('loading')}</p>
           ) : products.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600 mb-4">{t.noProducts}</p>
+              <p className="text-gray-600 mb-4">{t('noProducts')}</p>
               <button
                 onClick={() => handleCategoryChange('')}
                 className="text-aria-maroon font-medium hover:underline"
               >
-                {t.viewAll}
+                {t('viewAll')}
               </button>
             </div>
           ) : (
@@ -347,7 +307,7 @@ export default function ProductsListing() {
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full">
-                            <span className="text-gray-500">{t.noImage}</span>
+                            <span className="text-gray-500">{t('noImage')}</span>
                           </div>
                         )}
 
@@ -371,7 +331,7 @@ export default function ProductsListing() {
                         <div className="mt-auto pt-2 flex flex-col gap-1">
                           <p className="font-bold text-aria-charcoal text-sm md:text-base">Rp {product.price?.toLocaleString('id-ID')}</p>
                           <p className="text-xs text-gray-500">
-                            {product.stockQuantity > 0 ? `${t.stockLabel}: ${product.stockQuantity}` : t.outOfStock}
+                            {product.stockQuantity > 0 ? `${t('stockLabel')}: ${product.stockQuantity}` : t('outOfStock')}
                           </p>
                         </div>
                         {product.versatile_uses && (
@@ -405,7 +365,7 @@ export default function ProductsListing() {
                     disabled={page === 1}
                     className="px-4 py-2 border rounded disabled:opacity-50 hover:bg-gray-100"
                   >
-                    {t.prev}
+                    {t('prev')}
                   </button>
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNum;
@@ -435,7 +395,7 @@ export default function ProductsListing() {
                     disabled={page === totalPages}
                     className="px-4 py-2 border rounded disabled:opacity-50 hover:bg-gray-100"
                   >
-                    {t.next}
+                    {t('next')}
                   </button>
                 </div>
               )}

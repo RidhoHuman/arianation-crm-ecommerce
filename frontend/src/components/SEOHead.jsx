@@ -1,5 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import { useTranslation } from 'react-i18next';
 
 /**
  * SEO Head component untuk dynamic meta tags
@@ -14,15 +15,19 @@ export const SEOHead = ({
   title = 'Arianation - Sablon & Fashion E-Commerce',
   description = 'Toko sablon dan fashion online berkualitas dengan custom design dan harga terjangkau',
   image = '/og-image.png',
-  url = typeof window !== 'undefined' ? window.location.href : '',
+  url = typeof window !== 'undefined' ? window.location.href.split('?')[0] : '',
   type = 'website',
   structuredData = null,
 }) => {
+  const { i18n } = useTranslation();
+  const lang = i18n.language === 'EN' ? 'en' : 'id';
+  
   const fullTitle = title.includes('Arianation') ? title : `${title} | Arianation`;
   const siteUrl = 'https://arianation.com'; // Replace with actual domain
+  const canonicalUrl = url || siteUrl;
 
   return (
-    <Helmet>
+    <Helmet htmlAttributes={{ lang }}>
       {/* Basic Meta Tags */}
       <title>{fullTitle}</title>
       <meta name="description" content={description} />
@@ -43,14 +48,17 @@ export const SEOHead = ({
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
 
-      {/* Canonical URL */}
-      <link rel="canonical" href={url || siteUrl} />
+      {/* Canonical URL and hreflang for Dual-Language SEO */}
+      <link rel="canonical" href={canonicalUrl} />
+      <link rel="alternate" hrefLang="id" href={canonicalUrl} />
+      <link rel="alternate" hrefLang="en" href={`${canonicalUrl}?lang=en`} />
+      <link rel="alternate" hrefLang="x-default" href={canonicalUrl} />
 
       {/* Additional SEO Tags */}
-      <meta name="keywords" content="sablon, custom tshirt, fashion, murah, jakarta, indonesia" />
+      <meta name="keywords" content="sablon, custom tshirt, fashion, murah, jakarta, indonesia, screen printing, merchandise" />
       <meta name="author" content="Arianation" />
       <meta name="robots" content="index, follow" />
-      <meta name="language" content="Indonesian" />
+      <meta name="language" content={lang === 'en' ? 'English' : 'Indonesian'} />
 
       {/* Favicon */}
       <link rel="icon" href="/favicon.ico" />

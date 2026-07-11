@@ -13,6 +13,7 @@ export default function DesignReviewList() {
   const [actionType, setActionType] = useState(null); // 'APPROVE' or 'REVISE'
   const [comments, setComments] = useState('');
   const [estimatedPrice, setEstimatedPrice] = useState('');
+  const [hppPrice, setHppPrice] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState('ALL');
 
@@ -45,7 +46,8 @@ export default function DesignReviewList() {
     setSelectedRequest(request);
     setActionType(type);
     setComments('');
-    setEstimatedPrice('');
+    setEstimatedPrice(request.estimatedPrice ? Math.round(Number(request.estimatedPrice)).toString() : '');
+    setHppPrice('');
   };
 
   const closeModal = () => {
@@ -58,14 +60,23 @@ export default function DesignReviewList() {
     setActionLoading(true);
     
     try {
-      const status = actionType === 'APPROVE' ? 'APPROVED' : 'REVISION_NEEDED';
+      let status = actionType === 'APPROVE' ? 'APPROVED' : 'REVISION_REQUESTED';
+      if (actionType === 'REJECT') status = 'REJECTED';
+      if (actionType === 'CANCEL') status = 'CANCELLED';
+
       await api.put(`/admin/design-requests/${selectedRequest.id}/status`, {
         status,
         comments,
-        estimatedPrice: actionType === 'APPROVE' ? estimatedPrice : null
+        estimatedPrice: actionType === 'APPROVE' ? estimatedPrice : null,
+        hppPrice: actionType === 'APPROVE' ? hppPrice : null
       });
       
-      toast.success(actionType === 'APPROVE' ? 'Request disetujui!' : 'Request direvisi!');
+      let toastMessage = 'Request direvisi!';
+      if (actionType === 'APPROVE') toastMessage = 'Request disetujui!';
+      else if (actionType === 'REJECT') toastMessage = 'Request ditolak!';
+      else if (actionType === 'CANCEL') toastMessage = 'Penawaran dibatalkan!';
+      
+      toast.success(toastMessage);
       closeModal();
       fetchRequests();
     } catch (err) {
@@ -79,8 +90,9 @@ export default function DesignReviewList() {
     PENDING: 'bg-yellow-100 text-yellow-800',
     SUBMITTED: 'bg-blue-100 text-blue-800',
     APPROVED: 'bg-green-100 text-green-800',
-    REVISION_NEEDED: 'bg-orange-100 text-orange-800',
+    REVISION_REQUESTED: 'bg-orange-100 text-orange-800',
     REJECTED: 'bg-red-100 text-red-800',
+    CANCELLED: 'bg-gray-200 text-gray-700',
     COMPLETED: 'bg-gray-100 text-gray-800',
   };
 
@@ -109,7 +121,7 @@ export default function DesignReviewList() {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2 border-b border-gray-200">
-        {['ALL', 'PENDING', 'SUBMITTED', 'APPROVED', 'REVISION_NEEDED', 'COMPLETED'].map((status) => (
+        {['ALL', 'PENDING', 'SUBMITTED', 'APPROVED', 'REVISION_REQUESTED', 'REJECTED', 'CANCELLED', 'COMPLETED'].map((status) => (
           <button
             key={status}
             onClick={() => setFilterStatus(status)}
@@ -159,6 +171,11 @@ export default function DesignReviewList() {
                   <span className={`text-xs px-2.5 py-1 font-bold rounded-md shadow-sm ${statusColors[req.status] || 'bg-gray-100'}`}>
                     {req.status}
                   </span>
+                  {req.reminderCount > 0 && req.status === 'APPROVED' && (
+                    <span className={`ml-2 text-[10px] px-2 py-0.5 font-bold rounded-full text-white shadow-sm ${req.reminderCount >= 4 ? 'bg-red-500' : 'bg-orange-500'}`}>
+                      Diingatkan: {req.reminderCount}x
+                    </span>
+                  )}
                 </div>
               </div>
               
@@ -179,6 +196,10 @@ export default function DesignReviewList() {
                     <span className="bg-gray-100 px-2 py-0.5 rounded text-xs text-gray-700 font-medium border border-gray-200">
                       Qty: {req.quantity || 0}
                     </span>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 space-y-1">
+                    <p><span className="font-semibold text-gray-700">Teknik:</span> {req.printTechnique || 'N/A'} ({req.numberOfColors || 1} Warna)</p>
+                    <p><span className="font-semibold text-gray-700">Estimasi Sistem:</span> Rp {Number(req.estimatedPrice || 0).toLocaleString('id-ID')}</p>
                   </div>
                 </div>
 
@@ -204,17 +225,30 @@ export default function DesignReviewList() {
                     <>
                       <button 
                         onClick={() => openModal(req, 'APPROVE')}
-                        className="flex-1 py-2 bg-green-50 text-green-700 hover:bg-green-100 font-semibold text-sm rounded-lg flex items-center justify-center gap-1 transition-colors"
+                        className="flex-1 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 font-semibold text-xs rounded flex flex-col items-center justify-center transition-colors"
                       >
-                        <FiCheckCircle /> Terima
+                        <FiCheckCircle className="mb-0.5" /> Terima
                       </button>
                       <button 
                         onClick={() => openModal(req, 'REVISE')}
-                        className="flex-1 py-2 bg-orange-50 text-orange-700 hover:bg-orange-100 font-semibold text-sm rounded-lg flex items-center justify-center gap-1 transition-colors"
+                        className="flex-1 py-1.5 bg-orange-50 text-orange-700 hover:bg-orange-100 font-semibold text-xs rounded flex flex-col items-center justify-center transition-colors"
                       >
-                        <FiAlertCircle /> Revisi
+                        <FiAlertCircle className="mb-0.5" /> Revisi
+                      </button>
+                      <button 
+                        onClick={() => openModal(req, 'REJECT')}
+                        className="flex-1 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 font-semibold text-xs rounded flex flex-col items-center justify-center transition-colors"
+                      >
+                        <FiX className="mb-0.5 text-sm" /> Tolak
                       </button>
                     </>
+                  ) : req.status === 'APPROVED' ? (
+                    <button 
+                        onClick={() => openModal(req, 'CANCEL')}
+                        className="w-full py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold text-sm rounded-lg flex items-center justify-center gap-1 transition-colors"
+                      >
+                        <FiX /> Batalkan Penawaran Sepihak
+                    </button>
                   ) : (
                     <button disabled className="w-full py-2 bg-gray-50 text-gray-400 font-medium text-sm rounded-lg cursor-not-allowed">
                       Telah Di-review
@@ -231,9 +265,9 @@ export default function DesignReviewList() {
       {selectedRequest && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-6">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] shadow-2xl flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className={`p-5 border-b border-gray-100 flex justify-between items-center shrink-0 ${actionType === 'APPROVE' ? 'bg-green-50' : 'bg-orange-50'}`}>
-              <h3 className={`text-lg font-bold flex items-center gap-2 ${actionType === 'APPROVE' ? 'text-green-800' : 'text-orange-800'}`}>
-                {actionType === 'APPROVE' ? <><FiCheckCircle /> Setujui & Beri Harga</> : <><FiAlertCircle /> Minta Revisi Desain</>}
+            <div className={`p-5 border-b border-gray-100 flex justify-between items-center shrink-0 ${actionType === 'APPROVE' ? 'bg-green-50' : actionType === 'REJECT' ? 'bg-red-50' : actionType === 'CANCEL' ? 'bg-gray-100' : 'bg-orange-50'}`}>
+              <h3 className={`text-lg font-bold flex items-center gap-2 ${actionType === 'APPROVE' ? 'text-green-800' : actionType === 'REJECT' ? 'text-red-800' : actionType === 'CANCEL' ? 'text-gray-800' : 'text-orange-800'}`}>
+                {actionType === 'APPROVE' ? <><FiCheckCircle /> Setujui & Beri Harga</> : actionType === 'REJECT' ? <><FiX /> Tolak Desain</> : actionType === 'CANCEL' ? <><FiX /> Batalkan Penawaran</> : <><FiAlertCircle /> Minta Revisi Desain</>}
               </h3>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-700">
                 <FiX className="text-xl" />
@@ -247,31 +281,65 @@ export default function DesignReviewList() {
                 </p>
                 
                 {actionType === 'APPROVE' && (
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1"><FiDollarSign /> Estimasi Harga Total</label>
-                    <input 
-                      type="number"
-                      required
-                      min="0"
-                      value={estimatedPrice}
-                      onChange={(e) => setEstimatedPrice(e.target.value)}
-                      placeholder="Cth: 150000"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Masukkan estimasi biaya sablon yang harus dibayar customer.</p>
+                  <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
+                    <h4 className="text-sm font-bold text-gray-800 border-b border-gray-200 pb-2">Kalkulator Harga & Margin</h4>
+                    
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Modal / HPP (Bahan Dasar + Sablon)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-gray-500 font-medium">Rp</span>
+                        <input 
+                          type="number"
+                          min="0"
+                          value={hppPrice}
+                          onChange={(e) => setHppPrice(e.target.value)}
+                          placeholder="Cth: 100000"
+                          className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-500 mt-1">Masukkan total modal untuk pesanan ini agar Anda bisa melihat margin.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Harga Penawaran Final (Tagihan Customer)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-gray-500 font-medium">Rp</span>
+                        <input 
+                          type="number"
+                          required
+                          min="0"
+                          value={estimatedPrice}
+                          onChange={(e) => setEstimatedPrice(e.target.value)}
+                          className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 bg-blue-50/30"
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-500 mt-1">Sistem menyarankan estimasi awal: <strong className="text-gray-700">Rp {Number(selectedRequest.estimatedPrice || 0).toLocaleString('id-ID')}</strong></p>
+                    </div>
+
+                    {Number(hppPrice) > 0 && Number(estimatedPrice) > 0 && (
+                      <div className={`p-3 rounded-lg flex justify-between items-center text-xs font-bold border ${Number(estimatedPrice) - Number(hppPrice) > 0 ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                        <span>Estimasi Margin Keuntungan:</span>
+                        <span className="text-sm">
+                          Rp {(Number(estimatedPrice) - Number(hppPrice)).toLocaleString('id-ID')} 
+                          <span className="ml-1 text-[10px] font-medium opacity-80">
+                            ({Math.round(((Number(estimatedPrice) - Number(hppPrice)) / Number(estimatedPrice)) * 100)}%)
+                          </span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1">
-                    <FiMessageSquare /> {actionType === 'APPROVE' ? 'Catatan (Opsional)' : 'Detail Revisi (Wajib)'}
+                    <FiMessageSquare /> {actionType === 'APPROVE' ? 'Catatan (Opsional)' : actionType === 'REVISE' ? 'Detail Revisi (Wajib)' : 'Alasan (Wajib)'}
                   </label>
                   <textarea 
-                    required={actionType === 'REVISE'}
+                    required={actionType !== 'APPROVE'}
                     rows="4"
                     value={comments}
                     onChange={(e) => setComments(e.target.value)}
-                    placeholder={actionType === 'APPROVE' ? "Catatan untuk customer..." : "Beri tahu customer bagian mana yang harus direvisi..."}
+                    placeholder={actionType === 'APPROVE' ? "Catatan untuk customer..." : actionType === 'REVISE' ? "Beri tahu customer bagian mana yang harus direvisi..." : "Berikan alasan pembatalan/penolakan..."}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                   ></textarea>
                 </div>
@@ -284,7 +352,7 @@ export default function DesignReviewList() {
                 <button 
                   type="submit"
                   disabled={actionLoading}
-                  className={`flex-1 py-2 text-white font-medium rounded-lg flex items-center justify-center gap-2 ${actionType === 'APPROVE' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+                  className={`flex-1 py-2 text-white font-medium rounded-lg flex items-center justify-center gap-2 ${actionType === 'APPROVE' ? 'bg-green-600 hover:bg-green-700' : actionType === 'REJECT' ? 'bg-red-600 hover:bg-red-700' : actionType === 'CANCEL' ? 'bg-gray-800 hover:bg-gray-900' : 'bg-orange-600 hover:bg-orange-700'}`}
                 >
                   {actionLoading ? 'Menyimpan...' : 'Kirim'}
                 </button>

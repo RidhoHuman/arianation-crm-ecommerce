@@ -5,6 +5,7 @@ const knex = require('../config/knex');
 const { sendSuccess, sendCreated, sendPaginated } = require('../utils/response');
 const { NotFoundError, AuthorizationError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
+const notificationService = require('../services/notificationService');
 
 const getAllDesignRequests = async (req, res, next) => {
   try {
@@ -144,6 +145,16 @@ const createDesignRequest = async (req, res, next) => {
       })
       .catch(() => {}); // Don't fail if audit log fails
 
+    // Queue notification to customer
+    await notificationService.queueCustomerNotification({
+      referenceId: request.id,
+      referenceType: 'DESIGN_REQUEST',
+      userId,
+      type: 'DESIGN_REQUEST_SUBMITTED',
+      title: 'Design Request Diterima',
+      message: `Permintaan desain "${designTitle}" telah berhasil diajukan.`
+    }).catch(console.error);
+
     return sendCreated(res, request, MESSAGES.DESIGN_REQUEST_CREATED);
   } catch (error) {
     next(error);
@@ -197,6 +208,18 @@ const updateDesignRequest = async (req, res, next) => {
 
     const request = await designRequestService.update(id, updateData);
 
+    if (status !== undefined && status !== existing.status) {
+      // Status changed, notify customer
+      await notificationService.queueCustomerNotification({
+        referenceId: id,
+        referenceType: 'DESIGN_REQUEST',
+        userId: existing.userId,
+        type: `DESIGN_REQUEST_${status}`,
+        title: 'Update Status Design Request',
+        message: `Status permintaan desain "${existing.designTitle}" telah diubah menjadi ${status}.`
+      }).catch(console.error);
+    }
+
     return sendSuccess(res, request, MESSAGES.DESIGN_REQUEST_UPDATED);
   } catch (error) {
     next(error);
@@ -217,6 +240,15 @@ const submitDesignRequest = async (req, res, next) => {
     }
 
     const request = await designRequestService.update(id, { status: 'SUBMITTED', submittedAt: new Date() });
+
+    await notificationService.queueCustomerNotification({
+      referenceId: id,
+      referenceType: 'DESIGN_REQUEST',
+      userId: existing.userId,
+      type: 'DESIGN_REQUEST_SUBMITTED',
+      title: 'Design Request Diterima',
+      message: `Permintaan desain "${existing.designTitle}" telah berhasil diajukan.`
+    }).catch(console.error);
 
     return sendSuccess(res, request, 'Design request submitted successfully');
   } catch (error) {
@@ -255,6 +287,16 @@ const addFeedback = async (req, res, next) => {
     await designRequestService.update(id, { status: newStatus });
 
     const feedback = await knex('designFeedback').where('id', feedbackId).first();
+
+    // Notify customer about feedback
+    await notificationService.queueCustomerNotification({
+      referenceId: id,
+      referenceType: 'DESIGN_REQUEST',
+      userId: designRequest.userId,
+      type: `DESIGN_REQUEST_FEEDBACK_${feedbackType}`,
+      title: 'Feedback Design Request',
+      message: `Admin telah memberikan feedback untuk desain "${designRequest.designTitle}": ${feedbackType}.`
+    }).catch(console.error);
 
     return sendCreated(res, feedback, MESSAGES.DESIGN_FEEDBACK_ADDED);
   } catch (error) {

@@ -401,6 +401,17 @@ app.post('/api/setup-db', async (req, res) => {
           t.timestamp('createdAt').defaultTo(knex.fn.now());
         },
       },
+      {
+        name: 'pushSubscriptions',
+        create: async (t) => {
+          t.increments('id').primary();
+          t.string('userId').notNullable();
+          t.text('endpoint').notNullable();
+          t.text('p256dh').notNullable();
+          t.text('auth').notNullable();
+          t.timestamp('createdAt').defaultTo(knex.fn.now());
+        },
+      },
     ];
 
     for (const table of tables) {
@@ -439,6 +450,19 @@ app.post('/api/setup-db', async (req, res) => {
         t.text('details').nullable();
         t.string('entityType').nullable();
         t.string('entityId').nullable();
+        t.timestamp('createdAt').defaultTo(knex.fn.now());
+      });
+    }
+
+    const hasPushSubscriptions = await knex.schema.hasTable('pushSubscriptions');
+    if (!hasPushSubscriptions) {
+      console.log(`📝 Creating pushSubscriptions table (auto-migrate)...`);
+      await knex.schema.createTable('pushSubscriptions', t => {
+        t.increments('id').primary();
+        t.string('userId').notNullable();
+        t.text('endpoint').notNullable();
+        t.text('p256dh').notNullable();
+        t.text('auth').notNullable();
         t.timestamp('createdAt').defaultTo(knex.fn.now());
       });
     }

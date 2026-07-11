@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const knex = require('../config/knex');
 const orderFulfillmentService = require('./orderFulfillmentService');
+const notificationService = require('./notificationService');
 
 /**
  * Check for SLA Abandonment
@@ -59,13 +60,65 @@ const checkSLAAbandonment = async () => {
   }
 };
 
+/**
+ * Check for Design Request Reminders (Semi-Auto)
+ * Remind customers if their design is APPROVED but not checked out > 7 days.
+ */
+const processDesignRequestReminders = async () => {
+  try {
+    const pendingRequests = await knex('designRequest')
+      .select('id', 'userId', 'designTitle', 'estimatedPrice', 'reminderCount', 'lastRemindedAt', 'updatedAt')
+      .where('status', 'APPROVED');
+
+    if (pendingRequests.length === 0) return;
+
+    const now = new Date();
+    const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+
+    for (const req of pendingRequests) {
+      const baseDate = req.lastRemindedAt ? new Date(req.lastRemindedAt) : new Date(req.updatedAt);
+      const timeSinceAction = now.getTime() - baseDate.getTime();
+
+      if (timeSinceAction > sevenDaysInMs) {
+        try {
+          // Send notification via notification service
+          await notificationService.queueCustomerNotification({
+            referenceId: req.id,
+            referenceType: 'DESIGN_REQUEST',
+            userId: req.userId,
+            type: 'DESIGN_REQUEST_REMINDER',
+            title: 'Pengingat Penawaran Custom Sablon 🕒',
+            message: `Halo! Penawaran harga untuk desain "${req.designTitle}" (Rp ${Number(req.estimatedPrice).toLocaleString('id-ID')}) masih menunggu. Apakah ada kendala atau ingin melanjutkan?`
+          });
+
+          // Update tracking columns
+          await knex('designRequest')
+            .where('id', req.id)
+            .update({
+              reminderCount: req.reminderCount + 1,
+              lastRemindedAt: now,
+              updatedAt: now // since we're modifying the row
+            });
+
+          console.log(`[Cron] Sent reminder #${req.reminderCount + 1} for Design Request ${req.id}`);
+        } catch (updateErr) {
+          console.error(`[Cron] Failed to process reminder for Design Request ${req.id}:`, updateErr);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Cron] Error in Design Request Reminder check:', err);
+  }
+};
+
 const initCronJobs = () => {
   console.log('[Cron] Initializing Scheduled Jobs...');
   
   // Run every hour at minute 0
   cron.schedule('0 * * * *', async () => {
-    console.log('[Cron] Running hourly SLA Abandonment check...');
+    console.log('[Cron] Running hourly checks...');
     await checkSLAAbandonment();
+    await processDesignRequestReminders();
   });
 
   // You can add more cron jobs here in the future
@@ -73,5 +126,6 @@ const initCronJobs = () => {
 
 module.exports = {
   initCronJobs,
-  checkSLAAbandonment // Exported for testing purposes
+  checkSLAAbandonment,
+  processDesignRequestReminders // Exported for testing purposes
 };

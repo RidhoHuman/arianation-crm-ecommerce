@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import HeroSlider from '../components/HeroSlider';
 import ProductCard from '../components/ProductCard';
@@ -21,43 +22,7 @@ export default function HomePage() {
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [subscribeStatus, setSubscribeStatus] = useState(null);
 
-  const TRANSLATIONS = {
-    ID: {
-      newDrops: 'Koleksi Terbaru',
-      newDropsSub: 'Rilisan terbaru kami.',
-      shopAll: 'Lihat Semua',
-      explore: 'Jelajahi Koleksi',
-      customTitle: 'Wujudkan Visi Anda',
-      customDesc: 'Punya desain sendiri? Kami menyediakan layanan sablon premium untuk mewujudkan idemu di atas pakaian berkualitas tinggi.',
-      startDesigning: 'Mulai Mendesain',
-      shopByType: 'Belanja Berdasarkan Kategori',
-      joinTitle: 'Bergabung Bersama Kami',
-      joinDesc: 'Dapatkan akses eksklusif ke koleksi terbaru, promo, dan update langsung ke inbox Anda.',
-      subscribe: 'Berlangganan',
-      emailPlaceholder: 'Masukkan email Anda',
-      subscribed: 'Terima kasih! Anda berhasil berlangganan.',
-      collectionLabel: 'Koleksi',
-      customServiceLabel: 'Layanan Kustom',
-    },
-    EN: {
-      newDrops: 'New Drops',
-      newDropsSub: 'The latest products freshly arrived for you.',
-      shopAll: 'Shop All',
-      explore: 'Explore Collection',
-      customTitle: 'Bring Your Vision to Life',
-      customDesc: 'Got your own design? Our premium custom sablon service brings your vision to life on high-quality apparel.',
-      startDesigning: 'Start Designing',
-      shopByType: 'Shop by Type',
-      joinTitle: 'Join the Community',
-      joinDesc: 'Get exclusive drops, early access to new collections, and insider updates delivered to your inbox.',
-      subscribe: 'Subscribe',
-      emailPlaceholder: 'Enter your email',
-      subscribed: 'Thank you! You have been subscribed.',
-      collectionLabel: 'Collection',
-      customServiceLabel: 'Custom Service',
-    }
-  };
-  const t = TRANSLATIONS[language];
+  const { t } = useTranslation('translation', { keyPrefix: 'home' });
 
   useEffect(() => {
     fetchCategories();
@@ -155,14 +120,14 @@ export default function HomePage() {
             <div className="flex items-end justify-between mb-10 border-b border-gray-200 dark:border-gray-800 pb-4">
               <div>
                 <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-aria-charcoal dark:text-white uppercase">
-                  {t.newDrops}
+                  {t('newDrops')}
                 </h2>
               </div>
               <Link
                 to="/products"
                 className="hidden md:inline-flex items-center text-xs font-bold tracking-widest uppercase text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors"
               >
-                {t.shopAll} <span className="ml-2">→</span>
+                {t('shopAll')} <span className="ml-2">→</span>
               </Link>
             </div>
 
@@ -182,7 +147,7 @@ export default function HomePage() {
 
             <div className="md:hidden text-center mt-8">
               <Link to="/products" className="inline-flex items-center text-xs font-bold tracking-widest uppercase text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors">
-                {t.shopAll} <span className="ml-2">→</span>
+                {t('shopAll')} <span className="ml-2">→</span>
               </Link>
             </div>
           </div>
@@ -195,20 +160,11 @@ export default function HomePage() {
               {displayCollections.slice(0, 2).map((col, index) => {
                 const isEven = index % 2 === 0;
                 // Provide translated labels for common collections
-                let translatedColName = col.name;
-                if (language === 'ID') {
-                  if (col.name === 'Best Seller') translatedColName = 'Paling Laku';
-                  if (col.name === 'New Arrivals') translatedColName = 'Pendatang Baru';
-                  if (col.name === 'Heritage') translatedColName = 'Warisan Budaya';
-                  if (col.name === 'Everyday') translatedColName = 'Harian';
-                  if (col.name === 'Outdoor') translatedColName = 'Luar Ruangan';
-                  if (col.name === 'Active') translatedColName = 'Aktif';
-                  if (col.name === 'Street') translatedColName = 'Jalanan';
-                }
+                const colKey = `col_${col.name.replace(/ /g, '_')}`;
+                let translatedColName = t(colKey, { defaultValue: col.name });
 
-                const translatedDesc = col.description
-                  ? (language === 'EN' && col.description === 'Jelajahi koleksi eksklusif ini.' ? 'Explore this exclusive collection.' : col.description)
-                  : (language === 'EN' ? 'Explore this exclusive collection.' : 'Jelajahi koleksi eksklusif ini.');
+                const isDefaultDesc = !col.description || col.description === 'Jelajahi koleksi eksklusif ini.' || col.description === 'Explore this exclusive collection.';
+                const translatedDesc = isDefaultDesc ? t('desc_Explore') : col.description;
 
                 return (
                   <div key={col.id} className="w-full flex flex-col md:flex-row items-center gap-8 md:gap-16">
@@ -230,7 +186,7 @@ export default function HomePage() {
                         transition={{ duration: 0.5 }}
                         className="max-w-md w-full"
                       >
-                        <div className="text-xs font-bold text-aria-maroon tracking-widest uppercase mb-4">{t.collectionLabel}</div>
+                        <div className="text-xs font-bold text-aria-maroon tracking-widest uppercase mb-4">{t('collectionLabel')}</div>
                         <h3 className="text-4xl md:text-5xl font-black text-aria-charcoal dark:text-white mb-6 tracking-tighter">
                           {translatedColName}
                         </h3>
@@ -241,7 +197,7 @@ export default function HomePage() {
                           to={`/products?collection=${col.slug || col.id}`}
                           className="inline-flex items-center text-sm font-bold tracking-widest uppercase text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors border-b-2 border-black dark:border-white pb-1"
                         >
-                          {t.explore} →
+                          {t('explore')} →
                         </Link>
                       </motion.div>
                     </div>
@@ -265,18 +221,18 @@ export default function HomePage() {
               transition={{ duration: 0.7 }}
               className="relative z-10 max-w-lg w-full"
             >
-              <div className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4">{t.customServiceLabel}</div>
+              <div className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4">{t('customServiceLabel')}</div>
               <h2 className="text-4xl md:text-6xl font-black mb-8 tracking-tighter leading-[1.1]">
-                {t.customTitle}
+                {t('customTitle')}
               </h2>
               <p className="text-lg text-gray-300 mb-10 leading-relaxed">
-                {t.customDesc}
+                {t('customDesc')}
               </p>
               <Link
                 to="/custom-sablon"
                 className="inline-block bg-white text-black px-8 py-4 font-bold uppercase tracking-widest text-sm hover:bg-gray-200 transition-colors"
               >
-                {t.startDesigning}
+                {t('startDesigning')}
               </Link>
             </motion.div>
           </div>
@@ -317,7 +273,7 @@ export default function HomePage() {
           <section className="py-24 bg-white dark:bg-black">
             <div className="max-w-[1440px] mx-auto px-4 sm:px-6">
               <h2 className="text-4xl font-black tracking-tighter text-center text-aria-charcoal dark:text-white uppercase mb-16">
-                {t.shopByType}
+                {t('shopByType')}
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {activeTypes.map((type) => (
@@ -356,20 +312,20 @@ export default function HomePage() {
               transition={{ duration: 0.5 }}
             >
               <h2 className="text-3xl font-black text-aria-charcoal dark:text-white mb-4 tracking-tighter">
-                {t.joinTitle}
+                {t('joinTitle')}
               </h2>
               <p className="text-gray-500 dark:text-gray-400 mb-10 max-w-xl mx-auto font-medium">
-                {t.joinDesc}
+                {t('joinDesc')}
               </p>
               {subscribeStatus === 'success' ? (
-                <p className="text-green-600 dark:text-green-400 font-bold">{t.subscribed}</p>
+                <p className="text-green-600 dark:text-green-400 font-bold">{t('subscribed')}</p>
               ) : (
                 <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-0 max-w-lg mx-auto shadow-sm">
                   <input
                     type="email"
                     value={subscriberEmail}
                     onChange={(e) => setSubscriberEmail(e.target.value)}
-                    placeholder={t.emailPlaceholder}
+                    placeholder={t('emailPlaceholder')}
                     className="flex-1 px-6 py-4 border border-gray-300 dark:border-gray-700 border-r-0 focus:outline-none focus:border-black transition-colors bg-white dark:bg-black text-sm dark:text-white font-medium rounded-l-sm"
                     required
                   />
@@ -377,7 +333,7 @@ export default function HomePage() {
                     type="submit"
                     className="px-10 py-4 bg-black text-white font-bold uppercase tracking-widest text-sm hover:bg-aria-maroon transition-colors rounded-r-sm"
                   >
-                    {t.subscribe}
+                    {t('subscribe')}
                   </button>
                 </form>
               )}

@@ -131,6 +131,13 @@ const useCartStore = create((set, get) => ({
   },
 
   clearCart: async (clearRemote = false) => {
+    // Hapus dari local storage & state TERLEBIH DAHULU (Synchronous)
+    // Ini mencegah race condition di mana halaman keburu unload (redirect)
+    // sebelum baris kode ini tereksekusi, yang berakibat pada cart item "hidup lagi" 
+    // karena difetch dari localStorage dan di-merge ke database saat halaman dimuat ulang.
+    localStorage.removeItem('cart');
+    set({ items: [] });
+
     if (clearRemote) {
       const token = localStorage.getItem('token');
       if (token) {
@@ -141,8 +148,6 @@ const useCartStore = create((set, get) => ({
         }
       }
     }
-    localStorage.removeItem('cart');
-    set({ items: [] });
   },
 
   getTotal: () => {

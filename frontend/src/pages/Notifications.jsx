@@ -4,8 +4,12 @@ import api from '../services/api';
 import useAuthStore from '../store/authStore';
 import PageTransition from '../components/PageTransition';
 import SEOHead from '../components/SEOHead';
+import { useTranslation } from 'react-i18next';
+import PushNotificationBanner from '../components/PushNotificationBanner';
 
 export default function Notifications() {
+  const { t: rootT, i18n } = useTranslation('translation');
+  const t = rootT('notifications', { returnObjects: true });
   const { isAuthenticated } = useAuthStore();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,22 +62,22 @@ export default function Notifications() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
-        <p className="text-gray-500">Please login to view notifications.</p>
+        <p className="text-gray-500">{t.loginRequired}</p>
       </div>
     );
   }
 
   return (
     <PageTransition>
-      <SEOHead title="Notifications - Arianation" description="View your Arianation notifications" />
+      <SEOHead title={`${t.pageTitle} - Arianation`} description={t.pageDesc} />
       <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-12 md:py-20">
         <div className="flex justify-between items-end mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">
           <div>
             <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tighter text-aria-charcoal dark:text-white mb-2">
-              Notifications
+              {t.pageTitle}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Stay updated with your orders and special offers.
+              {t.pageDesc}
             </p>
           </div>
           <button 
@@ -81,7 +85,7 @@ export default function Notifications() {
             className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline uppercase tracking-widest flex items-center gap-1 mb-1"
           >
             <Check className="w-3 h-3" />
-            Mark all read
+            {t.markAllRead}
           </button>
         </div>
 
@@ -92,8 +96,8 @@ export default function Notifications() {
         ) : notifications.length === 0 ? (
           <div className="text-center py-20 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
             <Bell className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-2">No Notifications Yet</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-500">When you receive updates about your orders, they will appear here.</p>
+            <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-2">{t.emptyTitle}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-500">{t.emptyDesc}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -110,7 +114,7 @@ export default function Notifications() {
                       </h3>
                       {!notif.isRead && (
                         <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                          New
+                          {t.new}
                         </span>
                       )}
                     </div>
@@ -119,7 +123,7 @@ export default function Notifications() {
                     </p>
                     <div className="flex items-center gap-1 text-xs text-gray-400">
                       <Clock className="w-3 h-3" />
-                      <span>{new Date(notif.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                      <span>{new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(notif.createdAt))}</span>
                     </div>
                   </div>
                   
@@ -147,13 +151,14 @@ export default function Notifications() {
                   disabled={loading}
                   className="px-8 py-3 bg-gray-100 dark:bg-gray-900 text-aria-charcoal dark:text-white text-xs font-bold uppercase tracking-widest rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
                 >
-                  {loading ? 'Loading...' : 'Load More'}
+                  {loading ? t.loading : t.loadMore}
                 </button>
               </div>
             )}
           </div>
         )}
       </div>
+      <PushNotificationBanner context="umum" />
     </PageTransition>
   );
 }

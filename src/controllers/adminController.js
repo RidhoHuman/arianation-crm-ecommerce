@@ -9,6 +9,7 @@ const orderService = require('../services/orderService');
 const userService = require('../services/userService');
 const designRequestService = require('../services/designRequestService');
 const paymentService = require('../services/paymentService');
+const notificationService = require('../services/notificationService');
 
 // ============================================================
 // DASHBOARD
@@ -762,7 +763,7 @@ const getDesignRequestDetail = async (req, res, next) => {
 const updateDesignRequestStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, comments, estimatedPrice } = req.body;
+    const { status, comments, estimatedPrice, hppPrice } = req.body;
 
     if (!status) throw new ValidationError('Status is required');
 
@@ -775,6 +776,12 @@ const updateDesignRequestStatus = async (req, res, next) => {
     let fullComment = comments || '';
     if (estimatedPrice) {
       fullComment += `\n\nEstimasi Biaya: Rp ${parseInt(estimatedPrice).toLocaleString('id-ID')}`;
+    }
+    
+    if (hppPrice && estimatedPrice) {
+      const margin = parseInt(estimatedPrice) - parseInt(hppPrice);
+      const marginPercent = Math.round((margin / parseInt(estimatedPrice)) * 100);
+      fullComment += `\nModal (HPP): Rp ${parseInt(hppPrice).toLocaleString('id-ID')}\nMargin: Rp ${margin.toLocaleString('id-ID')} (${marginPercent}%)`;
     }
 
     if (fullComment) {
@@ -803,26 +810,55 @@ const updateDesignRequestStatus = async (req, res, next) => {
           }
         });
         
-        const subjectStatus = status === 'APPROVED' ? 'Desain Disetujui' : (status === 'REVISION_NEEDED' ? 'Desain Perlu Direvisi' : 'Status Desain Diupdate');
+        const subjectStatus = status === 'APPROVED' ? 'Desain Disetujui' : (status === 'REVISION_REQUESTED' ? 'Desain Perlu Direvisi' : 'Status Desain Diupdate');
         await transporter.sendMail({
           from: `"Arianation CRM" <${process.env.SMTP_USER || 'no-reply@arianation.com'}>`,
           to: user.email,
           subject: `Status Request Desain Anda: ${subjectStatus}`,
           html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; color: #333;">
               <h2 style="color: #2563eb;">Halo ${user.fullName},</h2>
               <p>Status permintaan desain sablon Anda (<strong>${request.designTitle}</strong>) telah diubah menjadi <strong>${status}</strong>.</p>
-              ${fullComment ? `<div style="background-color: #f3f4f6; padding: 15px; border-left: 4px solid #3b82f6; margin-top: 15px;">
+              ${fullComment ? `<div style="background-color: #f3f4f6; padding: 15px; border-left: 4px solid #3b82f6; margin-top: 15px; margin-bottom: 25px;">
                 <strong>Catatan dari Admin:</strong><br/>
                 ${fullComment.replace(/\n/g, '<br/>')}
               </div>` : ''}
+              ${status === 'APPROVED' ? `
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                  Lanjutkan Pembayaran
+                </a>
+              </div>
+              <p>Silakan klik tombol di atas untuk melanjutkan pembayaran pesanan Anda.</p>
+              ` : `
               <p style="margin-top: 20px;">Silakan cek dashboard akun Anda untuk melihat detailnya.</p>
+              `}
             </div>
           `
         });
       }
     } catch (emailErr) {
       console.error('Failed to send design notification email:', emailErr);
+    }
+
+    // In-app Notification and Web Push Notification
+    try {
+      let subjectStatus = 'Status Desain Diupdate';
+      if (status === 'APPROVED') subjectStatus = 'Desain Disetujui';
+      else if (status === 'REVISION_REQUESTED') subjectStatus = 'Desain Perlu Direvisi';
+      else if (status === 'REJECTED') subjectStatus = 'Desain Ditolak';
+      else if (status === 'CANCELLED') subjectStatus = 'Penawaran Dibatalkan';
+
+      await notificationService.queueCustomerNotification({
+        referenceId: id,
+        referenceType: 'DESIGN_REQUEST',
+        userId: request.userId,
+        type: `DESIGN_REQUEST_${status}`,
+        title: subjectStatus,
+        message: `Permintaan desain "${request.designTitle}" Anda sekarang berstatus ${status.replace('_', ' ')}. ${fullComment ? 'Ada catatan dari Admin.' : ''}`
+      });
+    } catch (err) {
+      console.error('Failed to queue customer notification:', err);
     }
 
     // Audit log

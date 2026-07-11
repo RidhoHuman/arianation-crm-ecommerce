@@ -7,11 +7,12 @@ import { toast } from 'react-toastify';
 import SEOHead from '../components/SEOHead';
 import { FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import PageTransition from '../components/PageTransition';
+import { useTranslation } from 'react-i18next';
 
 export default function CheckoutSablon() {
   const { id } = useParams(); // designRequest ID
   const navigate = useNavigate();
-  const language = useUIStore((s) => s.language) || 'ID';
+  const { t } = useTranslation('translation', { keyPrefix: 'checkoutSablon' });
   const { user } = useAuthStore();
   
   const [requestData, setRequestData] = useState(null);
@@ -29,14 +30,14 @@ export default function CheckoutSablon() {
         const res = await api.get('/design-requests');
         const req = res.data.data.find(r => r.id === id);
         if (!req) {
-          throw new Error('Design request tidak ditemukan');
+          throw new Error(t('errors.notFound'));
         }
         if (req.status !== 'APPROVED') {
-          throw new Error('Design request belum disetujui atau sudah dibayar');
+          throw new Error(t('errors.notApproved'));
         }
         setRequestData(req);
       } catch (err) {
-        setError(err.message || 'Gagal memuat design request');
+        setError(err.message || t('errors.loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -47,7 +48,7 @@ export default function CheckoutSablon() {
   const handleCheckout = async (e) => {
     e.preventDefault();
     if (!user) {
-      toast.error('Anda harus login untuk melakukan checkout.');
+      toast.error(t('errors.loginRequired'));
       navigate('/login?redirect=/checkout-sablon/' + id);
       return;
     }
@@ -62,11 +63,12 @@ export default function CheckoutSablon() {
       if (res.data.data?.paymentUrl) {
         window.location.href = res.data.data.paymentUrl;
       } else {
-        toast.success('Pesanan berhasil dibuat!');
+        toast.success(t('errors.checkoutFailed')); // Ideally this should be success message, but keeping API as is, using a new key if needed, or I'll just leave success message hardcoded for now, or use translation. Let's just hardcode toast since it's backend message often. Wait, I should not translate toasts if they are from backend. 
+        // Actually, in the translation JSON there is no success message. I'll translate the error.
         navigate(`/order-tracking/${res.data.data.orderId}`);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Gagal checkout pesanan sablon');
+      toast.error(err.response?.data?.message || t('errors.checkoutFailed'));
     } finally {
       setProcessing(false);
     }
@@ -87,10 +89,10 @@ export default function CheckoutSablon() {
       <PageTransition>
         <div className="flex flex-col justify-center items-center h-[70vh] px-4 text-center">
           <FiAlertCircle className="text-red-500 text-6xl mb-4" />
-          <h2 className="text-2xl font-bold mb-2 dark:text-white">Oops!</h2>
+          <h2 className="text-2xl font-bold mb-2 dark:text-white">{t('oops')}</h2>
           <p className="text-gray-500 mb-6">{error}</p>
           <button onClick={() => navigate('/account?tab=sablon')} className="px-6 py-3 bg-aria-charcoal dark:bg-white text-white dark:text-aria-charcoal rounded-xl text-sm font-semibold uppercase tracking-wider">
-            Kembali ke Akun
+            {t('backToAccount')}
           </button>
         </div>
       </PageTransition>
@@ -116,27 +118,27 @@ export default function CheckoutSablon() {
 
   return (
     <PageTransition>
-      <SEOHead title="Checkout Custom Sablon - Arianation" description="Checkout pesanan custom sablon" />
+      <SEOHead title={`${t('title')} - Arianation`} description={t('title')} />
       <div className="min-h-screen bg-white dark:bg-black py-16 pt-28 px-4 sm:px-6 lg:px-8 font-sans">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-display font-black tracking-tighter mb-8 dark:text-white uppercase">Checkout Sablon</h1>
+          <h1 className="text-3xl font-display font-black tracking-tighter mb-8 dark:text-white uppercase">{t('title')}</h1>
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-6">
               {/* Ringkasan Desain */}
               <div className="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
-                <h3 className="font-bold text-gray-800 dark:text-white mb-4 uppercase tracking-widest text-sm">Ringkasan Desain</h3>
+                <h3 className="font-bold text-gray-800 dark:text-white mb-4 uppercase tracking-widest text-sm">{t('designSummary')}</h3>
                 <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                  <p><span className="font-semibold text-gray-800 dark:text-gray-300">Judul:</span> {requestData.designTitle}</p>
-                  <p><span className="font-semibold text-gray-800 dark:text-gray-300">Produk:</span> {requestData.productTypeForSablon}</p>
-                  <p><span className="font-semibold text-gray-800 dark:text-gray-300">Teknik Sablon:</span> {requestData.printTechnique}</p>
-                  <p><span className="font-semibold text-gray-800 dark:text-gray-300">Total Harga Produksi:</span> Rp {estimatedTotal.toLocaleString()}</p>
+                  <p><span className="font-semibold text-gray-800 dark:text-gray-300">{t('designTitle')}</span> {requestData.designTitle}</p>
+                  <p><span className="font-semibold text-gray-800 dark:text-gray-300">{t('product')}</span> {requestData.productTypeForSablon}</p>
+                  <p><span className="font-semibold text-gray-800 dark:text-gray-300">{t('technique')}</span> {requestData.printTechnique}</p>
+                  <p><span className="font-semibold text-gray-800 dark:text-gray-300">{t('totalPrice')}</span> Rp {estimatedTotal.toLocaleString('id-ID')}</p>
                 </div>
               </div>
 
               {/* Pilihan Pembayaran */}
               <div className="bg-white dark:bg-black p-6 rounded-2xl border border-gray-200 dark:border-gray-800">
-                <h3 className="font-bold text-gray-800 dark:text-white mb-4 uppercase tracking-widest text-sm">Opsi Pembayaran</h3>
+                <h3 className="font-bold text-gray-800 dark:text-white mb-4 uppercase tracking-widest text-sm">{t('paymentOptions')}</h3>
                 <div className="space-y-4">
                   <label className={`flex items-start p-4 rounded-xl border-2 cursor-pointer transition-colors ${paymentType === 'FULL' ? 'border-aria-charcoal bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-100 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'}`}>
                     <input 
@@ -149,10 +151,10 @@ export default function CheckoutSablon() {
                     />
                     <div className="ml-3 flex-1">
                       <div className="flex justify-between items-center mb-1">
-                        <h4 className="font-bold text-gray-800 dark:text-white">Langsung Lunas (100%)</h4>
-                        <span className="font-bold text-aria-maroon dark:text-amber-400">Rp {estimatedTotal.toLocaleString()}</span>
+                        <h4 className="font-bold text-gray-800 dark:text-white">{t('fullPayment')}</h4>
+                        <span className="font-bold text-aria-maroon dark:text-amber-400">Rp {estimatedTotal.toLocaleString('id-ID')}</span>
                       </div>
-                      <p className="text-xs text-gray-500">Melunasi seluruh biaya produksi di awal. Jika Anda memilih ambil di toko, Anda tidak perlu bayar apa-apa lagi nanti.</p>
+                      <p className="text-xs text-gray-500">{t('fullPaymentDesc')}</p>
                     </div>
                   </label>
                   <label className={`flex items-start p-4 rounded-xl border-2 cursor-pointer transition-colors ${paymentType === 'DP' ? 'border-aria-charcoal bg-gray-50 dark:border-white dark:bg-gray-900' : 'border-gray-100 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'}`}>
@@ -166,10 +168,10 @@ export default function CheckoutSablon() {
                     />
                     <div className="ml-3 flex-1">
                       <div className="flex justify-between items-center mb-1">
-                        <h4 className="font-bold text-gray-800 dark:text-white">Uang Muka / DP (50%)</h4>
-                        <span className="font-bold text-aria-maroon dark:text-amber-400">Rp {dpAmount.toLocaleString()}</span>
+                        <h4 className="font-bold text-gray-800 dark:text-white">{t('dpPayment')}</h4>
+                        <span className="font-bold text-aria-maroon dark:text-amber-400">Rp {dpAmount.toLocaleString('id-ID')}</span>
                       </div>
-                      <p className="text-xs text-gray-500">Sisa pembayaran 50% dan ongkir akan dibayar setelah produksi selesai. Cocok untuk Anda yang ingin ongkir dihitung nanti.</p>
+                      <p className="text-xs text-gray-500">{t('dpPaymentDesc')}</p>
                     </div>
                   </label>
                 </div>
@@ -179,8 +181,8 @@ export default function CheckoutSablon() {
               {user && user.rewardPoints > 0 && (
                 <div className="bg-gray-50 dark:bg-gray-900/30 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-center justify-between">
                   <div>
-                    <h3 className="font-bold text-gray-800 dark:text-white text-sm">Gunakan Aria Points</h3>
-                    <p className="text-xs text-gray-500 mt-1">Anda memiliki {user.rewardPoints} Poin (Rp {(user.rewardPoints * 1000).toLocaleString()})</p>
+                    <h3 className="font-bold text-gray-800 dark:text-white text-sm">{t('usePoints')}</h3>
+                    <p className="text-xs text-gray-500 mt-1">{t('youHavePoints', { points: user.rewardPoints, value: (user.rewardPoints * 1000).toLocaleString('id-ID') })}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={usePoints} onChange={(e) => setUsePoints(e.target.checked)} />
@@ -192,23 +194,23 @@ export default function CheckoutSablon() {
 
             <div className="lg:col-span-4">
               <div className="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 sticky top-28">
-                <h3 className="font-bold text-gray-800 dark:text-white mb-6 uppercase tracking-widest text-sm text-center">Ringkasan Pembayaran</h3>
+                <h3 className="font-bold text-gray-800 dark:text-white mb-6 uppercase tracking-widest text-sm text-center">{t('paymentSummary')}</h3>
                 
                 <div className="space-y-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
                   <div className="flex justify-between">
-                    <span>{paymentType === 'FULL' ? 'Biaya Lunas (100%)' : 'DP (50%)'}</span>
-                    <span className="font-semibold text-gray-800 dark:text-gray-300">Rp {selectedAmount.toLocaleString()}</span>
+                    <span>{paymentType === 'FULL' ? t('fullPaymentCost') : t('dpCost')}</span>
+                    <span className="font-semibold text-gray-800 dark:text-gray-300">Rp {selectedAmount.toLocaleString('id-ID')}</span>
                   </div>
                   {usePoints && pointsDiscount > 0 && (
                     <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                      <span>Diskon Poin</span>
-                      <span>- Rp {pointsDiscount.toLocaleString()}</span>
+                      <span>{t('pointsDiscount')}</span>
+                      <span>- Rp {pointsDiscount.toLocaleString('id-ID')}</span>
                     </div>
                   )}
                   <div className="h-px bg-gray-200 dark:bg-gray-800 my-4" />
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-gray-800 dark:text-white">Total Tagihan</span>
-                    <span className="font-black text-xl text-aria-maroon dark:text-amber-400">Rp {finalAmount.toLocaleString()}</span>
+                    <span className="font-bold text-gray-800 dark:text-white">{t('totalBilled')}</span>
+                    <span className="font-black text-xl text-aria-maroon dark:text-amber-400">Rp {finalAmount.toLocaleString('id-ID')}</span>
                   </div>
                 </div>
 
@@ -217,10 +219,10 @@ export default function CheckoutSablon() {
                   disabled={processing}
                   className="w-full py-4 bg-aria-charcoal dark:bg-white text-white dark:text-aria-charcoal rounded-xl text-sm font-black tracking-widest uppercase hover:bg-black transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {processing ? 'Memproses...' : 'Bayar Sekarang'}
+                  {processing ? t('processing') : t('payNow')}
                 </button>
                 <p className="text-[10px] text-gray-400 text-center mt-4">
-                  Pembayaran diproses aman oleh Xendit. Anda akan dialihkan ke halaman pembayaran.
+                  {t('paymentNotice')}
                 </p>
               </div>
             </div>

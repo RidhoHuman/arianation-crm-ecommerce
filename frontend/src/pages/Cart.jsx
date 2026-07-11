@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import useCartStore from '../store/cartStore';
 import SEOHead from '../components/SEOHead';
 import OptimizedImage from '../components/OptimizedImage';
@@ -11,6 +12,7 @@ import useUIStore from '../store/uiStore';
 export default function Cart() {
   const { items, updateQuantity, removeItem, getTotal } = useCartStore();
   const navigate = useNavigate();
+  const { t } = useTranslation('translation', { keyPrefix: 'cart' });
   const language = useUIStore((s) => s.language) || 'ID';
 
   const handleQuantityChange = (id, currentQty, delta) => {
@@ -30,19 +32,19 @@ export default function Cart() {
         <Breadcrumb />
         
         <h1 className="text-4xl font-display font-medium uppercase tracking-tight text-aria-charcoal dark:text-white mb-10 mt-6">
-          {language === 'EN' ? 'Your Bag' : 'Keranjang Anda'}
+          {t('title')}
         </h1>
 
         {items.length === 0 ? (
           <div className="text-center py-24 bg-gray-50/50 dark:bg-gray-900/50">
             <h2 className="text-xl font-medium tracking-widest uppercase mb-4 text-gray-500 dark:text-gray-400">
-              {language === 'EN' ? 'Your bag is empty' : 'Keranjang Anda kosong'}
+              {t('empty')}
             </h2>
             <Link 
               to="/products" 
               className="inline-block border border-aria-charcoal dark:border-white px-8 py-4 text-sm font-medium uppercase tracking-[0.15em] hover:bg-aria-charcoal dark:hover:bg-white hover:text-white dark:hover:text-black text-aria-charcoal dark:text-white transition-colors"
             >
-              {language === 'EN' ? 'Continue Shopping' : 'Lanjutkan Belanja'}
+              {t('continueShopping')}
             </Link>
           </div>
         ) : (
@@ -52,10 +54,10 @@ export default function Cart() {
             <div className="lg:w-2/3">
               <div className="border-t border-black dark:border-white">
                 <div className="hidden md:grid grid-cols-12 gap-4 py-4 border-b border-gray-200 dark:border-gray-800 text-xs font-semibold tracking-widest uppercase text-gray-500 dark:text-gray-400">
-                  <div className="col-span-6">{language === 'EN' ? 'Product' : 'Produk'}</div>
-                  <div className="col-span-2 text-center">{language === 'EN' ? 'Price' : 'Harga'}</div>
-                  <div className="col-span-2 text-center">{language === 'EN' ? 'Quantity' : 'Jumlah'}</div>
-                  <div className="col-span-2 text-right">Total</div>
+                  <div className="col-span-6">{t('product')}</div>
+                  <div className="col-span-2 text-center">{t('price')}</div>
+                  <div className="col-span-2 text-center">{t('quantity')}</div>
+                  <div className="col-span-2 text-right">{t('total')}</div>
                 </div>
                 
                 <div className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -80,7 +82,7 @@ export default function Cart() {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs uppercase tracking-widest">
-                              {language === 'EN' ? 'No img' : 'Tanpa gbr'}
+                              {t('noImage')}
                             </div>
                           )}
                         </div>
@@ -89,16 +91,16 @@ export default function Cart() {
                             {item.productName}
                           </Link>
                           {item.color && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">{language === 'EN' ? 'Color' : 'Warna'}: {item.color}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">{t('color')}: {item.color}</p>
                           )}
                           {item.size && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">{language === 'EN' ? 'Size' : 'Ukuran'}: {item.size}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">{t('size')}: {item.size}</p>
                           )}
                           <button 
                             onClick={() => removeItem(item.id)}
                             className="text-xs text-gray-400 hover:text-red-500 dark:hover:text-red-400 uppercase tracking-widest text-left w-fit transition-colors underline underline-offset-4"
                           >
-                            {language === 'EN' ? 'Remove' : 'Hapus'}
+                            {t('remove')}
                           </button>
                         </div>
                       </div>
@@ -111,7 +113,7 @@ export default function Cart() {
                       {/* Quantity */}
                       <div className="md:col-span-2 flex justify-between md:justify-center items-center">
                         <span className="md:hidden text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-                          {language === 'EN' ? 'Qty:' : 'Jml:'}
+                          {t('qty')}
                         </span>
                         <div className="flex items-center border border-gray-300 dark:border-gray-700 w-24">
                           <button 
@@ -135,7 +137,7 @@ export default function Cart() {
 
                       {/* Subtotal */}
                       <div className="md:col-span-2 flex justify-between md:justify-end text-sm font-medium text-aria-charcoal dark:text-white">
-                        <span className="md:hidden text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">Total:</span>
+                        <span className="md:hidden text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">{t('total')}:</span>
                         Rp {(item.price * item.quantity).toLocaleString('id-ID')}
                       </div>
                     </motion.div>
@@ -148,21 +150,21 @@ export default function Cart() {
             <div className="lg:w-1/3">
               <div className="bg-neutral-50 dark:bg-aria-charcoal p-8 sticky top-24 border border-neutral-200 dark:border-neutral-800">
                 <h2 className="text-sm font-semibold tracking-widest uppercase mb-6 pb-4 border-b border-neutral-200 dark:border-neutral-800 dark:text-white">
-                  {language === 'EN' ? 'Order Summary' : 'Ringkasan Pesanan'}
+                  {t('orderSummary')}
                 </h2>
                 
                 <div className="flex justify-between mb-4 text-sm text-gray-600 dark:text-gray-400">
-                  <span>Subtotal ({items.reduce((acc, i) => acc + i.quantity, 0)} {language === 'EN' ? 'items' : 'item'})</span>
+                  <span>{t('items', { count: items.reduce((acc, i) => acc + i.quantity, 0) })}</span>
                   <span className="font-medium text-gray-900 dark:text-white">Rp {getTotal().toLocaleString('id-ID')}</span>
                 </div>
                 
                 <div className="flex justify-between mb-6 pb-6 border-b border-gray-200 dark:border-gray-800 text-sm text-gray-600 dark:text-gray-400">
-                  <span>{language === 'EN' ? 'Shipping' : 'Pengiriman'}</span>
-                  <span>{language === 'EN' ? 'Calculated at checkout' : 'Dihitung saat checkout'}</span>
+                  <span>{t('shipping')}</span>
+                  <span>{t('calculatedAtCheckout')}</span>
                 </div>
                 
                 <div className="flex justify-between mb-8 dark:text-white">
-                  <span className="font-semibold uppercase tracking-widest">Total</span>
+                  <span className="font-semibold uppercase tracking-widest">{t('total')}</span>
                   <span className="font-medium text-lg text-aria-charcoal dark:text-white">Rp {getTotal().toLocaleString('id-ID')}</span>
                 </div>
                 
@@ -172,14 +174,14 @@ export default function Cart() {
                   onClick={() => navigate('/checkout')}
                   className="w-full bg-aria-charcoal dark:bg-white text-white dark:text-black py-4 text-sm uppercase tracking-[0.2em] font-medium hover:bg-aria-maroon transition-colors active:scale-[0.98]"
                 >
-                  Checkout
+                  {t('checkoutBtn')}
                 </button>
                 
                 <Link 
                   to="/products"
                   className="block text-center w-full mt-6 text-gray-500 dark:text-gray-400 hover:text-aria-charcoal dark:hover:text-white transition-colors text-xs uppercase tracking-widest underline underline-offset-4"
                 >
-                  {language === 'EN' ? 'Continue Shopping' : 'Lanjutkan Belanja'}
+                  {t('continueShopping')}
                 </Link>
               </div>
             </div>

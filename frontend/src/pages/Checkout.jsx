@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import useAuthStore from '../store/authStore';
 import useCartStore from '../store/cartStore';
 import useUIStore from '../store/uiStore';
@@ -12,37 +13,21 @@ import SEOHead from '../components/SEOHead';
 import Breadcrumb from '../components/Breadcrumb';
 import ShippingMethodSelector from '../components/checkout/ShippingMethodSelector';
 
-const CHECKOUT_TRANSLATIONS = {
-  ID: {
-    confirmed: 'Pesanan Berhasil Dibuat',
-    orderId: 'ID Pesanan:',
-    desc: 'Terima kasih atas pesanan Anda. Silakan lanjut ke halaman pelacakan untuk melihat instruksi pembayaran agar barang Anda segera kami proses.',
-    btn: 'Lacak Pesanan & Bayar'
-  },
-  EN: {
-    confirmed: 'Order Confirmed',
-    orderId: 'Order ID:',
-    desc: 'Thank you for your purchase. Please proceed to the tracking page to view payment instructions so we can process your items as soon as possible.',
-    btn: 'Track Order & Pay'
-  }
-};
-
-const addressSchema = z.object({
-  firstName: z.string().min(2, 'Min 2 characters'),
-  lastName: z.string().min(2, 'Min 2 characters'),
-  email: z.string().email('Invalid email'),
-  phone: z.string().min(10, 'Min 10 digits'),
-  address: z.string().min(5, 'Min 5 characters'),
-  city: z.string().min(2, 'Min 2 characters'),
-  postalCode: z.string().min(4, 'Min 4 digits'),
+const createAddressSchema = (t) => z.object({
+  firstName: z.string().min(2, t('errors.min2')),
+  lastName: z.string().min(2, t('errors.min2')),
+  email: z.string().email(t('errors.invalidEmail')),
+  phone: z.string().min(10, t('errors.min10')),
+  address: z.string().min(5, t('errors.min5')),
+  city: z.string().min(2, t('errors.min2')),
+  postalCode: z.string().min(4, t('errors.min4')),
   country: z.string().default('INDONESIA'),
 });
 
 export default function Checkout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
-  const language = useUIStore((s) => s.language) || 'ID';
-  const t = CHECKOUT_TRANSLATIONS[language];
+  const { t } = useTranslation('translation', { keyPrefix: 'checkout' });
   const cartItems = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
   const setLoading = useUIStore((s) => s.setLoading);
@@ -79,6 +64,8 @@ export default function Checkout() {
     // Xendit handles UI redirection natively via Invoice URLs, 
     // no need to inject external scripts like Midtrans snap.js here.
   }, []);
+
+  const addressSchema = useMemo(() => createAddressSchema(t), [t]);
 
   const { register, handleSubmit, formState: { errors }, watch } = useForm({
     resolver: zodResolver(addressSchema),
@@ -193,7 +180,7 @@ export default function Checkout() {
       setShippingRates(rates);
     } catch (err) {
       console.error('Failed to fetch shipping rates', err);
-      setShippingError(err.response?.data?.message || 'Gagal mengambil tarif pengiriman. Pastikan kode pos valid atau hubungi admin.');
+      setShippingError(err.response?.data?.message || t('errors.shippingError'));
     } finally {
       setFetchingRates(false);
     }
@@ -215,7 +202,7 @@ export default function Checkout() {
       setAppliedVoucher(res.data.data);
       setVoucherInput('');
     } catch (err) {
-      setVoucherError(err.response?.data?.message || 'Kode voucher tidak valid');
+      setVoucherError(err.response?.data?.message || t('errors.invalidVoucher'));
       setAppliedVoucher(null);
     } finally {
       setVoucherLoading(false);
@@ -258,11 +245,11 @@ export default function Checkout() {
         {/* Step Indicator */}
         {step < 4 && (
           <div className="flex gap-4 mb-12 text-xs font-semibold tracking-widest uppercase border-b border-gray-200 dark:border-gray-800 pb-4">
-            <span className={step === 1 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>01. Account</span>
+            <span className={step === 1 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>{t('step1')}</span>
             <span className="text-gray-300 dark:text-gray-700">/</span>
-            <span className={step === 2 || step === 2.5 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>02. Shipping</span>
+            <span className={step === 2 || step === 2.5 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>{t('step2')}</span>
             <span className="text-gray-300 dark:text-gray-700">/</span>
-            <span className={step === 3 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>03. Payment</span>
+            <span className={step === 3 ? 'text-aria-charcoal dark:text-white' : 'text-gray-400 dark:text-gray-600'}>{t('step3')}</span>
           </div>
         )}
 
@@ -275,22 +262,22 @@ export default function Checkout() {
           {/* Step 1: Authentication Choice */}
           {step === 1 && (
             <div className="max-w-md mx-auto mt-8 border border-gray-200 dark:border-gray-800 p-8 dark:bg-black">
-              <h2 className="text-lg font-medium tracking-widest uppercase mb-8 text-center dark:text-white">Account</h2>
+              <h2 className="text-lg font-medium tracking-widest uppercase mb-8 text-center dark:text-white">{t('account')}</h2>
               
               {isAuthenticated ? (
                 <div className="space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">Signed in as <strong className="text-aria-charcoal dark:text-white">{user?.email}</strong></p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">{t('signedInAs')} <strong className="text-aria-charcoal dark:text-white">{user?.email}</strong></p>
                   <button
                     onClick={() => { setCheckoutType('account'); setStep(2); }}
                     className="w-full bg-aria-charcoal text-white dark:bg-white dark:text-black py-4 text-sm font-medium tracking-[0.15em] uppercase hover:bg-aria-maroon transition-colors"
                   >
-                    Continue as {user?.fullName}
+                    {t('continueAs', { name: user?.fullName })}
                   </button>
                   <button
                     onClick={() => { setCheckoutType('guest'); setStep(2); }}
                     className="w-full border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-[0.15em] uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors"
                   >
-                    Checkout as Guest
+                    {t('checkoutAsGuest')}
                   </button>
                 </div>
               ) : (
@@ -299,11 +286,17 @@ export default function Checkout() {
                     onClick={() => navigate('/login?redirect=/checkout')}
                     className="w-full bg-aria-charcoal text-white dark:bg-white dark:text-black py-4 text-sm font-medium tracking-[0.15em] uppercase hover:bg-aria-maroon transition-colors"
                   >
-                    Sign In
+                    {t('signIn')}
                   </button>
+                  <button
+                      onClick={() => navigate('/track-order')}
+                      className="w-full sm:w-auto bg-aria-charcoal dark:bg-white text-white dark:text-black py-4 px-8 text-sm font-medium tracking-widest uppercase hover:bg-aria-maroon transition-colors"
+                    >
+                      {language === 'EN' ? 'Track Order & Pay' : 'Lacak Pesanan & Bayar'}
+                    </button>
                   <div className="relative my-8">
                     <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-gray-800"></div></div>
-                    <div className="relative flex justify-center text-xs"><span className="bg-white dark:bg-black px-4 text-gray-400 uppercase tracking-widest">Or</span></div>
+                    <div className="relative flex justify-center text-xs"><span className="bg-white dark:bg-black px-4 text-gray-400 uppercase tracking-widest">{t('or')}</span></div>
                   </div>
                   <button
                     onClick={() => { setCheckoutType('guest'); setStep(2); }}
@@ -320,14 +313,14 @@ export default function Checkout() {
           {step === 2 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               <div>
-                <h2 className="text-lg font-medium tracking-widest uppercase mb-8 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">Shipping Details</h2>
+                <h2 className="text-lg font-medium tracking-widest uppercase mb-8 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">{t('shippingDetails')}</h2>
                 
                 <div className="flex gap-4 mb-8">
-                  <button type="button" onClick={() => { setDeliveryType('SHIPPING'); setSelectedShipping(null); }} className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${deliveryType === 'SHIPPING' ? 'border-2 border-aria-charcoal dark:border-white bg-gray-50 dark:bg-gray-900 text-aria-charcoal dark:text-white' : 'border border-gray-200 dark:border-gray-800 text-gray-500 hover:border-aria-charcoal dark:hover:border-white'}`}>🚚 Kirim ke Alamat</button>
+                  <button type="button" onClick={() => { setDeliveryType('SHIPPING'); setSelectedShipping(null); }} className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${deliveryType === 'SHIPPING' ? 'border-2 border-aria-charcoal dark:border-white bg-gray-50 dark:bg-gray-900 text-aria-charcoal dark:text-white' : 'border border-gray-200 dark:border-gray-800 text-gray-500 hover:border-aria-charcoal dark:hover:border-white'}`}>{t('shipToAddress')}</button>
                   <button type="button" onClick={() => { 
                     setDeliveryType('PICKUP'); 
                     setSelectedShipping({ price: 0, courier_name: 'Ambil di Toko', courier_service_code: 'SELF_PICKUP' }); 
-                  }} className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${deliveryType === 'PICKUP' ? 'border-2 border-aria-charcoal dark:border-white bg-gray-50 dark:bg-gray-900 text-aria-charcoal dark:text-white' : 'border border-gray-200 dark:border-gray-800 text-gray-500 hover:border-aria-charcoal dark:hover:border-white'}`}>🏪 Ambil di Toko</button>
+                  }} className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${deliveryType === 'PICKUP' ? 'border-2 border-aria-charcoal dark:border-white bg-gray-50 dark:bg-gray-900 text-aria-charcoal dark:text-white' : 'border border-gray-200 dark:border-gray-800 text-gray-500 hover:border-aria-charcoal dark:hover:border-white'}`}>{t('pickupInStore')}</button>
                 </div>
 
                 {deliveryType === 'SHIPPING' ? (
@@ -335,49 +328,49 @@ export default function Checkout() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">First Name</label>
+                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">{t('firstName')}</label>
                       <input {...register('firstName')} className="w-full border border-gray-300 dark:border-gray-700 p-3 text-sm focus:outline-none focus:border-aria-charcoal dark:focus:border-white bg-transparent transition-colors dark:text-white" />
                       {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName.message}</p>}
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">Last Name</label>
+                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">{t('lastName')}</label>
                       <input {...register('lastName')} className="w-full border border-gray-300 dark:border-gray-700 p-3 text-sm focus:outline-none focus:border-aria-charcoal dark:focus:border-white bg-transparent transition-colors dark:text-white" />
                       {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName.message}</p>}
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">Email</label>
+                    <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">{t('email')}</label>
                     <input {...register('email')} type="email" className="w-full border border-gray-300 dark:border-gray-700 p-3 text-sm focus:outline-none focus:border-aria-charcoal dark:focus:border-white bg-transparent transition-colors dark:text-white" />
                     {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">Phone</label>
+                    <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">{t('phone')}</label>
                     <input {...register('phone')} type="tel" className="w-full border border-gray-300 dark:border-gray-700 p-3 text-sm focus:outline-none focus:border-aria-charcoal dark:focus:border-white bg-transparent transition-colors dark:text-white" />
                     {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">Address</label>
+                    <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">{t('address')}</label>
                     <input {...register('address')} type="text" className="w-full border border-gray-300 dark:border-gray-700 p-3 text-sm focus:outline-none focus:border-aria-charcoal dark:focus:border-white bg-transparent transition-colors dark:text-white" />
                     {errors.address && <p className="text-xs text-red-500 mt-1">{errors.address.message}</p>}
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="col-span-2 md:col-span-1">
-                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">Country</label>
+                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">{t('country')}</label>
                       <select {...register('country')} className="w-full border border-gray-300 dark:border-gray-700 p-3 text-sm bg-transparent dark:text-white focus:outline-none focus:border-aria-charcoal dark:focus:border-white transition-colors appearance-none">
                         <option value="INDONESIA" className="dark:text-black">Indonesia</option>
                       </select>
                     </div>
                     <div className="col-span-1">
-                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">City</label>
+                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">{t('city')}</label>
                       <input {...register('city')} type="text" className="w-full border border-gray-300 dark:border-gray-700 p-3 text-sm focus:outline-none focus:border-aria-charcoal dark:focus:border-white bg-transparent transition-colors dark:text-white" />
                       {errors.city && <p className="text-xs text-red-500 mt-1">{errors.city.message}</p>}
                     </div>
                     <div className="col-span-1">
-                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">Zip</label>
+                      <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2">{t('zip')}</label>
                       <input {...register('postalCode')} type="text" className="w-full border border-gray-300 dark:border-gray-700 p-3 text-sm focus:outline-none focus:border-aria-charcoal dark:focus:border-white bg-transparent transition-colors dark:text-white" />
                       {errors.postalCode && <p className="text-xs text-red-500 mt-1">{errors.postalCode.message}</p>}
                     </div>
@@ -391,17 +384,17 @@ export default function Checkout() {
                         setStep(1);
                       }
                     }} className="w-1/3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-widest uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors">
-                      Back
+                      {t('back')}
                     </button>
                     <button type="submit" form="shipping-form" className="w-2/3 bg-aria-charcoal dark:bg-white text-white dark:text-black py-4 text-sm font-medium tracking-widest uppercase hover:bg-aria-maroon transition-colors">
-                      Continue
+                      {t('continue')}
                     </button>
                   </div>
                 </form>
                 ) : (
                   <div className="space-y-6">
                     <div className="bg-amber-50 border border-amber-200 p-6 rounded text-amber-800">
-                      <p className="text-sm">Anda memilih untuk mengambil pesanan sendiri di gudang kami. Anda tidak perlu mengisi alamat pengiriman.</p>
+                      <p className="text-sm">{t('pickupNotice')}</p>
                     </div>
                     <div className="flex gap-4 pt-4">
                       <button type="button" onClick={() => {
@@ -411,10 +404,10 @@ export default function Checkout() {
                           setStep(1);
                         }
                       }} className="w-1/3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-widest uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors">
-                        Back
+                        {t('back')}
                       </button>
                       <button type="button" onClick={() => setStep(2.5)} className="w-2/3 bg-aria-charcoal dark:bg-white text-white dark:text-black py-4 text-sm font-medium tracking-widest uppercase hover:bg-aria-maroon transition-colors">
-                        Continue
+                        {t('continue')}
                       </button>
                     </div>
                   </div>
@@ -423,7 +416,7 @@ export default function Checkout() {
               
               {/* Cart Summary sidebar */}
               <div className="bg-gray-50 dark:bg-gray-900/50 p-6 self-start border border-gray-200 dark:border-gray-800">
-                <h3 className="text-sm font-medium tracking-widest uppercase mb-4 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">Order Summary</h3>
+                <h3 className="text-sm font-medium tracking-widest uppercase mb-4 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">{t('orderSummary')}</h3>
                 <div className="space-y-4 mb-4">
                   {cartItems.map(item => (
                     <div key={item.id} className="flex justify-between text-sm">
@@ -433,7 +426,7 @@ export default function Checkout() {
                   ))}
                 </div>
                 <div className="flex justify-between text-base font-semibold uppercase tracking-widest border-t border-gray-200 dark:border-gray-800 pt-4 dark:text-white">
-                  <span>Subtotal</span>
+                  <span>{t('subtotal')}</span>
                   <span>Rp {cartTotal.toLocaleString('id-ID')}</span>
                 </div>
                 {tierDiscountAmount > 0 && (
@@ -483,7 +476,7 @@ export default function Checkout() {
                     {/* Available Vouchers List */}
                     {activeVouchers.length > 0 && (
                       <div className="mt-3">
-                        <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-2">Available Vouchers:</p>
+                        <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-2">{t('availableVouchers')}</p>
                         <div className="flex flex-col gap-2">
                           {activeVouchers.map(v => {
                             const isLocked = v.targetTier && v.targetTier !== 'ALL' && (!user || user.currentTier !== v.targetTier);
@@ -505,7 +498,7 @@ export default function Checkout() {
                                   onClick={() => isLocked ? alert(`Voucher eksklusif ini hanya untuk pelanggan VIP ${v.targetTier}`) : handleApplyVoucher(v.code)}
                                   className={`text-[10px] font-bold uppercase tracking-widest ${isLocked ? 'text-gray-400 cursor-not-allowed' : 'text-aria-maroon hover:underline'}`}
                                 >
-                                  {isLocked ? 'Terkunci' : 'Pakai'}
+                                  {isLocked ? t('lockedVoucher') : t('useVoucher')}
                                 </button>
                               </div>
                             );
@@ -530,10 +523,10 @@ export default function Checkout() {
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="text-xs font-semibold tracking-widest uppercase text-aria-maroon dark:text-yellow-400 flex items-center gap-2">
-                          🌟 Aria Points
+                          🌟 {t('points')}
                         </h3>
                         <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider">
-                          Pakai {user.rewardPoints} Poin (-Rp {(user.rewardPoints * 1000).toLocaleString('id-ID')})
+                          {t('usePoints', { points: user.rewardPoints, value: (user.rewardPoints * 1000).toLocaleString('id-ID') })}
                         </p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer scale-90">
@@ -555,12 +548,12 @@ export default function Checkout() {
           {step === 2.5 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               <div>
-                <h2 className="text-lg font-medium tracking-widest uppercase mb-8 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">Shipping Method</h2>
+                <h2 className="text-lg font-medium tracking-widest uppercase mb-8 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">{t('shippingMethod')}</h2>
                 
                 {fetchingRates ? (
                   <div className="flex flex-col items-center justify-center p-8 space-y-4">
                     <div className="w-8 h-8 border-2 border-aria-charcoal dark:border-white border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-xs font-medium tracking-widest uppercase text-gray-500">Mencari kurir terbaik...</p>
+                    <p className="text-xs font-medium tracking-widest uppercase text-gray-500">{t('findingCourier')}</p>
                   </div>
                 ) : shippingError ? (
                   <div className="border border-red-200 bg-red-50 dark:bg-red-900/20 p-6 mb-6 text-center">
@@ -569,7 +562,7 @@ export default function Checkout() {
                       onClick={() => handleAddressSubmit(watch())}
                       className="bg-red-600 text-white px-6 py-3 text-xs font-semibold tracking-widest uppercase hover:bg-red-700"
                     >
-                      Coba Lagi
+                      {t('tryAgain')}
                     </button>
                   </div>
                 ) : (
@@ -595,14 +588,14 @@ export default function Checkout() {
                     
                     <div className="flex gap-4 pt-4 border-t border-gray-200 dark:border-gray-800">
                       <button type="button" onClick={() => setStep(2)} className="w-1/3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-widest uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors">
-                        Back
+                        {t('back')}
                       </button>
                       <button 
                         onClick={() => setStep(3)}
                         disabled={!selectedShipping && !isSablonOrder}
                         className="w-2/3 bg-aria-charcoal dark:bg-white text-white dark:text-black py-4 text-sm font-medium tracking-widest uppercase hover:bg-aria-maroon transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Continue to Payment
+                        {t('continueToPayment')}
                       </button>
                     </div>
                   </>
@@ -611,7 +604,7 @@ export default function Checkout() {
               
               {/* Cart Summary sidebar reused */}
               <div className="bg-gray-50 dark:bg-gray-900/50 p-6 self-start border border-gray-200 dark:border-gray-800">
-                <h3 className="text-sm font-medium tracking-widest uppercase mb-4 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">Order Summary</h3>
+                <h3 className="text-sm font-medium tracking-widest uppercase mb-4 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">{t('orderSummary')}</h3>
                 <div className="space-y-4 mb-4">
                   {cartItems.map(item => (
                     <div key={item.id} className="flex justify-between text-sm">
@@ -624,12 +617,12 @@ export default function Checkout() {
                   ))}
                 </div>
                 <div className="flex justify-between text-base font-semibold uppercase tracking-widest border-t border-gray-200 dark:border-gray-800 pt-4 dark:text-white">
-                  <span>Subtotal</span>
+                  <span>{t('subtotal')}</span>
                   <span>Rp {cartTotal.toLocaleString('id-ID')}</span>
                 </div>
                 {tierDiscountAmount > 0 && (
                   <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 pt-2">
-                    <span>{profile?.currentTier} TIER DISCOUNT ({tierDiscountPercentage}%)</span>
+                    <span>{t('tierDiscount', { tier: profile?.currentTier, percent: tierDiscountPercentage })}</span>
                     <span>- Rp {tierDiscountAmount.toLocaleString('id-ID')}</span>
                   </div>
                 )}
@@ -643,20 +636,20 @@ export default function Checkout() {
                 )}
                 {usePoints && (
                   <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-maroon dark:text-yellow-400 pt-2">
-                    <span>Aria Points</span>
+                    <span>{t('points')}</span>
                     <span>- Rp {pointsDeducted.toLocaleString('id-ID')}</span>
                   </div>
                 )}
                 
                 {!isSablonOrder && selectedShipping && (
                   <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-charcoal dark:text-white pt-2">
-                    <span>Ongkos Kirim ({selectedShipping.courier_name})</span>
+                    <span>{t('shippingCost', { courier: selectedShipping.courier_name })}</span>
                     <span>+ Rp {selectedShipping.price.toLocaleString('id-ID')}</span>
                   </div>
                 )}
                 
                 <div className="flex justify-between text-lg font-bold uppercase tracking-widest border-t border-gray-200 dark:border-gray-800 pt-4 mt-4 dark:text-white">
-                  <span>Total</span>
+                  <span>{t('total')}</span>
                   <span>Rp {finalTotal.toLocaleString('id-ID')}</span>
                 </div>
               </div>
@@ -667,11 +660,11 @@ export default function Checkout() {
           {step === 3 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               <div>
-                <h2 className="text-lg font-medium tracking-widest uppercase mb-8 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">Payment</h2>
+                <h2 className="text-lg font-medium tracking-widest uppercase mb-8 pb-4 border-b border-gray-200 dark:border-gray-800 dark:text-white">{t('payment')}</h2>
                 
                 <div className="mb-8 border border-gray-200 dark:border-gray-800 p-6 dark:bg-black">
                   <h3 className="text-xs font-semibold tracking-widest uppercase text-gray-500 mb-4">
-                    {deliveryType === 'PICKUP' ? 'Metode Pengiriman' : 'Shipping To'}
+                    {deliveryType === 'PICKUP' ? t('shippingMethod') : t('shippingTo')}
                   </h3>
                   {deliveryType === 'PICKUP' ? (
                      <p className="text-sm text-gray-800 dark:text-gray-300 leading-relaxed uppercase tracking-wide">
@@ -688,16 +681,16 @@ export default function Checkout() {
                     </p>
                   )}
                   <button onClick={() => setStep(2.5)} className="mt-4 text-xs font-semibold tracking-widest uppercase text-aria-charcoal dark:text-white underline underline-offset-4">
-                    Edit Details
+                    {t('editDetails')}
                   </button>
                 </div>
 
 
                 <div className="mb-8 border border-aria-charcoal dark:border-white p-6 relative overflow-hidden dark:bg-black">
-                  <div className="absolute top-0 right-0 bg-aria-charcoal dark:bg-white text-white dark:text-black text-[10px] uppercase tracking-widest px-3 py-1">Selected</div>
+                  <div className="absolute top-0 right-0 bg-aria-charcoal dark:bg-white text-white dark:text-black text-[10px] uppercase tracking-widest px-3 py-1">{t('selected')}</div>
                   <h3 className="text-sm font-semibold tracking-widest uppercase text-aria-charcoal dark:text-white mb-2">Xendit Secure Payment</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed uppercase tracking-wider">
-                    Pay securely using Virtual Account (Bank Transfer), QRIS, e-Wallets, or Credit Card via Xendit payment gateway.
+                    {t('securePaymentDesc')}
                   </p>
                 </div>
 
@@ -709,7 +702,7 @@ export default function Checkout() {
 
                 <div className="flex gap-4">
                   <button type="button" onClick={() => setStep(2.5)} className="w-1/3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-widest uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors">
-                    Back
+                    {t('back')}
                   </button>
                   <button 
                     onClick={async () => {
@@ -765,7 +758,7 @@ export default function Checkout() {
                         setLoading(false);
                         const orderData = response.data?.data;
                         if (orderData) {
-                          clearCart(true);
+                          await clearCart(true);
                           // Handle Xendit Redirect
                           if (orderData.paymentUrl) {
                             window.location.href = orderData.paymentUrl;
@@ -879,6 +872,7 @@ export default function Checkout() {
               >
                 {t.btn}
               </button>
+              <PushNotificationBanner context="checkout" />
             </div>
           )}
         </motion.div>

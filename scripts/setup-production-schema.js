@@ -203,11 +203,19 @@ async function setupSchema() {
         t.text('message');
         t.boolean('emailSent').defaultTo(false);
         t.text('payload').nullable();
+        t.boolean('isRead').defaultTo(false);
         t.timestamp('createdAt').defaultTo(db.fn.now());
       });
       console.log('✅ orderNotification table created');
     } else {
-      console.log('⏭️  orderNotification table sudah ada');
+      console.log('⏭️  orderNotification table sudah ada, checking columns...');
+      const hasIsReadCol = await db.schema.hasColumn('orderNotification', 'isRead');
+      if (!hasIsReadCol) {
+        await db.schema.alterTable('orderNotification', t => {
+          t.boolean('isRead').defaultTo(false);
+        });
+        console.log('✅ orderNotification table altered: added isRead');
+      }
     }
 
     // Customer Profile table
@@ -329,6 +337,23 @@ async function setupSchema() {
       console.log('✅ pointHistory table created');
     } else {
       console.log('⏭️  pointHistory table sudah ada');
+    }
+
+    // Push Subscriptions table
+    const hasPushSubscriptionsTable = await db.schema.hasTable('pushSubscriptions');
+    if (!hasPushSubscriptionsTable) {
+      console.log('📝 Creating pushSubscriptions table...');
+      await db.schema.createTable('pushSubscriptions', (t) => {
+        t.increments('id').primary();
+        t.string('userId').notNullable();
+        t.text('endpoint').notNullable();
+        t.text('p256dh').notNullable();
+        t.text('auth').notNullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ pushSubscriptions table created');
+    } else {
+      console.log('⏭️  pushSubscriptions table sudah ada');
     }
 
     console.log('\n✅ Production schema setup complete!');

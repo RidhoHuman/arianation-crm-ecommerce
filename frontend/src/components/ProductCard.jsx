@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import OptimizedImage from './OptimizedImage';
 import useUIStore from '../store/uiStore';
 import useAuthStore from '../store/authStore';
@@ -11,25 +12,6 @@ const HeartIcon = ({ filled }) => (
   </svg>
 );
 
-const getTranslatedCategoryName = (name, lang) => {
-  if (!name) return '';
-  const lower = name.toLowerCase();
-  if (lang === 'ID') {
-    if (lower.includes('everyday')) return 'Sehari-hari';
-    if (lower.includes('heritage')) return 'Klasik (Heritage)';
-    if (lower.includes('outdoor')) return 'Luar Ruang';
-    if (lower.includes('street')) return 'Jalanan';
-    if (lower.includes('active')) return 'Aktif';
-  } else {
-    if (lower.includes('everyday')) return 'Everyday';
-    if (lower.includes('heritage')) return 'Heritage';
-    if (lower.includes('outdoor')) return 'Outdoor';
-    if (lower.includes('street')) return 'Street';
-    if (lower.includes('active')) return 'Active';
-  }
-  return name;
-};
-
 export default function ProductCard({ 
   product, 
   aspectRatio = 'aspect-square',
@@ -38,7 +20,7 @@ export default function ProductCard({
   wishlistIds = new Set(),
   onToggleWishlist = null 
 }) {
-  const language = useUIStore((s) => s.language) || 'ID';
+  const { t } = useTranslation('translation', { keyPrefix: 'productCard' });
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const navigate = useNavigate();
 
@@ -118,7 +100,7 @@ export default function ProductCard({
           />
         ) : (
           <div className="flex items-center justify-center h-full">
-            <span className="text-gray-500">Tidak ada gambar</span>
+            <span className="text-gray-500">{t('noImage')}</span>
           </div>
         )}
 
@@ -141,12 +123,12 @@ export default function ProductCard({
             <div className="flex gap-2">
               {product.is_limited && showBadges && (
                 <span className="bg-aria-maroon text-white px-2 py-1 text-xs font-bold rounded shadow-sm">
-                  LIMITED
+                  {t('limited')}
                 </span>
               )}
               {product.isNew && showBadges && (
                 <span className="bg-blue-600 text-white px-2 py-1 text-xs font-bold rounded shadow-sm">
-                  NEW
+                  {t('new')}
                 </span>
               )}
             </div>
@@ -174,7 +156,7 @@ export default function ProductCard({
       {showBadges && (
         <div className="mt-1.5">
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded shadow-sm uppercase ${product.stockQuantity > 0 ? 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800' : 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-800'}`}>
-            {product.stockQuantity > 0 ? (language === 'EN' ? 'IN STOCK' : 'TERSEDIA') : (language === 'EN' ? 'SOLD OUT' : 'STOK HABIS')}
+            {product.stockQuantity > 0 ? t('inStock') : t('soldOut')}
           </span>
         </div>
       )}
@@ -194,7 +176,7 @@ export default function ProductCard({
       {showCategory && product.category && (
         <div className="mt-2">
           <span className="text-xs bg-gray-100 dark:bg-gray-800 dark:text-gray-300 px-2 py-1 rounded">
-            {getTranslatedCategoryName(product.category.categoryName || product.category, language)}
+            {product.category.categoryName || product.category}
           </span>
         </div>
       )}

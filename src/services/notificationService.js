@@ -2,8 +2,18 @@ const knex = require('../config/knex');
 const nodemailer = require('nodemailer');
 const { enqueueNotification } = require('./notificationQueue');
 const { renderOrderNotificationEmail } = require('./emailTemplates');
+const webPush = require('web-push');
 
 const FROM_EMAIL = process.env.FROM_EMAIL || 'no-reply@arianation.local';
+
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webPush.setVapidDetails(
+    `mailto:${FROM_EMAIL}`,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
+
 
 function createTransporter() {
   const user = process.env.EMAIL_USER || process.env.SMTP_USER;
@@ -54,11 +64,12 @@ const queueNotification = async ({
   const cuid = require('cuid');
   const notificationId = cuid();
   
-  await knex('orderNotification').insert({
+  await knex('customerNotification').insert({
     id: notificationId,
-    orderId,
     userId: userId || order.userId || null,
     recipientEmail: recipientEmail || customer?.email || null,
+    referenceId: orderId,
+    referenceType: 'ORDER',
     type,
     title,
     message,
@@ -67,9 +78,10 @@ const queueNotification = async ({
     updatedAt: new Date(),
   });
 
-  return {
+  const returnData = {
     id: notificationId,
-    orderId,
+    referenceId: orderId,
+    referenceType: 'ORDER',
     userId: userId || order.userId || null,
     recipientEmail: recipientEmail || customer?.email || null,
     type,
@@ -77,6 +89,139 @@ const queueNotification = async ({
     message,
     emailSent: false,
   };
+
+  // Attempt to send web push
+  try {
+    const targetUserId = userId || order.userId;
+    if (targetUserId && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+      const subscriptions = await knex('pushSubscriptions').where({ userId: targetUserId });
+      
+      const pushPayload = JSON.stringify({
+        title: title || 'Notifikasi Baru',
+        body: message,
+        url: `/customer/orders/${orderId}`,
+        icon: '/images/arianation-logo.png' // Or appropriate icon
+      });
+
+      for (const sub of subscriptions) {
+        try {
+          await webPush.sendNotification({
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth
+            }
+          }, pushPayload);
+        } catch (err) {
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            // Subscription has expired or is no longer valid
+            await knex('pushSubscriptions').where({ id: sub.id }).delete();
+          } else {
+            console.error('Error sending push notification to a subscription:', err);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to send web push notification:', error);
+  }
+
+  return returnData;
+};
+
+/**
+ * Queue a polymorphic customer notification
+ * @param {Object} params { referenceId, referenceType, userId, recipientEmail, type, title, message }
+ * @returns {Promise<Object>} created notification
+ */
+const queueCustomerNotification = async ({
+  referenceId = null,
+  referenceType = 'SYSTEM',
+  userId,
+  recipientEmail = null,
+  type,
+  title,
+  message,
+}) => {
+  if (!userId && !recipientEmail) {
+    throw new Error('userId or recipientEmail is required to queue a customer notification');
+  }
+
+  const customer = userId ? await knex('user')
+    .select('id', 'email', 'fullName')
+    .where('id', userId)
+    .first() : null;
+
+  const cuid = require('cuid');
+  const notificationId = cuid();
+  
+  await knex('customerNotification').insert({
+    id: notificationId,
+    userId: userId || null,
+    recipientEmail: recipientEmail || customer?.email || null,
+    referenceId,
+    referenceType,
+    type,
+    title,
+    message,
+    emailSent: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const returnData = {
+    id: notificationId,
+    referenceId,
+    referenceType,
+    userId: userId || null,
+    recipientEmail: recipientEmail || customer?.email || null,
+    type,
+    title,
+    message,
+    emailSent: false,
+  };
+
+  // Attempt to send web push
+  try {
+    if (userId && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+      const subscriptions = await knex('pushSubscriptions').where({ userId });
+      
+      const urlMap = {
+        'ORDER': `/customer/orders/${referenceId}`,
+        'DESIGN_REQUEST': `/account?tab=sablon`,
+        'SYSTEM': `/notifications`
+      };
+      
+      const pushPayload = JSON.stringify({
+        title: title || 'Notifikasi Baru',
+        body: message,
+        url: urlMap[referenceType] || `/notifications`,
+        icon: '/images/arianation-logo.png'
+      });
+
+      for (const sub of subscriptions) {
+        try {
+          await webPush.sendNotification({
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth
+            }
+          }, pushPayload);
+        } catch (err) {
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            await knex('pushSubscriptions').where({ id: sub.id }).delete();
+          } else {
+            console.error('Error sending push notification to a subscription:', err);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to send web push notification:', error);
+  }
+
+  return returnData;
 };
 
 /**
@@ -85,17 +230,19 @@ const queueNotification = async ({
  */
 const sendOrderNotification = async (notificationId) => {
   return enqueueNotification(async () => {
-    const notification = await knex('orderNotification')
-      .select('id', 'orderId', 'userId', 'recipientEmail', 'type', 'title', 'message', 'emailSent')
+    const notification = await knex('customerNotification')
+      .select('id', 'referenceId', 'referenceType', 'userId', 'recipientEmail', 'type', 'title', 'message', 'emailSent')
       .where('id', notificationId)
       .first();
 
     if (!notification) throw new Error('Notification not found');
 
-    const order = await knex('order')
-      .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt', 'deliveryType')
-      .where('id', notification.orderId)
-      .first();
+    const order = notification.referenceType === 'ORDER' 
+      ? await knex('order')
+        .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt', 'deliveryType')
+        .where('id', notification.referenceId)
+        .first()
+      : null;
 
     const transporter = createTransporter();
 
@@ -120,7 +267,7 @@ const sendOrderNotification = async (notificationId) => {
       console.log('Subject:', email.subject);
       console.log('Text:', email.text);
 
-      await knex('orderNotification')
+      await knex('customerNotification')
         .where('id', notificationId)
         .update({
           emailSent: false,
@@ -140,7 +287,7 @@ const sendOrderNotification = async (notificationId) => {
 
     const info = await transporter.sendMail(mailOptions);
 
-    await knex('orderNotification')
+    await knex('customerNotification')
       .where('id', notificationId)
       .update({
         emailSent: true,
@@ -152,4 +299,4 @@ const sendOrderNotification = async (notificationId) => {
   });
 };
 
-module.exports = { queueNotification, sendOrderNotification, createTransporter };
+module.exports = { queueNotification, queueCustomerNotification, sendOrderNotification, createTransporter };

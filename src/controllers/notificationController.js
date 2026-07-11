@@ -68,13 +68,13 @@ exports.getCustomerNotifications = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
-    const notifications = await knex('orderNotification')
+    const notifications = await knex('customerNotification')
       .where('userId', userId)
       .orderBy('createdAt', 'desc')
       .limit(limit)
       .offset(offset);
 
-    const totalResult = await knex('orderNotification')
+    const totalResult = await knex('customerNotification')
       .where('userId', userId)
       .count('id as count')
       .first();
@@ -84,7 +84,7 @@ exports.getCustomerNotifications = async (req, res) => {
     // Fallback unread count if isRead column doesn't exist
     let unreadCount = 0;
     try {
-      const unreadResult = await knex('orderNotification')
+      const unreadResult = await knex('customerNotification')
         .where('userId', userId)
         .andWhere('isRead', false)
         .count('id as count')
@@ -117,15 +117,14 @@ exports.markCustomerAsRead = async (req, res) => {
     const userId = req.user.id;
 
     try {
-      await knex('orderNotification')
+      await knex('customerNotification')
         .where('id', id)
         .andWhere('userId', userId)
         .update({
-          isRead: true,
-          updatedAt: new Date()
+          isRead: true
         });
     } catch (e) {
-      // Ignore if isRead missing
+      console.error('Error during markCustomerAsRead query:', e);
     }
 
     res.status(200).json({ success: true, message: 'Notification marked as read' });
@@ -140,20 +139,83 @@ exports.markAllCustomerAsRead = async (req, res) => {
     const userId = req.user.id;
 
     try {
-      await knex('orderNotification')
+      await knex('customerNotification')
         .where('userId', userId)
         .andWhere('isRead', false)
         .update({
-          isRead: true,
-          updatedAt: new Date()
+          isRead: true
         });
     } catch (e) {
-      // Ignore if isRead missing
+      console.error('Error during markAllCustomerAsRead query:', e);
     }
 
     res.status(200).json({ success: true, message: 'All notifications marked as read' });
   } catch (error) {
     console.error('Error marking all customer notifications as read:', error);
     res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+/**
+ * WEB PUSH NOTIFICATIONS
+ */
+
+exports.getVapidPublicKey = (req, res) => {
+  res.json({
+    success: true,
+    publicKey: process.env.VAPID_PUBLIC_KEY
+  });
+};
+
+exports.subscribeToPush = async (req, res) => {
+  try {
+    const { subscription } = req.body;
+    const userId = req.user.id;
+
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ success: false, message: 'Invalid subscription data' });
+    }
+
+    // Check if subscription already exists for this endpoint
+    const existing = await knex('pushSubscriptions').where({ endpoint: subscription.endpoint }).first();
+
+    if (existing) {
+      // Update userId if it belongs to someone else (or same)
+      if (existing.userId !== userId) {
+        await knex('pushSubscriptions').where({ endpoint: subscription.endpoint }).update({ userId });
+      }
+      return res.status(200).json({ success: true, message: 'Subscription updated' });
+    }
+
+    // Insert new subscription
+    await knex('pushSubscriptions').insert({
+      userId,
+      endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth
+    });
+
+    res.status(201).json({ success: true, message: 'Subscribed successfully' });
+  } catch (error) {
+    console.error('Error saving push subscription:', error);
+    res.status(500).json({ success: false, message: 'Failed to save subscription' });
+  }
+};
+
+exports.unsubscribeFromPush = async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    const userId = req.user.id;
+
+    if (!endpoint) {
+      return res.status(400).json({ success: false, message: 'Endpoint is required' });
+    }
+
+    await knex('pushSubscriptions').where({ endpoint, userId }).delete();
+
+    res.status(200).json({ success: true, message: 'Unsubscribed successfully' });
+  } catch (error) {
+    console.error('Error removing push subscription:', error);
+    res.status(500).json({ success: false, message: 'Failed to remove subscription' });
   }
 };

@@ -13,6 +13,7 @@ import SEOHead from '../components/SEOHead';
 import Breadcrumb from '../components/Breadcrumb';
 import useCategoryStore from '../store/categoryStore';
 import usePrintTechniqueStore from '../store/printTechniqueStore';
+import { useTranslation, Trans } from 'react-i18next';
 
 const ProductImageCarousel = ({ product, className = "w-12 h-12 object-cover rounded-md" }) => {
   let allImages = [];
@@ -114,212 +115,7 @@ const FAQ_ITEMS = [
   { q: 'Apakah saya bisa membawa bahan/kaos sendiri?', a: 'Sangat bisa! Anda cukup memilih opsi "Bawa Sendiri" pada pilihan produk di atas. Anda cukup membayar jasa sablonnya saja.' }
 ];
 
-const TR = {
-  ID: {
-    hero: {
-      title1: 'Wujudkan Desain',
-      title2: 'Impian Anda.',
-      desc: 'Layanan sablon premium untuk merchandise event, seragam komunitas, atau brand clothing Anda. Kualitas distro, proses transparan, garansi 100%.',
-      cta: 'Mulai Konsultasi (Gratis)',
-      price: 'Harga mulai dari Rp 55.000/pcs*'
-    },
-    guarantee: {
-      title1: 'Garansi Sablon',
-      desc1: 'Hasil tidak sesuai mockup? Cetak ulang GRATIS. Tinta luntur? Garansi tukar baru hingga 6 bulan.',
-      title2: 'Tepat Waktu',
-      desc2: 'Manajemen produksi ketat menjamin pesanan Anda selesai sesuai deadline. Tanpa alasan mundur.',
-      title3: 'Detail Spesifik',
-      desc3: 'Mockup presisi tinggi sebelum naik cetak. Anda tahu persis apa yang akan Anda dapatkan.'
-    },
-    portfolio: {
-      title: 'Karya Kami',
-      desc: 'Portofolio hasil produksi nyata. Kami percaya kualitas harus dibuktikan dengan hasil, bukan sekadar janji.'
-    },
-    materials: {
-      title: 'Material Kami',
-      techTitle: 'Print Techniques',
-      techHead: ['Teknik', 'Karakteristik', 'Kekurangan']
-    },
-    workflow: {
-      title: 'Workflow Proses',
-      steps: [
-        { title: 'Submit Form', desc: 'Lengkapi form spesifikasi dan unggah desain.' },
-        { title: 'Quotation', desc: 'Kami cek & berikan estimasi harga (1x24 jam).' },
-        { title: 'Mockup Approval', desc: 'Preview digital sebelum produksi massal (1-2 hari).' },
-        { title: 'Production', desc: 'Proses produksi massal berjalan (7-14 hari kerja, belum termasuk waktu pengiriman reguler).' }
-      ]
-    },
-    form: {
-      title: 'Mulai Pesanan Custom',
-      desc: 'Isi detail di bawah seakurat mungkin untuk penawaran terbaik',
-      loginRequired: 'Login Diperlukan',
-      loginDesc: 'Untuk alasan keamanan transaksi, riwayat penawaran harga, dan pelacakan progress secara real-time, Anda diwajibkan untuk masuk atau mendaftar akun terlebih dahulu sebelum mengajukan pesanan custom.',
-      loginBtn: 'Login',
-      registerBtn: 'Daftar Baru',
-      step1: '1. Informasi Proyek',
-      projName: 'Judul / Nama Proyek *',
-      purpose: 'Tujuan Penggunaan *',
-      deadline: 'Target Selesai (Deadline) *',
-      step2: '2. Spesifikasi Produk',
-      material: 'Bahan Dasar *',
-      color: 'Warna Kain *',
-      qty: 'Total Quantity (Pcs) *',
-      step3: '3. Teknis Sablon & Desain',
-      tech: 'Teknik Sablon *',
-      colors: 'Estimasi Jumlah Warna *',
-      pos: 'Posisi Sablon *',
-      upload: 'Unggah File Artwork / Mockup *',
-      posOptions: [
-        'Dada Kiri (Logo)',
-        'Dada Kanan (Logo)',
-        'Dada Tengah (Medium)',
-        'Full Depan (A4/A3)',
-        'Punggung Belakang (A4/A3)',
-        'Lengan Kiri',
-        'Lengan Kanan',
-        'Tengkuk Leher (Neck label)'
-      ],
-      colorOptions: [
-        'Hitam', 'Putih', 'Navy', 'Maroon', 'Abu Misty', 'Hijau Botol', 'Custom / Lainnya', 'Rekomendasikan Warna Terbaik'
-      ],
-      uploadDesc: 'Format: PNG, PDF, AI, CDR. Jika >1 file, harap jadikan .ZIP. Maks 50MB.',
-      notes: 'Catatan Khusus Desain',
-      step4: '4. Kontak & Pengiriman',
-      pic: 'Nama PIC *',
-      wa: 'No. WhatsApp *',
-      address: 'Alamat Pengiriman *',
-      shipNotes: 'Catatan Ekspedisi (Opsional)',
-      submit: 'Kirim Permintaan Sablon',
-      disclaimerTitle: 'Perhatian: Waktu Produksi ≠ Waktu Pengiriman',
-      disclaimer: 'Estimasi pengerjaan sablon adalah 7-14 hari kerja setelah desain disetujui. Estimasi ini murni untuk proses produksi dan belum termasuk lama waktu pengiriman oleh ekspedisi menuju lokasi Anda.',
-      terms: 'Dengan mengirimkan form ini, Anda menyetujui Syarat & Ketentuan layanan custom ARIANATION.',
-      errors: {
-        title: 'Judul proyek wajib diisi',
-        purpose: 'Tujuan penggunaan wajib diisi',
-        deadline: 'Target selesai wajib diisi',
-        material: 'Pilih jenis bahan dasar',
-        qtyMin: 'Minimal order 1 pcs',
-        qtyManual: 'Sablon manual minimal 12 pcs',
-        sizes: 'Rincian ukuran wajib diisi (misal: S:3, M:5)',
-        color: 'Warna kaos wajib diisi',
-        pos: 'Posisi sablon wajib diisi',
-        tech: 'Teknik sablon wajib dipilih',
-        colors: 'Jumlah warna wajib diisi',
-        pic: 'Nama PIC wajib diisi',
-        wa: 'Nomor WhatsApp valid wajib diisi',
-        address: 'Alamat pengiriman wajib diisi'
-      }
-    },
-    success: {
-      title: 'Permintaan Terkirim',
-      desc: 'Terima kasih! Tim produksi kami akan segera mereview spesifikasi dan artwork Anda. Kami akan menghubungi Anda melalui WhatsApp dalam waktu 1x24 jam untuk penawaran harga.',
-      btn: 'Cek Status Pesanan'
-    }
-  },
-  EN: {
-    hero: {
-      title1: 'Bring Your Design',
-      title2: 'To Life.',
-      desc: 'Premium screen printing for event merchandise, community uniforms, or your clothing brand. Distro quality, transparent process, 100% guarantee.',
-      cta: 'Start Free Consultation',
-      price: 'Prices start from Rp 55.000/pcs*'
-    },
-    guarantee: {
-      title1: 'Print Guarantee',
-      desc1: "Result doesn't match mockup? FREE reprint. Faded ink? Replacement guarantee up to 6 months.",
-      title2: 'On Time',
-      desc2: 'Strict production management ensures your order is finished on deadline. No delays.',
-      title3: 'Specific Details',
-      desc3: 'High precision mockup before printing. You know exactly what you will get.'
-    },
-    portfolio: {
-      title: 'Our Work',
-      desc: 'Real production portfolio. We believe quality must be proven by results, not just promises.'
-    },
-    materials: {
-      title: 'Our Materials',
-      techTitle: 'Print Techniques',
-      techHead: ['Technique', 'Characteristics', 'Cons']
-    },
-    workflow: {
-      title: 'Process Workflow',
-      steps: [
-        { title: 'Submit Form', desc: 'Complete specs and upload design.' },
-        { title: 'Quotation', desc: 'We check & estimate price (24 hrs).' },
-        { title: 'Mockup Approval', desc: 'Digital preview before mass production (1-2 days).' },
-        { title: 'Production', desc: 'Mass production process (7-14 working days, excluding regular shipping time).' }
-      ]
-    },
-    form: {
-      title: 'Start Custom Order',
-      desc: 'Fill details accurately for the best quotation',
-      loginRequired: 'Login Required',
-      loginDesc: 'For transaction security, quotation history, and real-time progress tracking, you must log in or register before submitting a custom order.',
-      loginBtn: 'Login',
-      registerBtn: 'Register',
-      step1: '1. Project Info',
-      projName: 'Project Name / Title *',
-      purpose: 'Purpose of Use *',
-      deadline: 'Target Deadline *',
-      step2: '2. Product Specs',
-      material: 'Base Material *',
-      color: 'Fabric Color *',
-      qty: 'Total Quantity (Pcs) *',
-      sizes: 'Size Breakdown *',
-      step3: '3. Print & Design',
-      tech: 'Print Technique *',
-      colors: 'Estimated Number of Colors *',
-      pos: 'Print Position *',
-      upload: 'Upload Artwork / Mockup *',
-      posOptions: [
-        'Follow Attached Mockup',
-        'Left Chest (Logo)',
-        'Right Chest (Logo)',
-        'Center Chest (Medium)',
-        'Full Front (A4/A3)',
-        'Full Back (A4/A3)',
-        'Left Sleeve',
-        'Right Sleeve',
-        'Neck Label'
-      ],
-      colorOptions: [
-        'Black', 'White', 'Navy', 'Maroon', 'Misty Grey', 'Bottle Green', 'Custom / Other', 'Recommend Best Color'
-      ],
-      uploadDesc: 'Format: PNG, PDF, AI, CDR. If >1 file, please .ZIP them. Max 50MB.',
-      notes: 'Special Design Notes',
-      step4: '4. Contact & Shipping',
-      pic: 'PIC Name *',
-      wa: 'WhatsApp Number *',
-      address: 'Shipping Address *',
-      shipNotes: 'Shipping Notes (Optional)',
-      submit: 'Submit Request',
-      disclaimerTitle: 'Attention: Production Time ≠ Shipping Time',
-      disclaimer: 'The estimated production time is 7-14 working days after design approval. This estimate is purely for the production process and does not include the shipping time by the courier to your location.',
-      terms: "By submitting this form, you agree to ARIANATION's custom service Terms & Conditions.",
-      errors: {
-        title: 'Project title is required',
-        purpose: 'Purpose of use is required',
-        deadline: 'Target deadline is required',
-        material: 'Please select base material',
-        qtyMin: 'Minimum order is 1 pc',
-        qtyManual: 'Manual printing requires at least 12 pcs',
-        sizes: 'Size breakdown is required (e.g. S:3, M:5)',
-        color: 'Fabric color is required',
-        pos: 'Print position is required',
-        tech: 'Please select print technique',
-        colors: 'Number of colors is required',
-        pic: 'PIC Name is required',
-        wa: 'Valid WhatsApp number is required',
-        address: 'Shipping address is required'
-      }
-    },
-    success: {
-      title: 'Request Submitted',
-      desc: 'Thank you! Our production team will review your specs and artwork. We will contact you via WhatsApp within 24 hours for a price quotation.',
-      btn: 'Check Order Status'
-    }
-  }
-};
+
 
 // Variants for framer motion
 const fadeUp = {
@@ -329,6 +125,8 @@ const fadeUp = {
 
 export default function DesignRequest() {
   const navigate = useNavigate();
+  const { t: rootT, i18n } = useTranslation('translation');
+  const t = rootT('designRequest', { returnObjects: true });
   const { user, isAuthenticated } = useAuthStore();
   const setNavbarTheme = useUIStore(state => state.setNavbarTheme);
   const { categories, fetchCategories } = useCategoryStore();
@@ -351,7 +149,6 @@ export default function DesignRequest() {
   }, []);
 
   const setLoading = useUIStore((s) => s.setLoading);
-  const language = useUIStore((s) => s.language) || 'ID';
   const [customProducts, setCustomProducts] = useState([]);
   const [faqItems, setFaqItems] = useState(FAQ_ITEMS);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -389,8 +186,6 @@ export default function DesignRequest() {
     };
     fetchData();
   }, [fetchCategories, fetchCustomProducts, fetchTechniquesPublic]);
-
-  const t = TR[language] || TR.ID;
 
   const [file, setFile] = useState(null); // Deprecated, kept for submit compatibility
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -524,9 +319,20 @@ export default function DesignRequest() {
         path: ['quantity']
       });
     }
-  }), [t]);
 
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
+    const selectedT = printTechniques.find(t => t.name === data.printTechnique);
+    if (selectedT && selectedT.maxColors) {
+      if (data.numberOfColors > selectedT.maxColors) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Maksimal ${selectedT.maxColors} warna untuk teknik ini.`,
+          path: ['numberOfColors']
+        });
+      }
+    }
+  }), [t, printTechniques]);
+
+  const { register, handleSubmit, formState: { errors, isSubmitting }, watch, setValue } = useForm({
     resolver: zodResolver(designSchema),
     defaultValues: {
       quantity: 1,
@@ -627,12 +433,12 @@ export default function DesignRequest() {
       const isAiOrCdr = selectedFile.name.toLowerCase().endsWith('.cdr') || selectedFile.name.toLowerCase().endsWith('.ai');
 
       if (!allowedTypes.includes(selectedFile.type) && !isAiOrCdr) {
-        setFileError(language === 'EN' ? 'Unsupported format. Please upload PNG/JPG/PDF/AI/CDR/ZIP.' : 'Format file tidak didukung. Harap unggah PNG/JPG/PDF/AI/CDR/ZIP.');
+        setFileError(i18n.language === 'EN' ? 'Unsupported format. Please upload PNG/JPG/PDF/AI/CDR/ZIP.' : 'Format file tidak didukung. Harap unggah PNG/JPG/PDF/AI/CDR/ZIP.');
         return;
       }
 
       if (selectedFile.size > 50 * 1024 * 1024) {
-        setFileError(language === 'EN' ? 'File size exceeds 50MB limit' : 'Ukuran file melebihi batas 50MB');
+        setFileError(i18n.language === 'EN' ? 'File size exceeds 50MB limit' : 'Ukuran file melebihi batas 50MB');
       } else {
         setFileError('');
         const preview = selectedFile.type.startsWith('image/') ? URL.createObjectURL(selectedFile) : null;
@@ -655,7 +461,7 @@ export default function DesignRequest() {
   const onSubmit = async (data) => {
     if (!isAuthenticated) return;
     if (!file && !Object.values(designs).some(d => d.file)) {
-      setFileError(language === 'EN' ? 'Design file is required' : 'File desain wajib diunggah');
+      setFileError(i18n.language === 'EN' ? 'Design file is required' : 'File desain wajib diunggah');
       return;
     }
 
@@ -700,7 +506,7 @@ export default function DesignRequest() {
 
       navigate('/account?tab=orders');
     } catch (err) {
-      setSubmitError(err.response?.data?.message || (language === 'EN' ? 'Failed to submit design request' : 'Gagal mengirim permintaan desain'));
+      setSubmitError(err.response?.data?.message || (i18n.language === 'EN' ? 'Failed to submit design request' : 'Gagal mengirim permintaan desain'));
     } finally {
       setLoading(false);
     }
@@ -721,6 +527,7 @@ export default function DesignRequest() {
         <Link to="/account?tab=sablon" className="inline-block border border-aria-charcoal dark:border-white px-8 py-4 text-xs font-semibold uppercase tracking-[0.2em] hover:bg-aria-charcoal hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors">
           {t.success.btn}
         </Link>
+        <PushNotificationBanner context="design" />
       </div>
     );
   }
@@ -928,12 +735,11 @@ export default function DesignRequest() {
 
       {/* The Form Section */}
       <section id="form-section" className="py-24 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 p-8 md:p-12 shadow-sm">
-            <h2 className="text-2xl font-display font-medium uppercase tracking-widest mb-2 text-center">{t.form.title}</h2>
-            <p className="text-xs text-gray-500 uppercase tracking-widest text-center mb-12">{t.form.desc}</p>
-
-            {!isAuthenticated ? (
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          {!isAuthenticated ? (
+            <div className="max-w-4xl mx-auto bg-white dark:bg-black border border-gray-200 dark:border-gray-800 p-8 md:p-12 shadow-sm">
+              <h2 className="text-2xl font-display font-medium uppercase tracking-widest mb-2 text-center">{t.form.title}</h2>
+              <p className="text-xs text-gray-500 uppercase tracking-widest text-center mb-12">{t.form.desc}</p>
               <div className="text-center py-12 border-2 border-dashed border-gray-300 dark:border-gray-700 p-8">
                 <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-6">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -951,8 +757,12 @@ export default function DesignRequest() {
                   </Link>
                 </div>
               </div>
-            ) : (
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-12">
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit(onSubmit)} className="lg:grid lg:grid-cols-3 lg:gap-12 relative items-start" noValidate>
+              <div className="lg:col-span-2 space-y-12 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 p-8 md:p-12 shadow-sm">
+                <h2 className="text-2xl font-display font-medium uppercase tracking-widest mb-2 text-center">{t.form.title}</h2>
+                <p className="text-xs text-gray-500 uppercase tracking-widest text-center mb-12">{t.form.desc}</p>
 
                 {/* 1. Informasi Proyek */}
                 <div className="mb-24">
@@ -965,13 +775,7 @@ export default function DesignRequest() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.purpose}</label>
-                      <select {...register('purpose')} className="w-full border border-gray-300 dark:border-gray-700 p-3 bg-transparent text-sm focus:outline-none focus:border-black dark:focus:border-white appearance-none">
-                        <option value="">---</option>
-                        <option value="Event/Acara">Event / Kepanitiaan</option>
-                        <option value="Merchandise Brand">Merchandise Brand (Retail)</option>
-                        <option value="Komunitas">Seragam Komunitas / Kantor</option>
-                        <option value="Hadiah/Pribadi">Hadiah / Keperluan Pribadi</option>
-                      </select>
+                      <input type="text" {...register('purpose')} placeholder="Misal: Event Konser, Merchandise Brand, dll" className="w-full border border-gray-300 dark:border-gray-700 p-3 bg-transparent text-sm focus:outline-none focus:border-black dark:focus:border-white" />
                       {errors.purpose && <span className="text-xs text-red-500">{errors.purpose.message}</span>}
                     </div>
                     <div className="space-y-2">
@@ -1122,16 +926,16 @@ export default function DesignRequest() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                          <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide lg:grid lg:grid-cols-6 lg:overflow-visible lg:pb-0">
                             {Object.keys(sizes).map((size) => (
-                              <div key={size} className="flex flex-col">
+                              <div key={size} className="flex flex-col min-w-[80px] lg:min-w-0">
                                 <label className="text-[10px] font-bold text-center mb-1 bg-gray-200 dark:bg-gray-800 py-1">{size}</label>
                                 <input
                                   type="number"
                                   min="0"
                                   value={sizes[size]}
                                   onChange={(e) => handleSizeChange(size, e.target.value)}
-                                  className="w-full border border-gray-300 dark:border-gray-700 p-2 text-center text-sm focus:outline-none focus:border-black dark:focus:border-white bg-white dark:bg-black"
+                                  className="w-full border-2 border-gray-300 dark:border-gray-700 p-2 text-center text-sm focus:outline-none focus:border-black dark:focus:border-white bg-white dark:bg-black transition-colors hover:bg-gray-50 dark:hover:bg-gray-900"
                                 />
                               </div>
                             ))}
@@ -1194,12 +998,28 @@ export default function DesignRequest() {
                     {selectedTech?.pricingType === 'color_based' && (
                       <div className="space-y-2">
                         <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.colors}</label>
-                        <input type="number" {...register('numberOfColors', { valueAsNumber: true })} min="1" max={selectedTech.maxColors || undefined} className="w-full border border-gray-300 dark:border-gray-700 p-3 bg-transparent text-sm focus:outline-none focus:border-black dark:focus:border-white" />
-                        <div className="flex justify-between items-center mt-1">
-                          <p className="text-[10px] text-gray-500">*Perkiraan saja. Tim kami akan mengecek ulang.</p>
+                        <div className="flex flex-wrap gap-3">
+                          {Array.from({ length: selectedTech.maxColors || 5 }, (_, i) => i + 1).map(num => (
+                            <label key={num} className="cursor-pointer">
+                              <input 
+                                type="radio" 
+                                value={num} 
+                                {...register('numberOfColors', { valueAsNumber: true })} 
+                                className="peer sr-only" 
+                              />
+                              <div className="w-12 h-12 flex items-center justify-center border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-black text-sm font-bold transition-all peer-checked:border-black peer-checked:bg-black peer-checked:text-white dark:peer-checked:border-white dark:peer-checked:bg-white dark:peer-checked:text-black hover:border-gray-400 dark:hover:border-gray-500">
+                                {num}
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="flex justify-between items-center mt-2">
+                          <p className="text-[10px] text-gray-500 leading-relaxed max-w-[80%]">
+                            *Ini <strong>BUKAN</strong> jumlah kaos. Ini adalah <strong>jumlah variasi warna tinta</strong> pada desain Anda.<br/>(Misal: Tulisan putih saja = 1 warna. Logo merah & putih = 2 warna).
+                          </p>
                           {selectedTech.maxColors && <p className="text-[10px] text-amber-600 font-bold">Maks: {selectedTech.maxColors} warna</p>}
                         </div>
-                        {errors.numberOfColors && <span className="text-xs text-red-500">{errors.numberOfColors.message}</span>}
+                        {errors.numberOfColors && <span className="text-xs text-red-500 block mt-1">{errors.numberOfColors.message}</span>}
                       </div>
                     )}
                     <div className="space-y-3 md:col-span-2">
@@ -1224,7 +1044,8 @@ export default function DesignRequest() {
                       <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.upload}</label>
                       <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 p-6 text-center">
                         <input type="file" onChange={handleFileChange} className="mx-auto block text-sm file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:bg-gray-100 file:text-black hover:file:bg-gray-200" accept=".png,.jpg,.jpeg,.pdf,.ai,.cdr,.zip" />
-                        <p className="text-xs text-gray-500 mt-2">{t.form.uploadDesc}</p>
+                        <p className="text-xs text-gray-500 mt-3 font-semibold uppercase tracking-widest">Format yang didukung: PNG, JPG, PDF, AI, CDR, ZIP (Maks. 20 MB)</p>
+                        <p className="text-[10px] text-gray-400 mt-1">{t.form.uploadDesc}</p>
                         {fileError && <p className="text-xs text-red-500 mt-2">{fileError}</p>}
                       </div>
 
@@ -1388,12 +1209,12 @@ export default function DesignRequest() {
                 </div>
 
                 {submitError && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-center">
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-center lg:hidden">
                     <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>
                   </div>
                 )}
 
-                <div className="pt-8 border-t border-gray-200 dark:border-gray-800">
+                <div className="pt-8 border-t border-gray-200 dark:border-gray-800 lg:hidden">
                   <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 mb-6 flex gap-3 text-left">
                     <div className="text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
@@ -1404,7 +1225,7 @@ export default function DesignRequest() {
                     </div>
                   </div>
 
-                  {/* Dynamic Pricing Estimator */}
+                  {/* Dynamic Pricing Estimator - Mobile */}
                   {(() => {
                     const selectedProduct = customProducts.find(p => p.id === watch('productTypeForSablon'));
                     const basePrice = selectedProduct?.price || 0;
@@ -1470,18 +1291,101 @@ export default function DesignRequest() {
                     }
                     return null;
                   })()}
-                  <button type="submit" disabled={!file || submitError || fileError} className="w-full bg-aria-charcoal text-white dark:bg-white dark:text-black py-5 text-sm font-bold uppercase tracking-[0.2em] hover:bg-black transition-colors disabled:opacity-50">
+                  <button type="submit" disabled={!file || submitError || fileError || isSubmitting} className="w-full bg-aria-charcoal text-white dark:bg-white dark:text-black py-5 text-sm font-bold uppercase tracking-[0.2em] hover:bg-black transition-colors disabled:opacity-50 lg:hidden">
                     {t.form.submit}
                   </button>
-                  <p className="text-center text-xs text-gray-500 mt-4">
+                  <p className="text-center text-xs text-gray-500 mt-4 lg:hidden">
                     {t.form.terms}
                   </p>
                 </div>
+              </div>
 
-              </form>
-            )}
+              {/* Right Column: Sticky Order Summary Desktop */}
+              <div className="hidden lg:block lg:col-span-1 sticky top-24 space-y-6">
+                <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
+                  <h3 className="text-sm font-bold uppercase tracking-widest border-b border-gray-200 dark:border-gray-800 pb-4 mb-4">Ringkasan Pesanan</h3>
+                  
+                  {submitError && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 mb-4 text-center">
+                      <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>
+                    </div>
+                  )}
 
-          </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 mb-6 flex gap-3 text-left">
+                    <div className="text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    </div>
+                    <div>
+                      <h4 className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-widest mb-1">{t.form.disclaimerTitle}</h4>
+                      <p className="text-[10px] text-amber-700 dark:text-amber-500 leading-relaxed">{t.form.disclaimer}</p>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Pricing Estimator Desktop */}
+                  {(() => {
+                    const selectedProduct = customProducts.find(p => p.id === watch('productTypeForSablon'));
+                    const basePrice = selectedProduct?.price || 0;
+
+                    let techPrice = 0;
+                    const colors = parseInt(watch('numberOfColors')) || 1;
+                    const qty = parseInt(watch('quantity')) || 0;
+
+                    if (selectedTech) {
+                      const baseTechPrice = parseFloat(selectedTech.basePrice) || 0;
+
+                      if (selectedTech.pricingType === 'fixed') {
+                        techPrice = baseTechPrice;
+                      } else if (selectedTech.pricingType === 'color_based') {
+                        techPrice = baseTechPrice * colors;
+                      } else if (selectedTech.pricingType === 'area_based') {
+                        const positionMultiplier = {
+                          'Dada Kiri (Logo)': 1.0, 'Dada Kanan (Logo)': 1.0, 'Dada Tengah (Medium)': 1.5,
+                          'Full Depan (A4/A3)': 2.0, 'Punggung Belakang (A4/A3)': 2.0, 'Lengan Kiri': 1.0,
+                          'Lengan Kanan': 1.0, 'Tengkuk Leher (Neck label)': 1.0
+                        };
+
+                        let totalMultiplier = 0;
+                        selectedPositions.forEach(pos => totalMultiplier += (positionMultiplier[pos] || 1.0));
+                        if (totalMultiplier === 0) totalMultiplier = 1.0;
+                        techPrice = baseTechPrice * totalMultiplier;
+                      }
+                    }
+
+                    const estimatedUnit = basePrice + techPrice;
+                    const estimatedTotal = estimatedUnit * qty;
+
+                    if (qty > 0) {
+                      return (
+                        <div className="bg-black text-white dark:bg-white dark:text-black p-5 mb-6 text-center border border-black dark:border-white">
+                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2">Estimasi Total Harga</h4>
+                          <div className="text-3xl font-display font-medium text-white dark:text-black mb-1">Rp {estimatedTotal.toLocaleString('id-ID')}</div>
+                          <div className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+                            (Rp {estimatedUnit.toLocaleString('id-ID')} / pcs)
+                          </div>
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider flex flex-col gap-1 mb-4 pb-4 border-b border-gray-800 dark:border-gray-200">
+                            <span>Produk: Rp {basePrice.toLocaleString('id-ID')}</span>
+                            <span>Sablon: Rp {techPrice.toLocaleString('id-ID')}</span>
+                          </div>
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-4">
+                            *Harga ini adalah estimasi sistem berdasarkan input Anda. Harga final akan disesuaikan kembali saat proses konfirmasi desain & review oleh tim kami.
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  <button type="submit" disabled={!file || submitError || fileError || isSubmitting} className="w-full bg-aria-charcoal text-white dark:bg-white dark:text-black py-5 text-sm font-bold uppercase tracking-[0.2em] hover:bg-black transition-colors disabled:opacity-50">
+                    {t.form.submit}
+                  </button>
+                  <p className="text-center text-[10px] text-gray-500 mt-4">
+                    {t.form.terms}
+                  </p>
+                </div>
+              </div>
+
+            </form>
+          )}
         </div>
       </section>
 

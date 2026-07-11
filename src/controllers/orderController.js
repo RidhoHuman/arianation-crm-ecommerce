@@ -323,12 +323,8 @@ const createOrder = async (req, res, next) => {
     // Always clear the checked-out items from the user's cart
     if (userId) {
       const cart = await knex('shoppingCart').where('userId', userId).first();
-      if (cart && orderItems.length > 0) {
-        const productIds = orderItems.map(it => it.productId);
-        await knex('cartItem')
-          .where('cartId', cart.id)
-          .whereIn('productId', productIds)
-          .delete();
+      if (cart) {
+        await knex('cartItem').where('cartId', cart.id).delete();
       }
     }
 

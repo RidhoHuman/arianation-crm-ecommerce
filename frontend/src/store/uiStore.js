@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import i18n from '../i18n';
 
 const useUIStore = create(
   persist(
@@ -15,6 +16,7 @@ const useUIStore = create(
       },
       setLanguage(lang) {
         set({ language: lang });
+        i18n.changeLanguage(lang);
       },
       setTheme(theme) {
         set({ theme });

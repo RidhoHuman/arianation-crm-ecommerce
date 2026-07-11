@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import useUIStore from '../store/uiStore';
 import useAuthStore from '../store/authStore';
 import api from '../services/api';
 
 export default function RewardBanner() {
   const [isVisible, setIsVisible] = useState(false);
-  const language = useUIStore((s) => s.language) || 'ID';
+  const { t } = useTranslation('translation', { keyPrefix: 'reward' });
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const [welcomeBonus, setWelcomeBonus] = useState(10); // Default
@@ -37,9 +38,13 @@ export default function RewardBanner() {
     sessionStorage.setItem('arianation-reward-banner-dismissed', 'true');
   };
 
-  const text = language === 'EN'
-    ? { msg: `🎁 Register now & get ${welcomeBonus} Aria Points (Value Rp ${(welcomeBonus * 1000).toLocaleString('id-ID')}) for free!`, cta: 'Register →' }
-    : { msg: `🎁 Daftar akun & dapatkan ${welcomeBonus} Aria Points (Senilai Rp ${(welcomeBonus * 1000).toLocaleString('id-ID')}) gratis!`, cta: 'Daftar →' };
+  const points = welcomeBonus;
+  const value = (welcomeBonus * 1000).toLocaleString('id-ID'); // format as IDR always
+
+  const text = {
+    msg: t('msg', { points, value }),
+    cta: t('cta')
+  };
 
   return (
     <AnimatePresence>
