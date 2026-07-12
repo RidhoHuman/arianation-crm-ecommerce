@@ -36,6 +36,7 @@ const STATUS_COLORS = {
   IN_REVIEW: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   COMPLETED: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   CONFIRMED: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  REJECTED: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400',
 };
 
 const StatusBadge = ({ status }) => {
@@ -461,6 +462,15 @@ function SablonTab({ t, i18n }) {
                     >
                       Lanjutkan Pembayaran
                     </Link>
+                  </div>
+                )}
+                
+                {req.status === 'REJECTED' && (
+                  <div className="mt-6 border-t border-red-100 dark:border-red-900/30 pt-6">
+                    <p className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase tracking-widest mb-1">Alasan Penolakan</p>
+                    <p className="text-sm font-medium text-red-800 dark:text-red-300 bg-red-50 dark:bg-red-900/20 p-4 border border-red-100 dark:border-red-900/30">
+                      {req.rejectReason || 'Desain Anda tidak dapat kami proses saat ini. Silakan hubungi admin.'}
+                    </p>
                   </div>
                 )}
               </div>

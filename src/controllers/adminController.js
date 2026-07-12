@@ -477,8 +477,17 @@ const getOrderDetail = async (req, res, next) => {
 
     // Get design requests
     const designRequests = await knex('designRequest')
-      .select('id', 'status', 'createdAt', 'updatedAt')
+      .select('id', 'designTitle', 'mockupPreviewUrl', 'designFileUrl', 'status', 'createdAt', 'updatedAt')
       .where('orderId', id);
+
+    // Get order status history for cancellation reasons
+    const statusHistory = await knex('orderStatusHistory')
+      .select('newStatus', 'reason', 'createdAt')
+      .where('orderId', id)
+      .orderBy('createdAt', 'desc');
+
+    const refundRequestHistory = statusHistory.find(h => h.newStatus === 'REFUND_REQUESTED');
+    const cancelReason = refundRequestHistory ? refundRequestHistory.reason : null;
 
     return sendSuccess(
       res,
@@ -488,6 +497,8 @@ const getOrderDetail = async (req, res, next) => {
         payment,
         tracking,
         designRequests,
+        statusHistory,
+        cancelReason,
       },
       'Order detail retrieved successfully'
     );
@@ -771,6 +782,11 @@ const updateDesignRequestStatus = async (req, res, next) => {
     if (!request) throw new NotFoundError('Design request not found');
 
     const updated = await designRequestService.updateStatus(id, status);
+    
+    // Save reject reason to request table
+    if (status === 'REJECTED' && comments) {
+      await require('../config/knex')('designRequest').where({ id }).update({ rejectReason: comments });
+    }
 
     // Save feedback if provided
     let fullComment = comments || '';

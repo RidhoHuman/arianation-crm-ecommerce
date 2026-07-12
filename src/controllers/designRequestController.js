@@ -175,6 +175,7 @@ const updateDesignRequest = async (req, res, next) => {
       colorPreferences,
       deadline,
       status,
+      rejectReason,
     } = req.body;
 
     const existing = await designRequestService.findById(id);
@@ -205,18 +206,24 @@ const updateDesignRequest = async (req, res, next) => {
         updateData.submittedAt = new Date();
       }
     }
+    if (rejectReason !== undefined) updateData.rejectReason = rejectReason;
 
     const request = await designRequestService.update(id, updateData);
 
     if (status !== undefined && status !== existing.status) {
+      let message = `Status permintaan desain "${existing.designTitle}" telah diubah menjadi ${status}.`;
+      if (status === 'REJECTED' && rejectReason) {
+        message = `Permintaan desain "${existing.designTitle}" Anda telah ditolak. Alasan: ${rejectReason}`;
+      }
+
       // Status changed, notify customer
       await notificationService.queueCustomerNotification({
         referenceId: id,
         referenceType: 'DESIGN_REQUEST',
         userId: existing.userId,
         type: `DESIGN_REQUEST_${status}`,
-        title: 'Update Status Design Request',
-        message: `Status permintaan desain "${existing.designTitle}" telah diubah menjadi ${status}.`
+        title: status === 'REJECTED' ? 'Design Request Ditolak' : 'Update Status Design Request',
+        message: message
       }).catch(console.error);
     }
 

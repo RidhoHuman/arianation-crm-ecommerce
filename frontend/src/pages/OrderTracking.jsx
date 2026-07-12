@@ -18,6 +18,12 @@ export default function OrderTracking() {
   const [selectedOrderItem, setSelectedOrderItem] = useState(null);
   const [reviewedProductIds, setReviewedProductIds] = useState(new Set());
   
+  // Refund states
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [refundError, setRefundError] = useState('');
+  
   const { t, i18n } = useTranslation('translation');
   const currentUser = useAuthStore((s) => s.user);
 
@@ -51,7 +57,26 @@ export default function OrderTracking() {
     if (id) {
       fetchOrder();
     }
-  }, [id]);
+  }, [id, currentUser]);
+
+  const handleSubmitRefund = async (e) => {
+    e.preventDefault();
+    if (!refundReason.trim()) {
+      setRefundError('Alasan pembatalan/refund wajib diisi.');
+      return;
+    }
+    try {
+      setRefundSubmitting(true);
+      setRefundError('');
+      await api.post(`/orders/${id}/request-refund`, { reason: refundReason });
+      setRefundModalOpen(false);
+      setOrder(prev => ({ ...prev, status: 'REFUND_REQUESTED' }));
+    } catch (err) {
+      setRefundError(err.response?.data?.message || 'Gagal mengajukan refund.');
+    } finally {
+      setRefundSubmitting(false);
+    }
+  };
 
   return (
     <>
@@ -113,6 +138,27 @@ export default function OrderTracking() {
               </div>
             )}
 
+            {/* Custom Sablon DP Summary */}
+            {order.orderNumber?.startsWith('SAB-') && (order.status === 'PENDING' || order.status === 'WAITING_FINAL_PAYMENT') && (
+              <div className="bg-white dark:bg-black p-8 border border-gray-200 dark:border-gray-800 mb-6 flex flex-col gap-4">
+                <h3 className="font-display text-lg uppercase tracking-widest border-b border-gray-200 dark:border-gray-800 pb-2">Order Summary (Custom Sablon)</h3>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 uppercase tracking-widest">Total Harga Sablon</span>
+                  <span className="font-medium">Rp {(order.items?.[0]?.subtotal || order.totalAmount * 2).toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 uppercase tracking-widest">Jenis Pembayaran</span>
+                  <span className={`font-bold ${order.status === 'PENDING' ? 'text-amber-600' : 'text-blue-600'}`}>
+                    {order.status === 'PENDING' ? 'Uang Muka (DP 50%)' : 'Pelunasan Akhir'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-lg mt-2 pt-4 border-t border-gray-200 dark:border-gray-800">
+                  <span className="font-bold uppercase tracking-widest">Total Tagihan Ini</span>
+                  <span className="font-display font-bold">Rp {order.totalAmount?.toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+            )}
+
             {/* Payment Instructions if Pending */}
             {(order.paymentStatus === 'PENDING' || order.paymentStatus === 'UNPAID') && !['CANCELLED', 'ABANDONED'].includes(order.status) && (
               <div className="bg-aria-charcoal dark:bg-gray-800 text-white p-8 border border-transparent colorblind:border-aria-cb-warning colorblind:border-2">
@@ -163,6 +209,31 @@ export default function OrderTracking() {
                     {t('orderTracking.payRemaining')}
                   </Link>
                 </div>
+              </div>
+            )}
+
+            {/* Refund Call to Action - Only in CONFIRMED phase */}
+            {order.status === 'CONFIRMED' && order.userId === currentUser?.id && (
+              <div className="bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-400 p-8 border border-red-200 dark:border-red-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div>
+                  <h3 className="font-display text-lg uppercase tracking-widest mb-1">Ajukan Pembatalan & Refund</h3>
+                  <p className="text-xs leading-relaxed uppercase tracking-widest text-red-700 dark:text-red-300">
+                    Sesuai S&K, Anda dapat membatalkan pesanan dan meminta refund karena pesanan belum diproduksi.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setRefundModalOpen(true)}
+                  className="bg-red-600 text-white hover:bg-red-700 px-6 py-3 text-xs font-bold uppercase tracking-widest transition-colors inline-block text-center whitespace-nowrap"
+                >
+                  Ajukan Refund
+                </button>
+              </div>
+            )}
+
+            {/* ON_HOLD Warning */}
+            {order.status === 'ON_HOLD' && (
+              <div className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-6 border-l-4 border-gray-500 uppercase tracking-widest text-sm">
+                <strong>Pesanan Dibekukan:</strong> Pesanan Anda dibekukan (ON HOLD) karena melewati batas waktu pelunasan atau permasalahan operasional. Silakan hubungi admin.
               </div>
             )}
 
@@ -294,6 +365,49 @@ export default function OrderTracking() {
           setReviewedProductIds(prev => new Set(prev).add(productId));
         }}
       />
+
+      {/* Refund Modal */}
+      {refundModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => setRefundModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-black dark:hover:text-white"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <h3 className="font-display text-xl uppercase tracking-widest mb-4 dark:text-white">Ajukan Refund</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 uppercase tracking-widest">
+              Pesanan ini masih dalam fase aman (belum diproduksi). Silakan jelaskan alasan pembatalan Anda. Uang Anda akan dikembalikan (dipotong biaya layanan).
+            </p>
+            {refundError && (
+              <div className="bg-red-50 text-red-600 p-3 mb-4 text-xs font-medium border border-red-200">
+                {refundError}
+              </div>
+            )}
+            <form onSubmit={handleSubmitRefund} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-2">Alasan Pembatalan</label>
+                <textarea
+                  required
+                  rows="4"
+                  className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-3 text-sm focus:outline-none focus:border-aria-charcoal dark:focus:border-white transition-colors dark:text-white"
+                  placeholder="Ceritakan alasannya..."
+                  value={refundReason}
+                  onChange={e => setRefundReason(e.target.value)}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={refundSubmitting}
+                className={`w-full py-3 text-xs font-bold uppercase tracking-widest text-white transition-colors ${refundSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
+              >
+                {refundSubmitting ? 'Memproses...' : 'Kirim Permintaan'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

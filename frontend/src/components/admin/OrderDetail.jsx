@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { FiArrowLeft, FiMapPin, FiCreditCard, FiPackage, FiTruck, FiClock, FiFileText, FiCheckCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiMapPin, FiCreditCard, FiPackage, FiTruck, FiClock, FiFileText, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 
 export default function OrderDetail() {
@@ -98,8 +98,12 @@ export default function OrderDetail() {
     PROCESSING: 'bg-purple-100 text-purple-800',
     SHIPPED: 'bg-indigo-100 text-indigo-800',
     DELIVERED: 'bg-green-100 text-green-800',
-    CANCELLED: 'bg-red-100 text-red-800',
-    READY_TO_SHIP: 'bg-teal-100 text-teal-800'
+    CANCELLED: 'bg-gray-100 text-gray-800',
+    ON_HOLD: 'bg-orange-100 text-orange-800',
+    REFUND_REQUESTED: 'bg-red-100 text-red-800',
+    REFUNDED: 'bg-teal-100 text-teal-800',
+    RETURNED: 'bg-rose-100 text-rose-800',
+    READY_TO_SHIP: 'bg-cyan-100 text-cyan-800'
   };
 
   let deliveryAddress = {};
@@ -153,6 +157,10 @@ export default function OrderDetail() {
             <option value="SHIPPED">SHIPPED</option>
             <option value="DELIVERED">DELIVERED</option>
             <option value="CANCELLED">CANCELLED</option>
+            <option value="ON_HOLD">ON_HOLD</option>
+            <option value="REFUND_REQUESTED">REFUND_REQUESTED</option>
+            <option value="REFUNDED">REFUNDED</option>
+            <option value="RETURNED">RETURNED</option>
           </select>
           <button 
             onClick={handleUpdateStatus}
@@ -194,7 +202,50 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Refund Request Banner */}
+      {order.status === 'REFUND_REQUESTED' && (
+        <div className="bg-red-50 text-red-900 p-6 rounded-2xl border border-red-200 mt-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="text-red-500 mt-1">
+              <FiAlertCircle className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-lg mb-1">Permintaan Refund / Pembatalan</h3>
+              <p className="text-sm mb-4">
+                Kustomer telah mengajukan pembatalan pesanan ini. Alasan: <strong className="bg-red-100 px-2 py-0.5 rounded">{order.cancelReason || 'Tidak ada alasan.'}</strong>
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    if (window.confirm('Setujui refund dan batalkan pesanan ini?')) {
+                      setStatus('REFUNDED');
+                      await api.put(`/admin/orders/${id}/status`, { status: 'REFUNDED' });
+                      fetchOrderDetail();
+                    }
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Setujui Refund
+                </button>
+                <button
+                  onClick={async () => {
+                    if (window.confirm('Tolak permintaan refund dan kembalikan pesanan ke status CONFIRMED?')) {
+                      setStatus('CONFIRMED');
+                      await api.put(`/admin/orders/${id}/status`, { status: 'CONFIRMED' });
+                      fetchOrderDetail();
+                    }
+                  }}
+                  className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Tolak Refund
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         {/* Left Column - Order Items */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -203,19 +254,27 @@ export default function OrderDetail() {
               <h3 className="font-bold text-gray-800">Daftar Produk</h3>
             </div>
             <div className="p-5 space-y-4">
-              {order.items?.map((item) => (
+              {order.items?.map((item) => {
+                // Determine if this is a Sablon Item by checking designRequests array if product is missing
+                const isSablon = !item.product && order.designRequests && order.designRequests.length > 0;
+                const sablonData = isSablon ? order.designRequests[0] : null;
+                const itemName = item.product?.productName || (sablonData ? `Custom Sablon - ${sablonData.designTitle}` : 'Produk Dihapus');
+                const itemImg = item.product?.imageUrl || (sablonData ? (sablonData.mockupPreviewUrl || sablonData.designFileUrl) : null);
+                
+                return (
                 <div key={item.id} className="flex gap-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
                   <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {item.product?.imageUrl ? (
-                      <img src={item.product.imageUrl} alt="Product" className="w-full h-full object-cover" />
+                    {itemImg ? (
+                      <img src={itemImg} alt="Product" className="w-full h-full object-cover" />
                     ) : (
                       <FiPackage className="text-gray-400 text-2xl" />
                     )}
                   </div>
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
-                      <h4 className="font-bold text-gray-800">{item.product?.productName || 'Produk Dihapus'}</h4>
+                      <h4 className="font-bold text-gray-800">{itemName}</h4>
                       {item.variant && <p className="text-sm text-gray-500 mt-0.5">Varian: {item.variant.variantName}</p>}
+                      {isSablon && <p className="text-xs text-blue-600 mt-1">Design Request ID: {sablonData.id.slice(0, 8)}</p>}
                     </div>
                     <div className="flex justify-between items-center mt-2">
                       <p className="text-sm font-medium text-gray-600">
@@ -225,11 +284,19 @@ export default function OrderDetail() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
             <div className="p-5 border-t border-gray-100 bg-gray-50">
               <div className="flex justify-between items-center text-lg font-bold text-gray-800">
-                <span>Total Pesanan</span>
+                <span className="flex items-center gap-2">
+                  Total Pesanan
+                  {order.payment && order.payment.paymentType === 'DP' && (
+                    <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-md border border-amber-200">PEMBAYARAN: DP 50%</span>
+                  )}
+                  {order.payment && order.payment.paymentType === 'FULL' && order.designRequests?.length > 0 && (
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-md border border-blue-200">PELUNASAN SABLON</span>
+                  )}
+                </span>
                 <span>Rp {order.totalAmount?.toLocaleString('id-ID')}</span>
               </div>
             </div>

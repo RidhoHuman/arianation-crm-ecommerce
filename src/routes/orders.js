@@ -16,6 +16,7 @@ const {
   getOrderNotifications,
   getShippingRates,
   createPelunasanInvoice,
+  requestRefund,
 } = require('../controllers/orderController');
 const { createCustomOrder, checkoutCustomSablonDP } = require('../controllers/customOrderController');
 const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
@@ -127,6 +128,7 @@ router.get('/', getAllOrders);
 router.post('/', validateBody(schemas.createOrder), validateCreateOrderRequest, createOrder);
 router.post('/custom-sablon', uploadCustomOrderFiles, createCustomOrder);
 router.post('/custom-sablon/:id/checkout', checkoutCustomSablonDP);
+router.post('/:id/request-refund', requestRefund);
 router.put('/:id/status', authorize('ADMIN', 'OWNER', 'DESIGN_STAFF'), updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);
 

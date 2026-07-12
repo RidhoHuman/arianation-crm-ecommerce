@@ -6,18 +6,22 @@ const notificationService = require('./notificationService');
 
 const validTransitions = {
   PENDING: ['PAID_WAITING_APPROVAL', 'CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['PROCESSING', 'CANCELLED'],
+  CONFIRMED: ['PROCESSING', 'CANCELLED', 'REFUND_REQUESTED'],
   PAID_WAITING_APPROVAL: ['PROCESSING', 'IN_PRODUCTION', 'CANCELLED'],
   IN_PRODUCTION: ['WAITING_FINAL_PAYMENT', 'CANCELLED'],
-  WAITING_FINAL_PAYMENT: ['READY_TO_SHIP', 'CANCELLED', 'ABANDONED'],
-  PROCESSING: ['READY_TO_SHIP', 'READY_FOR_DELIVERY', 'FAILED'],
+  WAITING_FINAL_PAYMENT: ['READY_TO_SHIP', 'CANCELLED', 'ABANDONED', 'ON_HOLD'],
+  PROCESSING: ['READY_TO_SHIP', 'READY_FOR_DELIVERY', 'FAILED', 'ON_HOLD'],
   READY_TO_SHIP: ['SHIPPED', 'FAILED'],
-  READY_FOR_DELIVERY: ['SHIPPED', 'FAILED'],
-  SHIPPED: ['DELIVERED', 'FAILED'],
-  DELIVERED: [], // Final state
+  READY_FOR_DELIVERY: ['SHIPPED', 'FAILED', 'ON_HOLD'],
+  SHIPPED: ['DELIVERED', 'FAILED', 'RETURNED'],
+  DELIVERED: ['RETURNED'], // Final state but allows returns
   CANCELLED: [], // Final state
   ABANDONED: [], // Final state
   FAILED: ['PROCESSING', 'CANCELLED'], // Can retry or cancel
+  ON_HOLD: ['PROCESSING', 'READY_FOR_DELIVERY', 'SHIPPED', 'CANCELLED', 'WAITING_FINAL_PAYMENT'],
+  REFUND_REQUESTED: ['REFUNDED', 'CONFIRMED'],
+  REFUNDED: [],
+  RETURNED: []
 };
 
 /**
@@ -88,7 +92,7 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
   return await knex.transaction(async (trx) => {
     // Get current order
     const order = await trx('order')
-      .select('id', 'status', 'userId')
+      .select('id', 'orderNumber', 'status', 'userId')
       .where('id', orderId)
       .first();
 
@@ -133,6 +137,16 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
 
     if (updatedRows === 0) {
       throw new BadRequestError('Race condition: Order status was changed by another process');
+    }
+
+    // Cancel related design requests if this is a Custom Sablon order
+    if (newStatus === 'CANCELLED' && order.orderNumber && order.orderNumber.startsWith('SAB-')) {
+      await trx('designRequest')
+        .where('orderId', orderId)
+        .update({
+          status: 'CANCELLED',
+          updatedAt: new Date()
+        });
     }
 
     // Award points if DELIVERED and order belongs to a user
@@ -256,27 +270,43 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
       message: 'Mohon Maaf, pesanan Sablon Anda telah dibatalkan oleh sistem karena melewati batas waktu pelunasan 7 hari. Sesuai S&K, Uang Muka (DP) tidak dapat dikembalikan.',
       type: 'ABANDONED',
     },
+    ON_HOLD: {
+      title: 'Pesanan Dibekukan (ON HOLD) ⏸️',
+      message: 'Pesanan Anda dibekukan karena ada permasalahan (misal: melewati batas waktu pelunasan).',
+      type: 'ON_HOLD',
+    },
+    REFUND_REQUESTED: {
+      title: 'Permintaan Refund Diterima',
+      message: 'Permintaan pembatalan dan refund Anda sedang diproses oleh admin.',
+      type: 'REFUND_REQUESTED',
+    },
+    REFUNDED: {
+      title: 'Refund Berhasil ✅',
+      message: 'Pengembalian dana (refund) untuk pesanan Anda telah berhasil diproses.',
+      type: 'REFUNDED',
+    },
+    RETURNED: {
+      title: 'Pesanan Diretur / Dikembalikan',
+      message: 'Pesanan Anda telah diretur ke pihak Arianation.',
+      type: 'RETURNED',
+    },
   };
 
   const config = notificationConfig[status];
   if (config) {
-    const cuid = require('cuid');
-    const notificationId = cuid();
-    await trx('orderNotification').insert({
-      id: notificationId,
-      orderId,
-      userId: order.userId || null,
-      type: config.type,
-      title: config.title,
-      message: config.message,
-      emailSent: false,
-      createdAt: new Date(),
-    });
-    
-    // Call the notification service to send the email asynchronously
-    notificationService.sendOrderNotification(notificationId).catch(err => {
-      console.error('[NotificationService] Error sending email:', err.message);
-    });
+    try {
+      const notificationService = require('./notificationService');
+      await notificationService.queueCustomerNotification({
+        referenceId: orderId,
+        referenceType: 'ORDER',
+        userId: order.userId || null,
+        type: config.type,
+        title: config.title,
+        message: config.message
+      });
+    } catch (err) {
+      console.error('Failed to trigger customer notification:', err);
+    }
   }
 };
 

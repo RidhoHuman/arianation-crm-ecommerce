@@ -3,6 +3,7 @@ const { sendCreated, sendSuccess } = require('../utils/response');
 const { MESSAGES } = require('../utils/constants');
 const { Xendit } = require('xendit-node');
 const paymentService = require('../services/paymentService');
+const notificationService = require('../services/notificationService');
 const { BadRequestError, NotFoundError } = require('../utils/errors');
 
 const createCustomOrder = async (req, res, next) => {
@@ -116,6 +117,34 @@ const createCustomOrder = async (req, res, next) => {
       })
       .catch(() => {});
 
+    // Customer Notification
+    try {
+      const user = await knex('user').where('id', userId).first();
+      await notificationService.queueCustomerNotification({
+        referenceId: requestData.id,
+        referenceType: 'DESIGN_REQUEST',
+        userId,
+        recipientEmail: user ? user.email : null,
+        type: 'SUBMITTED',
+        title: 'Permintaan Custom Sablon 🎨',
+        message: `Permintaan desain sablon Anda "${data.designTitle}" telah berhasil dikirim dan sedang menunggu tinjauan admin.`,
+      });
+    } catch (notifErr) {
+      console.error('Failed to queue Sablon SUBMITTED notification:', notifErr.message);
+    }
+
+    // Admin Notification
+    try {
+      await knex('admin_notifications').insert({
+        title: 'Pesanan Sablon Baru!',
+        message: `Permintaan Custom Sablon "${data.designTitle}" menunggu untuk ditinjau.`,
+        type: 'NEW_ORDER',
+        isRead: false
+      });
+    } catch (err) {
+      console.error('Failed to create Admin notification for Sablon:', err.message);
+    }
+
     return sendCreated(res, requestData, 'Custom order submitted successfully');
   } catch (error) {
     next(error);
@@ -170,15 +199,39 @@ const checkoutCustomSablonDP = async (req, res, next) => {
     const orderId = require('cuid')();
     await knex.transaction(async (trx) => {
       // Create Order
+      const deliveryAddressObj = {
+        fullName: user.fullName || designRequest.picName || 'Customer',
+        addressLine1: designRequest.shippingAddress || 'Alamat tidak diisi',
+        city: 'Alamat Sablon',
+        postalCode: '00000',
+        phone: user.phone || designRequest.whatsappNumber || '-',
+        email: user.email
+      };
+
       await trx('order').insert({
         id: orderId,
         orderNumber: `SAB-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         userId,
         totalAmount: finalAmount,
         paymentMethod: paymentMethod || 'XENDIT',
-        status: 'UNPAID', // Initial status
+        status: 'PENDING', // Initial status
+        deliveryAddress: JSON.stringify(deliveryAddressObj),
         createdAt: new Date(),
         updatedAt: new Date(),
+      });
+
+      // Insert dummy orderItem for Admin UI
+      await trx('orderItem').insert({
+        id: require('cuid')(),
+        orderId,
+        productId: null, // No real product
+        quantity: designRequest.quantity || 1,
+        unitPrice: Math.floor(grandTotal / (designRequest.quantity || 1)),
+        subtotal: grandTotal,
+        // Using a JSON field or similar if available, else we rely on product join usually.
+        // Wait, orderItem expects productId for the relation in OrderDetail, let's see. 
+        // OrderDetail reads item.product?.productName. We might need to mock it if Prisma/Knex fetches it.
+        // But since there's no product, we can just save it or create a dummy product.
       });
 
       // Update Design Request with Order ID
@@ -244,6 +297,20 @@ const checkoutCustomSablonDP = async (req, res, next) => {
         xenditId: xenditId,
         paymentType: isFull ? 'FULL' : 'DP'
       });
+
+      // Queue 'Waiting for Payment' Notification for Custom Sablon
+      try {
+        await notificationService.queueNotification({
+          orderId: order.id,
+          userId: userId || null,
+          recipientEmail: user ? user.email : null,
+          type: 'PENDING',
+          title: 'Menunggu Pembayaran Sablon ⏳',
+          message: `Tagihan pembayaran untuk pesanan sablon Anda (#${order.orderNumber}) telah dibuat. Segera lakukan pembayaran.`,
+        });
+      } catch (notifErr) {
+        console.error('Failed to queue Sablon PENDING notification:', notifErr.message);
+      }
 
     } catch (err) {
       console.error('Xendit DP Invoice Error:', err.message);

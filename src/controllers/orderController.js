@@ -410,6 +410,18 @@ const createOrder = async (req, res, next) => {
       throw new BadRequestError('Gagal membuat tagihan pembayaran. Saldo poin dan voucher Anda telah dikembalikan otomatis.');
     }
 
+    // Admin Notification
+    try {
+      await knex('admin_notifications').insert({
+        title: 'Pesanan Retail Baru!',
+        message: `Pesanan Retail #${order.orderNumber} baru saja dibuat senilai Rp ${finalAmount}.`,
+        type: 'NEW_ORDER',
+        isRead: false
+      });
+    } catch (err) {
+      console.error('Failed to create Admin notification for Retail:', err.message);
+    }
+
     return sendCreated(res, { ...order, paymentUrl, snapToken }, MESSAGES.ORDER_CREATED);
   } catch (error) {
     next(error);
@@ -754,6 +766,18 @@ const createGuestOrder = async (req, res, next) => {
       throw new BadRequestError('Gagal membuat tagihan pembayaran. Silakan coba lagi.');
     }
 
+    // Admin Notification (Guest)
+    try {
+      await knex('admin_notifications').insert({
+        title: 'Pesanan Guest Baru!',
+        message: `Pesanan Retail Guest #${order.orderNumber} baru saja dibuat senilai Rp ${finalAmount}.`,
+        type: 'NEW_ORDER',
+        isRead: false
+      });
+    } catch (err) {
+      console.error('Failed to create Admin notification for Guest Retail:', err.message);
+    }
+
     return sendCreated(res, { orderId: order.id, email: sanitizedData.guestEmail, paymentUrl, snapToken }, 'Guest order created successfully');
   } catch (error) {
     next(error);
@@ -905,6 +929,57 @@ const createPelunasanInvoice = async (req, res, next) => {
   }
 };
 
+const requestRefund = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason || typeof reason !== 'string') {
+      throw new BadRequestError('Alasan pembatalan dan refund wajib diisi');
+    }
+
+    const order = await knex('order').where('id', id).first();
+    if (!order) {
+      throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
+    }
+
+    // Hanya pemilik order yang bisa minta refund
+    if (order.userId !== req.user.id) {
+      throw new AuthorizationError('Tidak memiliki akses ke pesanan ini');
+    }
+
+    // Gatekeeping: Hanya saat CONFIRMED
+    if (order.status !== 'CONFIRMED') {
+      return res.status(403).json({
+        success: false,
+        message: 'Pembatalan sepihak dan refund hanya bisa diajukan saat pesanan berstatus CONFIRMED.'
+      });
+    }
+
+    // Update status ke REFUND_REQUESTED
+    const updatedOrder = await orderFulfillmentService.updateOrderStatus(
+      id,
+      'REFUND_REQUESTED',
+      req.user.id,
+      'Refund diajukan kustomer',
+      reason
+    );
+
+    // Kirim notifikasi lonceng ke Admin
+    await notificationService.createAdminNotification({
+      type: 'ORDER_ISSUE',
+      title: 'Permintaan Refund Kustomer',
+      message: `Kustomer mengajukan refund untuk pesanan ${order.orderNumber}. Alasan: ${reason}`,
+      referenceId: order.id,
+      referenceType: 'ORDER'
+    });
+
+    return sendSuccess(res, updatedOrder, 'Permintaan refund berhasil diajukan');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllOrders,
   getOrderById,
@@ -918,4 +993,5 @@ module.exports = {
   getOrderNotifications,
   getShippingRates,
   createPelunasanInvoice,
+  requestRefund,
 };
