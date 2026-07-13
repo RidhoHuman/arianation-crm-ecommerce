@@ -61,19 +61,25 @@ const cartItemService = {
     return item || null;
   },
 
-  // Cari cart item berdasarkan cartId dan productId
-  async findByCartAndProduct(cartId, productId) {
-    const item = await knex('cartItem')
+  // Cari cart item berdasarkan cartId, productId, dan variantId
+  async findByCartProductAndVariant(cartId, productId, variantId = null) {
+    let query = knex('cartItem')
       .where('cartId', cartId)
-      .where('productId', productId)
-      .first();
+      .where('productId', productId);
+      
+    if (variantId) {
+      query = query.where('variantId', variantId);
+    } else {
+      query = query.whereNull('variantId');
+    }
 
+    const item = await query.first();
     return item || null;
   },
 
   // Tambah item ke cart atau update quantity jika sudah ada
-  async addOrUpdate({ cartId, productId, quantity, price }) {
-    const existing = await this.findByCartAndProduct(cartId, productId);
+  async addOrUpdate({ cartId, productId, variantId, quantity, price }) {
+    const existing = await this.findByCartProductAndVariant(cartId, productId, variantId);
 
     if (existing) {
       const newQuantity = existing.quantity + quantity;
@@ -89,7 +95,7 @@ const cartItemService = {
       id,
       cartId,
       productId,
-      variantId: null, // Default
+      variantId: variantId || null,
       quantity,
       unitPrice: price,
       subtotal: price * quantity,

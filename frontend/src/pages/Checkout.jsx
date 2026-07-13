@@ -164,6 +164,7 @@ export default function Checkout() {
     try {
       const itemsPayload = cartItems.map((item) => ({
         productId: item.originalId || item.id,
+        variantId: item.variantId,
         quantity: item.quantity,
         weight: item.weight || 250
       }));
@@ -579,7 +580,7 @@ export default function Checkout() {
                           }
                         }}
                         shippingCost={selectedShipping?.price || 0}
-                        shippingCourier={selectedShipping?.courier_service_code}
+                        shippingCourier={selectedShipping ? `${selectedShipping.courier_name}-${selectedShipping.courier_service_code}` : null}
                         onCourierSelect={(c) => setSelectedShipping(c)}
                         couriers={shippingRates}
                         isSablonOrder={isSablonOrder}
@@ -714,6 +715,7 @@ export default function Checkout() {
                         
                         const itemsPayload = cartItems.map((item) => ({
                           productId: item.originalId || item.id,
+                          variantId: item.variantId,
                           quantity: item.quantity,
                           size: item.size,
                           color: item.color
@@ -742,6 +744,8 @@ export default function Checkout() {
                               fullName: `${addressData.firstName || user?.fullName || 'Customer'} ${addressData.lastName || ''}`.trim(),
                               addressLine1: addressData.address || 'Gudang',
                               city: addressData.city || 'Malang',
+                              state: addressData.city || 'Jawa Timur',
+                              country: addressData.country || 'Indonesia',
                               postalCode: addressData.postalCode || '12345',
                               phone: addressData.phone || user?.phone || '081234567890',
                               email: addressData.email || user?.email || 'customer@example.com'

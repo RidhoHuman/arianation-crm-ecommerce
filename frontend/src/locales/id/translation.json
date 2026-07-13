@@ -219,7 +219,8 @@
     "CANCELLED": "Dibatalkan",
     "WAITING_FINAL_PAYMENT": "Menunggu Pelunasan",
     "READY_TO_SHIP": "Siap Dikirim",
-    "IN_PRODUCTION": "Sedang Diproduksi"
+    "IN_PRODUCTION": "Sedang Diproduksi",
+    "PAID_WAITING_APPROVAL": "Menunggu Persetujuan"
   },
   "orderTracking": {
     "title": "Lacak Pesanan",

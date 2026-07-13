@@ -24,6 +24,7 @@ const useCartStore = create((set, get) => ({
           try {
             await api.post('/cart/items', {
               productId: item.originalId || item.id,
+              variantId: item.variantId,
               quantity: item.quantity || 1
             });
           } catch(e) {
@@ -40,15 +41,16 @@ const useCartStore = create((set, get) => ({
       if (cartData && cartData.items) {
         const mappedItems = cartData.items.map(item => ({
           cartItemId: item.id,
-          id: item.productId + (item.variantName ? '-' + item.variantName : ''),
+          id: item.productId + (item.variantId ? '-' + item.variantId : ''),
           originalId: item.productId,
+          variantId: item.variantId,
           productName: item.productName,
           price: item.unitPrice || item.price,
           quantity: item.quantity,
-          imageUrl: item.imageUrl,
-          size: item.variantName || '',
+          imageUrl: item.variantImage || item.imageUrl,
+          size: item.size ? (item.size.includes('-') ? item.size.split('-')[1].trim() : item.size) : '',
           businessType: item.businessType || 'FASHION_RETAIL',
-          color: '' 
+          color: item.color || (item.size && item.size.includes('-') ? item.size.split('-')[0].trim() : '')
         }));
         set({ items: mappedItems });
       } else {
@@ -69,6 +71,7 @@ const useCartStore = create((set, get) => ({
       try {
         await api.post('/cart/items', {
           productId: item.originalId || item.id,
+          variantId: item.variantId,
           quantity: item.quantity || 1
         });
         await get().fetchCart();

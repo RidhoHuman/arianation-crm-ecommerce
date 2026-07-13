@@ -27,6 +27,8 @@ const orderService = {
         'order.totalAmount as totalPrice',
         'payment.status as paymentStatus',
         'order.deliveryAddress',
+        'order.shippingCost',
+        'order.shippingCourier',
         'orderTracking.trackingNumber',
         'order.createdAt',
         'order.updatedAt'
@@ -69,7 +71,9 @@ const orderService = {
         'payment.method as paymentMethod',
         'payment.qrisUrl as paymentUrl',
         'order.deliveryAddress',
-        'orderTracking.trackingNumber',
+        'order.shippingCost',
+        'order.shippingCourier',
+        knex.raw('COALESCE(orderTracking.trackingNumber, order.trackingNumber) as trackingNumber'),
         'order.createdAt',
         'order.updatedAt'
       )
@@ -100,6 +104,8 @@ const orderService = {
         'order.totalAmount as totalPrice',
         'payment.status as paymentStatus',
         'order.deliveryAddress',
+        'order.shippingCost',
+        'order.shippingCourier',
         'orderTracking.trackingNumber',
         'order.createdAt',
         'order.updatedAt'

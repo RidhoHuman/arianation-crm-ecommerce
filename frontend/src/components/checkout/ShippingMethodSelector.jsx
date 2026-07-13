@@ -44,14 +44,16 @@ const ShippingMethodSelector = ({
             ) : (
               couriers && couriers.length > 0 ? (
                 <div className="space-y-3">
-                  {couriers.map((c) => (
-                    <label key={`${c.courier_name}-${c.courier_service_code}`} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${shippingCourier === c.courier_service_code ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                  {couriers.map((c) => {
+                    const combinedCode = `${c.courier_name}-${c.courier_service_code}`;
+                    return (
+                    <label key={combinedCode} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${shippingCourier === combinedCode ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}>
                       <div className="flex items-center">
                         <input
                           type="radio"
                           name="courier"
-                          value={c.courier_service_code}
-                          checked={shippingCourier === c.courier_service_code}
+                          value={combinedCode}
+                          checked={shippingCourier === combinedCode}
                           onChange={() => onCourierSelect(c)}
                           className="w-4 h-4 text-primary bg-gray-100 border-gray-300 focus:ring-primary"
                         />
@@ -68,7 +70,8 @@ const ShippingMethodSelector = ({
                         Rp {c.price.toLocaleString('id-ID')}
                       </span>
                     </label>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-gray-500 italic">Silakan isi alamat pengiriman dengan lengkap terlebih dahulu untuk melihat pilihan kurir.</p>

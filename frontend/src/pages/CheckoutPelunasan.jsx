@@ -115,6 +115,8 @@ export default function CheckoutPelunasan() {
           phone: addressData.phone || user?.phone || '081234567890',
           addressLine1: addressData.address || 'Gudang',
           city: addressData.city || 'Malang',
+          state: addressData.city || 'Jawa Timur',
+          country: addressData.country || 'Indonesia',
           postalCode: addressData.postalCode || '12345',
         }
       };
@@ -317,7 +319,7 @@ export default function CheckoutPelunasan() {
                           }
                         }}
                         shippingCost={selectedShipping?.price || 0}
-                        shippingCourier={selectedShipping?.courier_service_code}
+                        shippingCourier={selectedShipping ? `${selectedShipping.courier_name}-${selectedShipping.courier_service_code}` : null}
                         onCourierSelect={(c) => setSelectedShipping(c)}
                         couriers={shippingRates}
                         isSablonOrder={false}

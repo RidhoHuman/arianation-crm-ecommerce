@@ -73,7 +73,13 @@ const getOrderById = async (req, res, next) => {
 
     const items = await knex('orderItem')
       .leftJoin('product', 'orderItem.productId', 'product.id')
-      .select('orderItem.*', 'product.productName')
+      .leftJoin('productVariant as v', 'orderItem.variantId', 'v.id')
+      .select(
+        'orderItem.*', 
+        'product.productName',
+        'product.imageUrl as productImage',
+        knex.raw('v.variantName as size, v.color as color, v.imageUrl as variantImage')
+      )
       .where('orderId', id);
 
     order.items = items.map(item => ({
@@ -320,31 +326,10 @@ const createOrder = async (req, res, next) => {
       return await trx('order').where('id', orderId).first();
     });
 
-    // Always clear the checked-out items from the user's cart
-    if (userId) {
-      const cart = await knex('shoppingCart').where('userId', userId).first();
-      if (cart) {
-        await knex('cartItem').where('cartId', cart.id).delete();
-      }
-    }
-
-    // Queue 'Waiting for Payment' Notification
-    try {
-      await notificationService.queueNotification({
-        orderId: order.id,
-        userId: userId || null,
-        recipientEmail: user ? user.email : (deliveryAddress?.email || null),
-        type: 'PENDING',
-        title: 'Menunggu Pembayaran',
-        message: `Pesanan ${order.orderNumber} berhasil dibuat. Segera lakukan pembayaran agar pesanan dapat diproses.`,
-      });
-    } catch (notifErr) {
-      console.error('Failed to queue PENDING notification:', notifErr.message);
-    }
-
     // Generate Xendit Invoice
     let paymentUrl = null;
     let snapToken = null; // Kept for compatibility if frontend still destructs it
+    let invoiceRequest;
     try {
       const paymentId = require('cuid')();
       const customerNameParts = user?.fullName ? user.fullName.split(' ') : [];
@@ -359,9 +344,9 @@ const createOrder = async (req, res, next) => {
       };
 
       const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
-      const invoiceRequest = {
+      invoiceRequest = {
         externalId: paymentId,
-        amount: finalAmount,
+        amount: order.totalAmount,
         payerEmail: customer.email,
         description: `Pesanan AriaNation #${order.orderNumber || order.id}`,
         customer: customer,
@@ -376,13 +361,35 @@ const createOrder = async (req, res, next) => {
       await paymentService.create({
         id: paymentId,
         orderId: order.id,
-        amount: finalAmount,
+        amount: order.totalAmount,
         paymentMethod: paymentMethod || 'XENDIT',
         status: 'PENDING',
         transactionId: order.id,
         qrisUrl: paymentUrl,
         xenditId: xenditResponse.id
       });
+
+      // Always clear the checked-out items from the user's cart now that Xendit succeeded
+      if (userId) {
+        const cart = await knex('shoppingCart').where('userId', userId).first();
+        if (cart) {
+          await knex('cartItem').where('cartId', cart.id).delete();
+        }
+      }
+
+      // Queue 'Waiting for Payment' Notification
+      try {
+        await notificationService.queueNotification({
+          orderId: order.id,
+          userId: userId || null,
+          recipientEmail: user ? user.email : (deliveryAddress?.email || null),
+          type: 'PENDING',
+          title: 'Menunggu Pembayaran',
+          message: `Pesanan ${order.orderNumber} berhasil dibuat. Segera lakukan pembayaran agar pesanan dapat diproses.`,
+        });
+      } catch (notifErr) {
+        console.error('Failed to queue PENDING notification:', notifErr.message);
+      }
     } catch (err) {
       console.error('Xendit Invoice Error Details:', err.response ? JSON.stringify(err.response, null, 2) : err.message);
       console.error('Xendit Request Data:', JSON.stringify(invoiceRequest, null, 2));
@@ -407,14 +414,19 @@ const createOrder = async (req, res, next) => {
         await knex('voucher').where('id', usedVoucherId).decrement('usedCount', 1);
       }
       
-      throw new BadRequestError('Gagal membuat tagihan pembayaran. Saldo poin dan voucher Anda telah dikembalikan otomatis.');
+      const xenditErrorDetail = err.response && err.response.message ? err.response.message : err.message;
+      let errorMsg = `Gagal membuat tagihan pembayaran dari pihak payment gateway (Xendit): ${xenditErrorDetail}`;
+      if (pointsToDeduct > 0 || usedVoucherId) {
+        errorMsg += ' Saldo poin dan voucher Anda telah dikembalikan otomatis.';
+      }
+      throw new BadRequestError(errorMsg);
     }
 
     // Admin Notification
     try {
       await knex('admin_notifications').insert({
         title: 'Pesanan Retail Baru!',
-        message: `Pesanan Retail #${order.orderNumber} baru saja dibuat senilai Rp ${finalAmount}.`,
+        message: `Pesanan Retail #${order.orderNumber} baru saja dibuat senilai Rp ${order.totalAmount}.`,
         type: 'NEW_ORDER',
         isRead: false
       });

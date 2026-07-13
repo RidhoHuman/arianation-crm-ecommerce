@@ -14,13 +14,15 @@ const getCart = async (req, res, next) => {
 
     let cart = await cartService.getOrCreateCart(userId);
 
-    // Get items dengan product info
+    // Get items dengan product info dan variant info
     const items = await knex('cartItem')
       .where('cartId', cart.id)
       .select('cartItem.*', 
-        knex.raw('p.productName, p.price as productPrice, p.imageUrl, p.isActive, p.businessType')
+        knex.raw('p.productName, p.price as productPrice, p.imageUrl, p.isActive, p.businessType'),
+        knex.raw('v.variantName as size, v.color as color, v.imageUrl as variantImage')
       )
       .leftJoin('product as p', 'cartItem.productId', 'p.id')
+      .leftJoin('productVariant as v', 'cartItem.variantId', 'v.id')
       .orderBy('cartItem.createdAt', 'desc');
 
     // Calculate total
@@ -67,6 +69,7 @@ const addToCart = async (req, res, next) => {
     const cartItem = await cartItemService.addOrUpdate({
       cartId: cart.id,
       productId,
+      variantId: variantId || null,
       quantity,
       price: unitPrice,
     });

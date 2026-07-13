@@ -9,7 +9,11 @@ const shippingService = {
   async getRates({ destinationPostalCode, weight, itemsData }) {
     // 1. Get active couriers from database
     const activeCouriers = await knex('couriers').where({ isActive: true }).pluck('code');
-    const couriersString = activeCouriers.length > 0 ? activeCouriers.join(',') : 'jnt,sicepat,jne';
+    const couriersString = activeCouriers.length > 0 ? activeCouriers.join(',') : '';
+
+    if (!couriersString) {
+      throw new Error('Tidak ada kurir yang aktif. Hubungi admin toko.');
+    }
 
     // 2. Prepare payload
     const payload = {
@@ -46,32 +50,21 @@ const shippingService = {
         const totalWeight = payload.items.reduce((sum, item) => sum + (item.weight || 1000), 0);
         const weightKg = Math.max(1, Math.ceil(totalWeight / 1000));
         
+        const fallbackPricing = [];
+        if (activeCouriers.includes('jne')) {
+          fallbackPricing.push({ courier_name: "JNE", courier_service_name: "REG", courier_service_code: "reg", duration: "2-3 days", price: 15000 * weightKg });
+        }
+        if (activeCouriers.includes('sicepat')) {
+          fallbackPricing.push({ courier_name: "Sicepat", courier_service_name: "HALU", courier_service_code: "halu", duration: "1-2 days", price: 12000 * weightKg });
+        }
+        if (activeCouriers.includes('jnt')) {
+          fallbackPricing.push({ courier_name: "J&T", courier_service_name: "EZ", courier_service_code: "ez", duration: "2 days", price: 14000 * weightKg });
+        }
+        
         return {
           success: true,
           object: "pricing",
-          pricing: [
-            {
-              courier_name: "JNE",
-              courier_service_name: "REG",
-              courier_service_code: "reg",
-              duration: "2-3 days",
-              price: 15000 * weightKg
-            },
-            {
-              courier_name: "Sicepat",
-              courier_service_name: "HALU",
-              courier_service_code: "halu",
-              duration: "1-2 days",
-              price: 12000 * weightKg
-            },
-            {
-              courier_name: "J&T",
-              courier_service_name: "EZ",
-              courier_service_code: "ez",
-              duration: "2 days",
-              price: 14000 * weightKg
-            }
-          ]
+          pricing: fallbackPricing
         };
       }
 
@@ -93,14 +86,14 @@ const shippingService = {
     destinationAreaId,
     items,
     courierCode,
+    courierType,
     totalWeight
   }) {
     // Prepare payload
     const payload = {
-      shipper_contact_name: process.env.STORE_NAME || "Arianation",
-      shipper_contact_phone: process.env.STORE_PHONE || "081234567890",
-      shipper_contact_email: process.env.EMAIL_USER || process.env.SMTP_USER || "admin@arianation.com",
-      shipper_organization: process.env.STORE_NAME || "Arianation",
+      origin_contact_name: process.env.STORE_NAME || "Arianation",
+      origin_contact_phone: process.env.STORE_PHONE || "081234567890",
+      origin_contact_email: process.env.EMAIL_USER || process.env.SMTP_USER || "admin@arianation.com",
       origin_address: process.env.STORE_ADDRESS || "Gudang Arianation",
       origin_postal_code: process.env.STORE_POSTAL_CODE ? parseInt(process.env.STORE_POSTAL_CODE, 10) : 12110,
       destination_contact_name: customerName,
@@ -109,8 +102,8 @@ const shippingService = {
       destination_address: destinationAddress,
       destination_postal_code: parseInt(destinationPostalCode, 10),
       courier_company: courierCode,
-      courier_type: "reg",
-      delivery_type: "later",
+      courier_type: courierType || "reg",
+      delivery_type: "now",
       items: items || [
         {
           name: "Arianation Products",

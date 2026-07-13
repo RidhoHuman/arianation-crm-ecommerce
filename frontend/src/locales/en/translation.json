@@ -219,7 +219,8 @@
     "CANCELLED": "Cancelled",
     "WAITING_FINAL_PAYMENT": "Waiting Final Payment",
     "READY_TO_SHIP": "Ready to Ship",
-    "IN_PRODUCTION": "In Production"
+    "IN_PRODUCTION": "In Production",
+    "PAID_WAITING_APPROVAL": "Waiting Approval"
   },
   "orderTracking": {
     "title": "Track Order",

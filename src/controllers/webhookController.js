@@ -37,13 +37,15 @@ const handleXenditWebhook = async (req, res, next) => {
            return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
-        // Branching logic for order status
         let newOrderStatus = 'PAID_WAITING_APPROVAL'; // Default for Retail & Sablon DP
-        if (order.status === 'WAITING_FINAL_PAYMENT') {
+        if (order.status === 'WAITING_FINAL_PAYMENT' || order.status === 'ON_HOLD') {
           newOrderStatus = 'READY_TO_SHIP'; // Sablon Pelunasan
         }
 
-        // 1. Update status pesanan menggunakan fulfillment service
+        // 1. Simpan atau update record pembayaran DULU agar validasi State Machine lolos
+        await paymentService.updateStatus(existingPayment.id, 'COMPLETED', id);
+
+        // 2. Update status pesanan menggunakan fulfillment service
         // Transaction is handled inside orderFulfillmentService
         await orderFulfillmentService.updateOrderStatus(
           orderId,
@@ -52,9 +54,6 @@ const handleXenditWebhook = async (req, res, next) => {
           'Payment successful via Xendit',
           `Xendit Invoice ID: ${id}, Method: ${payment_method}`
         );
-
-        // 2. Simpan atau update record pembayaran
-        await paymentService.updateStatus(existingPayment.id, 'COMPLETED', id);
 
         // 3. Trigger Notification immediately
         try {

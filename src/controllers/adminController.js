@@ -452,18 +452,36 @@ const getOrderDetail = async (req, res, next) => {
     if (!order) throw new NotFoundError('Order not found');
 
     // Get order items with product and variant details
-    const items = await knex('orderItem')
+    const rawItems = await knex('orderItem')
       .select(
         'orderItem.id',
         'orderItem.orderId',
         'orderItem.productId',
+        'orderItem.variantId',
         'orderItem.quantity',
+        'orderItem.unitPrice',
         'orderItem.subtotal',
         'product.productName',
-        'product.price'
+        'product.price',
+        'product.imageUrl as productImage',
+        knex.raw('v.variantName, v.color, v.imageUrl as variantImage')
       )
       .leftJoin('product', 'orderItem.productId', 'product.id')
+      .leftJoin('productVariant as v', 'orderItem.variantId', 'v.id')
       .where('orderItem.orderId', id);
+
+    const items = rawItems.map(item => ({
+      ...item,
+      product: item.productId ? {
+        productName: item.productName,
+        price: item.price,
+        imageUrl: item.productImage
+      } : null,
+      variant: item.variantId ? {
+        variantName: item.variantName + (item.color ? ` - ${item.color}` : ''),
+        imageUrl: item.variantImage
+      } : null
+    }));
 
     // Get payment info
     const payment = await knex('payment')
@@ -526,19 +544,18 @@ const updateOrderStatus = async (req, res, next) => {
     };
 
     if (status === 'WAITING_FINAL_PAYMENT' && req.body.actualWeight) {
-      updateData.actualWeight = Number(req.body.actualWeight);
+      await knex('order')
+        .where('id', id)
+        .update({ actualWeight: Number(req.body.actualWeight) });
     }
 
-    const updated = await knex('order')
-      .where('id', id)
-      .update(updateData);
-
-    if (!updated) throw new NotFoundError('Order not found');
-
-    const updatedOrder = await knex('order')
-      .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt')
-      .where('id', id)
-      .first();
+    const orderFulfillmentService = require('../services/orderFulfillmentService');
+    const updatedOrder = await orderFulfillmentService.updateOrderStatus(
+      id,
+      status,
+      req.user.id,
+      'Manual status update via Admin Panel'
+    );
 
     // Audit log
     await knex('auditLog')
@@ -1323,6 +1340,29 @@ const requestPickup = async (req, res, next) => {
       } catch(e) {}
     }
 
+    // Map display courier name (e.g. "J&T - EZ") to Biteship courier codes
+    let mappedCourier = 'jnt';
+    let mappedType = 'reg';
+    if (order.shippingCourier) {
+      const lowerCourier = order.shippingCourier.toLowerCase();
+      
+      if (lowerCourier.includes('j&t') || lowerCourier.includes('jnt')) mappedCourier = 'jnt';
+      else if (lowerCourier.includes('sicepat')) mappedCourier = 'sicepat';
+      else if (lowerCourier.includes('jne')) mappedCourier = 'jne';
+      else if (lowerCourier.includes('anteraja')) mappedCourier = 'anteraja';
+      else if (lowerCourier.includes('ninja')) mappedCourier = 'ninja';
+      else mappedCourier = lowerCourier.split(' ')[0].trim();
+      
+      if (lowerCourier.includes('ez')) mappedType = 'ez';
+      else if (lowerCourier.includes('reg')) mappedType = 'reg';
+      else if (lowerCourier.includes('best')) mappedType = 'best';
+      else if (lowerCourier.includes('yes')) mappedType = 'yes';
+      else if (lowerCourier.includes('oke')) mappedType = 'oke';
+      else if (lowerCourier.includes('sameday')) mappedType = 'sameday';
+      else if (lowerCourier.includes('instan')) mappedType = 'instant';
+      else if (lowerCourier.includes('-')) mappedType = lowerCourier.split('-')[1].trim();
+    }
+
     const shippingService = require('../services/shippingService');
     const biteshipResponse = await shippingService.createOrderPickup({
       orderId: order.id,
@@ -1332,7 +1372,8 @@ const requestPickup = async (req, res, next) => {
       destinationAddress,
       destinationPostalCode,
       items,
-      courierCode: order.shippingCourier,
+      courierCode: mappedCourier,
+      courierType: mappedType,
       totalWeight
     });
 

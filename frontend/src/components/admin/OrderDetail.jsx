@@ -140,6 +140,11 @@ export default function OrderDetail() {
           <p className="text-gray-500 text-sm mt-1 flex items-center gap-2">
             <FiClock /> Dibuat pada {new Date(order.createdAt).toLocaleString('id-ID')}
           </p>
+          {order.trackingNumber && (
+            <p className="text-blue-600 font-medium text-sm mt-2 flex items-center gap-2 bg-blue-50 w-fit px-3 py-1.5 rounded-lg border border-blue-100">
+              <FiTruck /> No. Resi ({order.shippingCourier || 'Kurir'}): {order.trackingNumber}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-200">
@@ -259,7 +264,7 @@ export default function OrderDetail() {
                 const isSablon = !item.product && order.designRequests && order.designRequests.length > 0;
                 const sablonData = isSablon ? order.designRequests[0] : null;
                 const itemName = item.product?.productName || (sablonData ? `Custom Sablon - ${sablonData.designTitle}` : 'Produk Dihapus');
-                const itemImg = item.product?.imageUrl || (sablonData ? (sablonData.mockupPreviewUrl || sablonData.designFileUrl) : null);
+                const itemImg = item.variant?.imageUrl || item.product?.imageUrl || (sablonData ? (sablonData.mockupPreviewUrl || sablonData.designFileUrl) : null);
                 
                 return (
                 <div key={item.id} className="flex gap-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
@@ -347,9 +352,20 @@ export default function OrderDetail() {
                   </a>
                 </div>
               ) : order.payment ? (
-                <div className="pt-3 border-t border-gray-100 text-yellow-600 flex items-center gap-2">
-                  <FiClock /> Belum ada bukti pembayaran
-                </div>
+                order.paymentMethod === 'XENDIT' && order.payment.status === 'COMPLETED' ? (
+                  <div className="pt-3 border-t border-gray-100 text-green-600 flex flex-col gap-1">
+                    <div className="flex items-center gap-2 font-medium">
+                      <FiCheckCircle /> Lunas terverifikasi otomatis
+                    </div>
+                    {order.payment.xenditId && (
+                      <span className="text-xs text-gray-400">Ref: {order.payment.xenditId}</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="pt-3 border-t border-gray-100 text-yellow-600 flex items-center gap-2">
+                    <FiClock /> Belum ada bukti pembayaran
+                  </div>
+                )
               ) : (
                 <div className="pt-3 border-t border-gray-100 text-gray-500">
                   Data pembayaran tidak ditemukan.

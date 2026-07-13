@@ -73,7 +73,7 @@ const validateTransitionRules = async (trx, order, newStatus) => {
 
   // READY_TO_SHIP or READY_FOR_DELIVERY → SHIPPED: Require tracking number
   if (['READY_TO_SHIP', 'READY_FOR_DELIVERY'].includes(order.status) && newStatus === 'SHIPPED') {
-    if (!order.tracking || !order.tracking.trackingNumber) {
+    if (!order.trackingNumber && (!order.tracking || !order.tracking.trackingNumber)) {
       throw new BadRequestError('Tracking number required before shipping');
     }
   }
@@ -92,7 +92,7 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
   return await knex.transaction(async (trx) => {
     // Get current order
     const order = await trx('order')
-      .select('id', 'orderNumber', 'status', 'userId')
+      .select('id', 'orderNumber', 'status', 'userId', 'trackingNumber')
       .where('id', orderId)
       .first();
 
@@ -296,7 +296,7 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
   if (config) {
     try {
       const notificationService = require('./notificationService');
-      await notificationService.queueCustomerNotification({
+      const notif = await notificationService.queueCustomerNotification({
         referenceId: orderId,
         referenceType: 'ORDER',
         userId: order.userId || null,
@@ -304,6 +304,13 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
         title: config.title,
         message: config.message
       });
+      
+      // Also trigger the email sending process
+      if (notif && notif.id) {
+        notificationService.sendOrderNotification(notif.id).catch(err => {
+          console.error('Failed to send order notification email:', err);
+        });
+      }
     } catch (err) {
       console.error('Failed to trigger customer notification:', err);
     }

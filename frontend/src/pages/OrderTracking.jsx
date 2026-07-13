@@ -82,7 +82,7 @@ export default function OrderTracking() {
     <>
       <SEOHead title={`Track Order ${id || ''} - Arianation`} />
       <div className="max-w-[1000px] mx-auto px-4 sm:px-6 mt-6 mb-24">
-        <Breadcrumb />
+        <Breadcrumb customLabels={{ 'order-tracking': 'Track Order', [id]: order?.orderNumber || id }} />
 
         <div className="mt-8 mb-12">
           <h1 className="text-4xl md:text-5xl font-display font-medium uppercase tracking-tight text-aria-charcoal dark:text-white mb-4">
@@ -212,8 +212,8 @@ export default function OrderTracking() {
               </div>
             )}
 
-            {/* Refund Call to Action - Only in CONFIRMED phase */}
-            {order.status === 'CONFIRMED' && order.userId === currentUser?.id && (
+            {/* Refund Call to Action - Only in CONFIRMED or PAID_WAITING_APPROVAL phase */}
+            {(order.status === 'CONFIRMED' || order.status === 'PAID_WAITING_APPROVAL') && order.userId === currentUser?.id && (
               <div className="bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-400 p-8 border border-red-200 dark:border-red-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
                   <h3 className="font-display text-lg uppercase tracking-widest mb-1">Ajukan Pembatalan & Refund</h3>
@@ -242,7 +242,7 @@ export default function OrderTracking() {
             <div className="p-8 border-b border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">{t('orderTracking.orderId')}</p>
-                <p className="font-display text-lg text-aria-charcoal dark:text-white uppercase tracking-wider">{order.id}</p>
+                <p className="font-display text-lg text-aria-charcoal dark:text-white uppercase tracking-wider">{order.orderNumber || order.id}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">{t('orderTracking.date')}</p>
@@ -304,11 +304,25 @@ export default function OrderTracking() {
                   <div className="space-y-4">
                     {order.items.map((item, idx) => (
                       <div key={idx} className="flex flex-col gap-3 border-b border-gray-100 dark:border-gray-800 pb-4">
-                        <div className="flex justify-between items-start text-sm">
-                          <span className="uppercase tracking-widest text-gray-600 dark:text-gray-400">
-                            {item.quantity}x {item.product?.productName || 'Product'} {item.size && `- ${item.size}`} {item.color && `- ${item.color}`}
-                          </span>
-                          <span className="font-medium dark:text-white">Rp {((item.unitPrice || item.price) * item.quantity).toLocaleString('id-ID')}</span>
+                        <div className="flex justify-between items-start text-sm gap-4">
+                          <div className="flex gap-4 items-start">
+                            <div className="w-16 h-16 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex-shrink-0">
+                              <img 
+                                src={item.variantImage || item.productImage || item.product?.imageUrl || item.product?.images?.[0] || 'https://via.placeholder.com/80'} 
+                                alt={item.productName || item.product?.productName || 'Product'} 
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="uppercase tracking-widest font-bold text-gray-800 dark:text-gray-200">
+                                {item.productName || item.product?.productName || 'Product'}
+                              </span>
+                              <span className="uppercase tracking-widest text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {item.quantity}x {item.color || (item.size && item.size.includes('-') ? item.size.split('-')[0].trim() : '')} {item.size && item.size.includes('-') ? `| ${item.size.split('-')[1].trim()}` : (item.size ? `| ${item.size}` : '')}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="font-medium dark:text-white mt-1">Rp {((item.unitPrice || item.price) * item.quantity).toLocaleString('id-ID')}</span>
                         </div>
                         {order.status === 'DELIVERED' && currentUser && order.userId === currentUser.id && (
                           <div className="flex justify-end">
@@ -338,6 +352,12 @@ export default function OrderTracking() {
                       </div>
                     ))}
                   </div>
+                  {order.shippingCost > 0 && (
+                    <div className="flex justify-between items-center mt-4 text-sm uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                      <span>SHIPPING ({order.shippingCourier || 'Courier'})</span>
+                      <span>Rp {order.shippingCost?.toLocaleString('id-ID')}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center mt-6 text-lg font-semibold uppercase tracking-widest dark:text-white">
                     <span>{t('orderTracking.total')}</span>
                     <span>Rp {(order.totalPrice || order.totalAmount)?.toLocaleString('id-ID')}</span>
