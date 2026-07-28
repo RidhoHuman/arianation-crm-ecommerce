@@ -52,6 +52,10 @@ export default function ProductTypeList() {
     let finalImageUrl = formData.imageUrl;
 
     if (imageFile) {
+      if (imageFile.size > 4.5 * 1024 * 1024) {
+        toast.error('Ukuran gambar terlalu besar. Maksimal 4.5 MB.');
+        return;
+      }
       try {
         const uploadData = new FormData();
         uploadData.append('image', imageFile);

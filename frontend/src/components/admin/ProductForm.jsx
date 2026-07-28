@@ -148,6 +148,9 @@ export default function ProductForm({ defaultBusinessType }) {
   };
 
   const uploadImage = async (file) => {
+    if (file.size > 4.5 * 1024 * 1024) {
+      throw new Error(`Ukuran gambar terlalu besar. Maksimal 4.5 MB.`);
+    }
     const formData = new FormData();
     formData.append('image', file);
     const uploadRes = await api.post('/products/upload-image', formData, {

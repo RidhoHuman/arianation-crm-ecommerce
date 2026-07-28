@@ -92,6 +92,12 @@ export default function BannerList() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Vercel Serverless Function payload limit is 4.5MB
+    if (file.size > 4.5 * 1024 * 1024) {
+      toast.error('Ukuran gambar terlalu besar. Maksimal 4.5 MB.');
+      return;
+    }
+
     const uploadData = new FormData();
     uploadData.append('image', file);
 
