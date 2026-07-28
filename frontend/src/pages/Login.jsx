@@ -7,12 +7,15 @@ import useAuthStore from '../store/authStore';
 import { FcGoogle } from 'react-icons/fc';
 import { FaFacebook } from 'react-icons/fa';
 
+import { FiEye, FiEyeOff } from 'react-icons/fi';
+
 export default function LoginPage() {
   const { login } = useAuth();
   const setLoading = useUIStore((s) => s.setLoading);
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -72,11 +75,20 @@ export default function LoginPage() {
 
         <div>
           <label className="block text-sm font-medium">Password</label>
-          <input
-            type="password"
-            {...register('password', { required: 'Password wajib diisi' })}
-            className="mt-1 block w-full border rounded px-3 py-2"
-          />
+          <div className="relative mt-1">
+            <input
+              type={showPassword ? "text" : "password"}
+              {...register('password', { required: 'Password wajib diisi' })}
+              className="block w-full border rounded px-3 py-2 pr-10"
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+            </button>
+          </div>
           <div className="flex justify-between items-center mt-1">
             {errors.password ? (
               <p className="text-sm text-red-500">{errors.password.message}</p>
