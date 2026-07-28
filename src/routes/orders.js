@@ -17,8 +17,17 @@ const {
   getShippingRates,
   createPelunasanInvoice,
   requestRefund,
+  completeOrder,
 } = require('../controllers/orderController');
-const { createCustomOrder, checkoutCustomSablonDP } = require('../controllers/customOrderController');
+const { 
+  createCustomOrder, 
+  generateSablonPayment, 
+  createDraftCustomOrder, 
+  getDraftCustomOrders, 
+  checkoutDraftCustomOrders,
+  deleteDraftCustomOrder,
+  createSablonPelunasanInvoice
+} = require('../controllers/customOrderController');
 const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
 const { uploadCustomOrderFiles } = require('../middleware/upload');
@@ -32,7 +41,7 @@ const generalLimiter = rateLimit({
 });
 
 const validateCreateOrderRequest = (req, res, next) => {
-  const { items, deliveryAddress, notes } = req.body || {};
+  const { items, deliveryAddress, notes, deliveryType } = req.body || {};
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({
@@ -66,27 +75,29 @@ const validateCreateOrderRequest = (req, res, next) => {
     }
   }
 
-  if (!deliveryAddress || typeof deliveryAddress !== 'object' || Array.isArray(deliveryAddress)) {
-    return res.status(400).json({
-      success: false,
-      message: 'deliveryAddress is required.',
-    });
-  }
-
-  const requiredAddressFields = [
-    'fullName',
-    'addressLine1',
-    'city',
-    'state',
-    'postalCode',
-    'country',
-  ];
-  for (const field of requiredAddressFields) {
-    if (typeof deliveryAddress[field] !== 'string' || deliveryAddress[field].trim() === '') {
+  if (deliveryType !== 'PICKUP') {
+    if (!deliveryAddress || typeof deliveryAddress !== 'object' || Array.isArray(deliveryAddress)) {
       return res.status(400).json({
         success: false,
-        message: `deliveryAddress.${field} is required.`,
+        message: 'deliveryAddress is required.',
       });
+    }
+
+    const requiredAddressFields = [
+      'fullName',
+      'addressLine1',
+      'city',
+      'state',
+      'postalCode',
+      'country',
+    ];
+    for (const field of requiredAddressFields) {
+      if (typeof deliveryAddress[field] !== 'string' || deliveryAddress[field].trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: `deliveryAddress.${field} is required.`,
+        });
+      }
     }
   }
 
@@ -120,15 +131,24 @@ router.post('/shipping-rates', optionalAuth, getShippingRates);
 router.get('/:id', optionalAuth, getOrderById);
 router.get('/:id/tracking', optionalAuth, getOrderTracking);
 router.post('/:id/pelunasan', optionalAuth, createPelunasanInvoice);
+router.post('/:id/request-refund', optionalAuth, requestRefund);
+router.post('/:id/complete', optionalAuth, completeOrder);
 
 // All other order routes require authentication
 router.use(generalLimiter, authenticate);
 
 router.get('/', getAllOrders);
 router.post('/', validateBody(schemas.createOrder), validateCreateOrderRequest, createOrder);
+
+// Custom Sablon Cart Routes
+router.post('/custom-sablon/draft', uploadCustomOrderFiles, createDraftCustomOrder);
+router.get('/custom-sablon/draft', getDraftCustomOrders);
+router.delete('/custom-sablon/draft/:id', deleteDraftCustomOrder);
+router.post('/custom-sablon/checkout-drafts', checkoutDraftCustomOrders);
+
 router.post('/custom-sablon', uploadCustomOrderFiles, createCustomOrder);
-router.post('/custom-sablon/:id/checkout', checkoutCustomSablonDP);
-router.post('/:id/request-refund', requestRefund);
+router.post('/custom-sablon/:orderId/pay', generateSablonPayment);
+router.post('/custom-sablon/:orderId/pelunasan', authorize('ADMIN', 'OWNER'), createSablonPelunasanInvoice);
 router.put('/:id/status', authorize('ADMIN', 'OWNER', 'DESIGN_STAFF'), updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);
 

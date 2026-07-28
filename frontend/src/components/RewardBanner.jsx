@@ -12,6 +12,7 @@ export default function RewardBanner() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const [welcomeBonus, setWelcomeBonus] = useState(10); // Default
+  const [exchangeRate, setExchangeRate] = useState(10); // Default 1 Poin = Rp 10
 
   useEffect(() => {
     if (isAuthenticated) return;
@@ -22,8 +23,13 @@ export default function RewardBanner() {
     api.get('/settings')
       .then(res => {
         const data = res.data;
-        if (data.success && data.data && data.data.welcome_bonus_points) {
-          setWelcomeBonus(Number(data.data.welcome_bonus_points));
+        if (data.success && data.data) {
+          if (data.data.welcome_bonus_points) {
+            setWelcomeBonus(Number(data.data.welcome_bonus_points));
+          }
+          if (data.data.points_exchange_rate) {
+            setExchangeRate(Number(data.data.points_exchange_rate));
+          }
         }
       })
       .catch(err => console.error('Failed to fetch settings for banner:', err));
@@ -39,7 +45,7 @@ export default function RewardBanner() {
   };
 
   const points = welcomeBonus;
-  const value = (welcomeBonus * 1000).toLocaleString('id-ID'); // format as IDR always
+  const value = (welcomeBonus * exchangeRate).toLocaleString('id-ID'); // Dynamic from settings
 
   const text = {
     msg: t('msg', { points, value }),

@@ -19,6 +19,7 @@ import PromoEmailManager from './components/admin/PromoEmailManager';
 import PortfolioManager from './components/admin/PortfolioManager';
 import PrintTechniqueManager from './components/admin/PrintTechniqueManager';
 import VoucherManager from './components/admin/VoucherManager';
+import StaffManagement from './pages/admin/StaffManagement';
 import StoreSettingsManager from './components/admin/StoreSettingsManager';
 import AdminReviews from './pages/admin/AdminReviews';
 import Layout from './components/Layout';
@@ -48,6 +49,11 @@ import FAQPage from './pages/FAQPage';
 import PortfolioPage from './pages/Portfolio';
 import OAuthCallback from './pages/OAuthCallback';
 import NotificationsPage from './pages/Notifications';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import RefundPage from './pages/RefundPage';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -72,11 +78,16 @@ function AnimatedRoutes() {
           <Route path="/account" element={<PageTransition><AccountPage /></PageTransition>} />
           <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
           <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
+          <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
+          <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
           <Route path="/oauth-callback" element={<PageTransition><OAuthCallback /></PageTransition>} />
           <Route path="/custom-sablon" element={<PageTransition><DesignRequest /></PageTransition>} />
           <Route path="/sablon" element={<Navigate to="/custom-sablon" replace />} />
           <Route path="/portfolio" element={<PageTransition><PortfolioPage /></PageTransition>} />
           <Route path="/faq" element={<PageTransition><FAQPage /></PageTransition>} />
+          <Route path="/terms" element={<PageTransition><TermsPage /></PageTransition>} />
+          <Route path="/privacy" element={<PageTransition><PrivacyPage /></PageTransition>} />
+          <Route path="/refund" element={<PageTransition><RefundPage /></PageTransition>} />
           <Route path="/notifications" element={<PageTransition><NotificationsPage /></PageTransition>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
@@ -117,6 +128,7 @@ function AnimatedRoutes() {
           <Route path="promo-emails" element={<PromoEmailManager />} />
           <Route path="design-requests" element={<DesignReviewList />} />
           <Route path="settings" element={<StoreSettingsManager />} />
+          <Route path="staff" element={<StaffManagement />} />
         </Route>
       </Routes>
     </AnimatePresence>

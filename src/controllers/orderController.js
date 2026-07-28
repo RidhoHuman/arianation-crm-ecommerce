@@ -3,7 +3,7 @@
 const orderService = require('../services/orderService');
 const knex = require('../config/knex');
 const { sendSuccess, sendCreated, sendPaginated } = require('../utils/response');
-const { NotFoundError, BadRequestError, AuthorizationError } = require('../utils/errors');
+const { NotFoundError, BadRequestError, AuthorizationError, AuthenticationError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
 const orderFulfillmentService = require('../services/orderFulfillmentService');
 const paymentService = require('../services/paymentService');
@@ -17,11 +17,17 @@ const getAllOrders = async (req, res, next) => {
     const skip = (page - 1) * limit;
     const { status, userId, dateFrom, dateTo } = req.query;
 
-    const filterUserId = ['CUSTOMER'].includes(req.user.role) ? req.user.id : userId;
+    const isCustomer = ['CUSTOMER'].includes(req.user.role);
+    const filterUserId = isCustomer ? req.user.id : userId;
+
+    let excludeStatus = [];
+    if (!isCustomer && !status) {
+      excludeStatus = ['PENDING'];
+    }
 
     const [orders, total] = await Promise.all([
-      orderService.findMany({ page, limit, userId: filterUserId, status }),
-      orderService.count({ userId: filterUserId, status }),
+      orderService.findMany({ page, limit, userId: filterUserId, status, excludeStatus }),
+      orderService.count({ userId: filterUserId, status, excludeStatus }),
     ]);
 
     return sendPaginated(
@@ -52,7 +58,7 @@ const getOrderById = async (req, res, next) => {
 
     if (order.userId !== null) {
       if (!req.user) {
-        throw new AuthorizationError('You must be logged in to view this order');
+        throw new AuthenticationError('You must be logged in to view this order');
       }
       if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
         throw new AuthorizationError(MESSAGES.FORBIDDEN);
@@ -87,11 +93,16 @@ const getOrderById = async (req, res, next) => {
       product: { productName: item.productName }
     }));
     
-    // Attach designRequest if this is a Sablon order
-    const designRequest = await knex('designRequest').where('orderId', id).first();
-    if (designRequest) {
-      order.designRequest = designRequest;
+    // Attach designRequests if this is a Sablon order
+    const designRequests = await knex('designRequest').where('orderId', id);
+    if (designRequests && designRequests.length > 0) {
+      order.designRequests = designRequests;
     }
+
+    // Attach payments and totalPaid
+    const payments = await knex('payment').where('orderId', id).orderBy('createdAt', 'desc');
+    order.payments = payments;
+    order.totalPaid = payments.filter(p => p.status === 'COMPLETED').reduce((sum, p) => sum + p.amount, 0);
 
     return sendSuccess(res, order, MESSAGES.ORDER_FOUND);
   } catch (error) {
@@ -205,9 +216,17 @@ const createOrder = async (req, res, next) => {
         const metrics = await trx('customerMetrics').where('userId', userId).first();
         const currentTier = metrics?.currentTier || 'BRONZE';
         
-        if (currentTier === 'SILVER') tierDiscountPercentage = 5;
-        else if (currentTier === 'GOLD') tierDiscountPercentage = 10;
-        else if (currentTier === 'PLATINUM') tierDiscountPercentage = 15;
+        const tierSettings = await trx('store_settings')
+          .whereIn('settingKey', ['tier_silver_discount', 'tier_gold_discount', 'tier_platinum_discount']);
+          
+        const getTierDiscount = (key, defaultDisc) => {
+          const setting = tierSettings.find(s => s.settingKey === key);
+          return setting && !isNaN(Number(setting.settingValue)) ? Number(setting.settingValue) : defaultDisc;
+        };
+        
+        if (currentTier === 'SILVER') tierDiscountPercentage = getTierDiscount('tier_silver_discount', 5);
+        else if (currentTier === 'GOLD') tierDiscountPercentage = getTierDiscount('tier_gold_discount', 10);
+        else if (currentTier === 'PLATINUM') tierDiscountPercentage = getTierDiscount('tier_platinum_discount', 15);
 
         if (tierDiscountPercentage > 0) {
           tierDiscountAmount = Math.floor(totalAmount * (tierDiscountPercentage / 100));
@@ -243,17 +262,38 @@ const createOrder = async (req, res, next) => {
         }
       }
 
-      // 3. Points Discount (WITH ROW LOCKING)
+      // 3. Points Discount (WITH ROW LOCKING & SAFETY NET)
       if (usePoints && userId) {
         const lockedUser = await trx('user').where('id', userId).forUpdate().first();
         if (lockedUser && lockedUser.rewardPoints > 0) {
-          let discountFromPoints = lockedUser.rewardPoints * 1000;
-          if (discountFromPoints > finalAmount) {
-            pointsToDeduct = Math.ceil(finalAmount / 1000);
+          // Fetch settings dynamically within transaction
+          const exchangeRateSetting = await trx('store_settings').where('settingKey', 'points_exchange_rate').first();
+          const maxDiscountSetting = await trx('store_settings').where('settingKey', 'max_points_discount_percentage').first();
+          
+          const exchangeRate = exchangeRateSetting && !isNaN(Number(exchangeRateSetting.settingValue)) ? Number(exchangeRateSetting.settingValue) : 10;
+          const maxPercent = maxDiscountSetting && !isNaN(Number(maxDiscountSetting.settingValue)) ? Number(maxDiscountSetting.settingValue) : 50;
+
+          const maxAllowedDiscount = (finalAmount * maxPercent) / 100;
+          
+          // Total capacity of points to money
+          const totalPointsValue = lockedUser.rewardPoints * exchangeRate;
+          
+          let discountFromPoints = 0;
+          if (totalPointsValue > maxAllowedDiscount) {
+            // Point value exceeds max allowed limit
+            discountFromPoints = maxAllowedDiscount;
+            pointsToDeduct = Math.ceil(maxAllowedDiscount / exchangeRate);
+          } else if (totalPointsValue > finalAmount) {
+            // Point value exceeds order total (should not happen if maxPercent <= 100, but as a fallback)
+            discountFromPoints = finalAmount;
+            pointsToDeduct = Math.ceil(finalAmount / exchangeRate);
           } else {
+            // Consume all points
+            discountFromPoints = totalPointsValue;
             pointsToDeduct = lockedUser.rewardPoints;
           }
-          finalAmount -= (pointsToDeduct * 1000);
+          
+          finalAmount -= (pointsToDeduct * exchangeRate);
         }
       }
 
@@ -422,17 +462,6 @@ const createOrder = async (req, res, next) => {
       throw new BadRequestError(errorMsg);
     }
 
-    // Admin Notification
-    try {
-      await knex('admin_notifications').insert({
-        title: 'Pesanan Retail Baru!',
-        message: `Pesanan Retail #${order.orderNumber} baru saja dibuat senilai Rp ${order.totalAmount}.`,
-        type: 'NEW_ORDER',
-        isRead: false
-      });
-    } catch (err) {
-      console.error('Failed to create Admin notification for Retail:', err.message);
-    }
 
     return sendCreated(res, { ...order, paymentUrl, snapToken }, MESSAGES.ORDER_CREATED);
   } catch (error) {
@@ -624,6 +653,8 @@ const createGuestOrder = async (req, res, next) => {
     };
 
     let orderItems = [];
+    let hasSablon = false;
+    let hasRetail = false;
 
     // Process cart items if provided
     if (items && Array.isArray(items) && items.length > 0) {
@@ -639,11 +670,15 @@ const createGuestOrder = async (req, res, next) => {
       const variantsById = new Map(variants.map((v) => [v.id, v]));
 
       // 1. Guardrail: Block Mixed Cart
-      const hasRetail = products.some(p => p.businessType === 'FASHION_RETAIL');
-      const hasSablon = products.some(p => p.businessType === 'SABLON_SERVICE');
+      hasRetail = products.some(p => p.businessType === 'FASHION_RETAIL');
+      hasSablon = products.some(p => p.businessType === 'SABLON_SERVICE');
       
       if (hasRetail && hasSablon) {
         throw new BadRequestError('Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah');
+      }
+
+      if (hasSablon) {
+        throw new BadRequestError('Mohon maaf, khusus pemesanan Custom Sablon Anda diwajibkan untuk mendaftar dan Login ke akun terlebih dahulu demi kemudahan pelacakan desain.');
       }
 
       orderItems = items.map((item) => {
@@ -671,6 +706,7 @@ const createGuestOrder = async (req, res, next) => {
       throw new BadRequestError('At least one item is required');
     }
 
+    const totalAmount = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
     let finalAmount = totalAmount;
     if (shippingCost && !hasSablon) {
       finalAmount += Number(shippingCost);
@@ -778,17 +814,6 @@ const createGuestOrder = async (req, res, next) => {
       throw new BadRequestError('Gagal membuat tagihan pembayaran. Silakan coba lagi.');
     }
 
-    // Admin Notification (Guest)
-    try {
-      await knex('admin_notifications').insert({
-        title: 'Pesanan Guest Baru!',
-        message: `Pesanan Retail Guest #${order.orderNumber} baru saja dibuat senilai Rp ${finalAmount}.`,
-        type: 'NEW_ORDER',
-        isRead: false
-      });
-    } catch (err) {
-      console.error('Failed to create Admin notification for Guest Retail:', err.message);
-    }
 
     return sendCreated(res, { orderId: order.id, email: sanitizedData.guestEmail, paymentUrl, snapToken }, 'Guest order created successfully');
   } catch (error) {
@@ -807,18 +832,73 @@ const getShippingRates = async (req, res, next) => {
     let totalWeight = weight ? Number(weight) : 0;
     
     if (totalWeight === 0 && items && Array.isArray(items) && items.length > 0) {
-      const productIds = items.map(i => i.productId);
-      const products = await knex('product').whereIn('id', productIds).select('id', 'weight');
-      const productsById = new Map(products.map(p => [p.id, p]));
+      const productIds = items.map(i => i.productId).filter(Boolean);
+      const productNames = items.map(i => i.productName).filter(Boolean);
       
+      let productsQuery = knex('product')
+        .leftJoin('productCategory', 'product.categoryId', 'productCategory.id')
+        .select('product.id', 'product.productName', 'product.weight_gram', 'productCategory.categoryName');
+        
+      if (productIds.length > 0 && productNames.length > 0) {
+        productsQuery = productsQuery.where(function() {
+          this.whereIn('product.id', productIds).orWhereIn('product.productName', productNames);
+        });
+      } else if (productIds.length > 0) {
+        productsQuery = productsQuery.whereIn('product.id', productIds);
+      } else if (productNames.length > 0) {
+        productsQuery = productsQuery.whereIn('product.productName', productNames);
+      } else {
+        productsQuery = productsQuery.whereRaw('1=0'); // Don't query anything
+      }
+      
+      const products = await productsQuery;
+      
+      const productsById = new Map();
+      const productsByName = new Map();
+      products.forEach(p => {
+        if (p.id) productsById.set(p.id, p);
+        if (p.productName) productsByName.set(p.productName, p);
+      });
+      
+      let totalQty = 0;
       for (const item of items) {
-        const p = productsById.get(item.productId);
+        totalQty += item.quantity || 1;
+        const p = productsById.get(item.productId) || productsByName.get(item.productName);
         if (p) {
-          totalWeight += (p.weight || 250) * item.quantity;
+          let fallbackWeight = 250;
+          if (p.categoryName) {
+            const catName = p.categoryName.toLowerCase();
+            if (catName.includes('topi')) {
+              fallbackWeight = 100;
+            } else if (catName.includes('tas') || catName.includes('spunbond') || catName.includes('tote') || catName.includes('goodie')) {
+              fallbackWeight = 150;
+            } else if (catName.includes('lanyard') || catName.includes('id card')) {
+              fallbackWeight = 50;
+            } else if (catName.includes('jaket') || catName.includes('hoodie') || catName.includes('sweater')) {
+              fallbackWeight = 500;
+            }
+          }
+          totalWeight += (p.weight_gram || fallbackWeight) * item.quantity;
+        } else {
+          // If productId not found (e.g., custom sablon manual), attempt to guess from productName string
+          let fallbackWeight = 250;
+          if (item.productName) {
+             const nameStr = item.productName.toLowerCase();
+             if (nameStr.includes('topi')) fallbackWeight = 100;
+             else if (nameStr.includes('tas') || nameStr.includes('spunbond') || nameStr.includes('tote') || nameStr.includes('goodie')) fallbackWeight = 150;
+             else if (nameStr.includes('lanyard') || nameStr.includes('id card')) fallbackWeight = 50;
+             else if (nameStr.includes('jaket') || nameStr.includes('hoodie') || nameStr.includes('sweater')) fallbackWeight = 500;
+          }
+          totalWeight += fallbackWeight * item.quantity;
         }
       }
+      
+      // Logika Buffer Dinamis (Sprint 1)
+      const packagingBuffer = totalQty < 3 ? 50 : 250; // Polymailer 50g, Kardus 250g
+      totalWeight += packagingBuffer;
     }
     
+    // Fallback if no items and no weight provided
     if (totalWeight === 0) totalWeight = 250; 
 
     const shippingService = require('../services/shippingService');
@@ -845,27 +925,26 @@ const createPelunasanInvoice = async (req, res, next) => {
       throw new BadRequestError('Pesanan belum siap untuk pelunasan');
     }
 
-    let finalShippingCost = shippingCost;
-    let finalCourier = shippingCourier;
-    let finalDeliveryType = deliveryType || 'SHIPPING';
+    let finalShippingCost = shippingCost !== undefined ? shippingCost : order.shippingCost;
+    let finalCourier = shippingCourier || order.shippingCourier;
+    let finalDeliveryType = deliveryType || order.deliveryType || 'SHIPPING';
 
     if (finalDeliveryType === 'PICKUP') {
       finalShippingCost = 0;
       finalCourier = 'SELF_PICKUP';
     }
 
-    if (!finalCourier || finalShippingCost === undefined) {
+    if (!finalCourier || finalShippingCost === undefined || finalShippingCost === null) {
       throw new BadRequestError('Opsi pengiriman harus dipilih');
     }
 
     const payments = await knex('payment').where('orderId', id).where('status', 'COMPLETED');
-    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-    
-    let baseAmount = order.totalAmount;
-    const designRequest = await knex('designRequest').where('orderId', id).first();
-    if (designRequest && designRequest.estimatedPrice) {
-      baseAmount = designRequest.estimatedPrice;
-    }
+    const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        let baseAmount = Number(order.totalPrice || order.totalAmount || 0);
+      const designRequest = await knex('designRequest').where('orderId', id).first();
+      if (designRequest && designRequest.estimatedPrice) {
+        // baseAmount = designRequest.estimatedPrice; // REMOVED: baseAmount should be the total order price, not a single design's price
+      }
     
     const remainingToPay = baseAmount - totalPaid + Number(finalShippingCost);
 
@@ -930,9 +1009,10 @@ const createPelunasanInvoice = async (req, res, next) => {
       amount: remainingToPay,
       paymentMethod: 'XENDIT',
       status: 'PENDING',
-      transactionId: order.id,
+      transactionId: paymentId,
       qrisUrl: xenditResponse.invoiceUrl,
-      xenditId: xenditResponse.id
+      xenditId: xenditResponse.id,
+      paymentType: 'FULL'
     });
 
     return sendSuccess(res, { paymentUrl: xenditResponse.invoiceUrl }, 'Invoice pelunasan berhasil dibuat');
@@ -944,10 +1024,14 @@ const createPelunasanInvoice = async (req, res, next) => {
 const requestRefund = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body;
+    const { reason, bankName, accountNumber, accountName } = req.body;
 
     if (!reason || typeof reason !== 'string') {
       throw new BadRequestError('Alasan pembatalan dan refund wajib diisi');
+    }
+
+    if (!bankName || !accountNumber || !accountName) {
+      throw new BadRequestError('Detail rekening bank wajib diisi untuk proses refund');
     }
 
     const order = await knex('order').where('id', id).first();
@@ -955,38 +1039,87 @@ const requestRefund = async (req, res, next) => {
       throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
     }
 
-    // Hanya pemilik order yang bisa minta refund
-    if (order.userId !== req.user.id) {
-      throw new AuthorizationError('Tidak memiliki akses ke pesanan ini');
+    // Hanya pemilik order yang bisa minta refund. Untuk Guest (userId = null), semua yang memiliki akses ke URL ini (Magic Link) diperbolehkan.
+    if (order.userId) {
+      if (!req.user || order.userId !== req.user.id) {
+        throw new AuthorizationError('Tidak memiliki akses ke pesanan ini');
+      }
     }
 
-    // Gatekeeping: Hanya saat CONFIRMED
-    if (order.status !== 'CONFIRMED') {
+    // Gatekeeping: Hanya saat CONFIRMED atau PAID_WAITING_APPROVAL
+    if (order.status !== 'CONFIRMED' && order.status !== 'PAID_WAITING_APPROVAL') {
       return res.status(403).json({
         success: false,
-        message: 'Pembatalan sepihak dan refund hanya bisa diajukan saat pesanan berstatus CONFIRMED.'
+        message: 'Pembatalan sepihak dan refund hanya bisa diajukan saat pesanan belum diproses (berstatus CONFIRMED atau PAID_WAITING_APPROVAL).'
       });
     }
+
+    // Simpan data rekening bank ke dalam format JSON di kolom refundDetails
+    const refundDetailsJSON = JSON.stringify({
+      bankName: bankName.trim(),
+      accountNumber: accountNumber.trim(),
+      accountName: accountName.trim()
+    });
+
+    await knex('order')
+      .where('id', id)
+      .update({ refundDetails: refundDetailsJSON });
+
+    // Tentukan pelapor status
+    const requestedBy = req.user ? req.user.id : 'GUEST_USER';
 
     // Update status ke REFUND_REQUESTED
     const updatedOrder = await orderFulfillmentService.updateOrderStatus(
       id,
       'REFUND_REQUESTED',
-      req.user.id,
+      requestedBy,
       'Refund diajukan kustomer',
       reason
     );
 
     // Kirim notifikasi lonceng ke Admin
-    await notificationService.createAdminNotification({
-      type: 'ORDER_ISSUE',
-      title: 'Permintaan Refund Kustomer',
-      message: `Kustomer mengajukan refund untuk pesanan ${order.orderNumber}. Alasan: ${reason}`,
-      referenceId: order.id,
-      referenceType: 'ORDER'
-    });
+    try {
+      await knex('admin_notifications').insert({
+        title: 'Permintaan Refund Diterima',
+        message: `Kustomer mengajukan refund untuk pesanan #${order.orderNumber}. Alasan: ${reason}`,
+        type: 'ORDER_ISSUE',
+        isRead: false
+      });
+    } catch (err) {
+      console.error('Failed to create Admin notification for Refund:', err.message);
+    }
 
     return sendSuccess(res, updatedOrder, 'Permintaan refund berhasil diajukan');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const completeOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const order = await orderService.findById(id);
+    if (!order) throw new NotFoundError(MESSAGES.ORDER_NOT_FOUND);
+
+    if (req.user.role === 'CUSTOMER' && order.userId !== req.user.id) {
+      throw new AuthorizationError(MESSAGES.FORBIDDEN);
+    }
+
+    const validStatuses = ['SHIPPED', 'DELIVERED', 'READY_FOR_DELIVERY'];
+    if (!validStatuses.includes(order.status)) {
+      throw new BadRequestError('Only shipped or delivered orders can be marked as COMPLETED.');
+    }
+
+    const updatedOrder = await orderFulfillmentService.updateOrderStatus(
+      id,
+      'COMPLETED',
+      req.user.id,
+      'Pelanggan telah menerima pesanan dan menyelesaikannya',
+      req.body?.notes || 'Pesanan Diterima'
+    );
+
+    return sendSuccess(res, updatedOrder, 'Pesanan berhasil diselesaikan. Poin Anda telah ditambahkan!');
   } catch (error) {
     next(error);
   }
@@ -1006,4 +1139,10 @@ module.exports = {
   getShippingRates,
   createPelunasanInvoice,
   requestRefund,
+  completeOrder,
 };
+
+// triggered restart
+
+// Trigger nodemon restart after env change
+

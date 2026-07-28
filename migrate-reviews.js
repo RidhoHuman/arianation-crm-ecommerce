@@ -10,7 +10,7 @@ async function up() {
         table.increments('id').primary();
         table.string('productId').notNullable();
         table.string('userId').notNullable();
-        table.integer('orderId').notNullable();
+        table.string('orderId').notNullable();
         table.integer('rating').notNullable().defaultTo(5);
         table.text('comment').notNullable();
         table.string('imageUrl').nullable();

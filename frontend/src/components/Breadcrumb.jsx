@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Breadcrumb Navigation component dengan JSON-LD schema
@@ -7,6 +8,7 @@ import { useLocation, Link } from 'react-router-dom';
  */
 export default function Breadcrumb({ customLabels = {} }) {
   const location = useLocation();
+  const { t } = useTranslation('translation', { keyPrefix: 'breadcrumb' });
   const pathname = location.pathname;
 
   // Parse breadcrumb dari URL
@@ -14,27 +16,18 @@ export default function Breadcrumb({ customLabels = {} }) {
 
   // Build breadcrumb items
   const breadcrumbItems = [
-    { label: 'Home', path: '/' },
+    { label: t('home', 'Home'), path: '/' },
   ];
 
   let currentPath = '';
   segments.forEach((segment, index) => {
     currentPath += `/${segment}`;
 
-    // Friendly labels
-    const labelMap = {
-      products: 'Produk',
-      checkout: 'Checkout',
-      dashboard: 'Dashboard',
-      login: 'Masuk',
-      register: 'Daftar',
-      admin: 'Admin',
-    };
-
-    const label = customLabels[segment] || labelMap[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
-
+    // Translates segments like 'cart', 'products', 'checkout', etc.
+    const translatedSegment = t(segment, customLabels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1));
+    
     breadcrumbItems.push({
-      label,
+      label: translatedSegment,
       path: currentPath,
     });
   });

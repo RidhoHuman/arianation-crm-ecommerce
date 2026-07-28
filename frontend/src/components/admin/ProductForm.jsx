@@ -24,6 +24,7 @@ export default function ProductForm({ defaultBusinessType }) {
   const [initialLoading, setInitialLoading] = useState(isEditing);
 
   const [mainImageFile, setMainImageFile] = useState(null);
+  const [sizeChartFile, setSizeChartFile] = useState(null);
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [variantFiles, setVariantFiles] = useState({});
 
@@ -49,7 +50,9 @@ export default function ProductForm({ defaultBusinessType }) {
       tags: '',
       variants: [],
       imageUrl: '',
-      imageUrls: []
+      sizeChartImage: '',
+      imageUrls: [],
+      weight_gram: ''
     }
   });
 
@@ -61,6 +64,7 @@ export default function ProductForm({ defaultBusinessType }) {
   const [activeVariantImageIndex, setActiveVariantImageIndex] = useState(null);
 
   const currentImageUrl = watch('imageUrl');
+  const currentSizeChartImage = watch('sizeChartImage');
   const currentImageUrls = watch('imageUrls') || [];
   const currentProductType = watch('productType');
   const isSaleActive = watch('isSale');
@@ -97,7 +101,9 @@ export default function ProductForm({ defaultBusinessType }) {
             tags: data.tags || '',
             variants: data.variants || [],
             imageUrl: data.imageUrl || '',
-            imageUrls: typeof data.imageUrls === 'string' ? JSON.parse(data.imageUrls) : (data.imageUrls || [])
+            sizeChartImage: data.sizeChartImage || '',
+            imageUrls: typeof data.imageUrls === 'string' ? JSON.parse(data.imageUrls) : (data.imageUrls || []),
+            weight_gram: data.weight_gram || ''
           });
         }
       } catch (err) {
@@ -159,6 +165,12 @@ export default function ProductForm({ defaultBusinessType }) {
         finalImageUrl = await uploadImage(mainImageFile);
       }
 
+      // Upload Size Chart Image if changed
+      let finalSizeChartImage = data.sizeChartImage;
+      if (sizeChartFile) {
+        finalSizeChartImage = await uploadImage(sizeChartFile);
+      }
+
       // 2. Upload Gallery Images if any
       let finalImageUrls = [...currentImageUrls];
       if (galleryFiles.length > 0) {
@@ -204,6 +216,7 @@ export default function ProductForm({ defaultBusinessType }) {
         ...data,
         variants: finalVariants,
         imageUrl: finalImageUrl,
+        sizeChartImage: finalSizeChartImage,
         imageUrls: finalImageUrls,
         businessType: businessType,
         price: Number(data.price),
@@ -317,6 +330,18 @@ export default function ProductForm({ defaultBusinessType }) {
                   {variantFields.length > 0 && isTrackStock && <p className="text-[10px] text-orange-500 mt-1">Diambil otomatis dari total stok varian.</p>}
                   {!isTrackStock && <p className="text-[10px] text-blue-500 mt-1 font-medium">Stok & Harga diabaikan (Bypass) karena mode Tanpa Batas / Bawa Sendiri.</p>}
                 </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Berat per Pcs (Gram) *</label>
+                <input
+                  type="number"
+                  {...register('weight_gram', { required: 'Berat per Pcs wajib diisi' })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all"
+                  placeholder="Contoh: 150, 250, 50"
+                />
+                {errors.weight_gram && <p className="text-red-500 text-xs mt-1">{errors.weight_gram.message}</p>}
+                <p className="text-[10px] text-gray-500 mt-1">Wajib diisi agar kalkulasi ongkos kirim menjadi presisi (Misal: Kaos=250, Topi=100, Tote Bag=150).</p>
               </div>
             </div>
 
@@ -625,6 +650,52 @@ export default function ProductForm({ defaultBusinessType }) {
                   />
                 </div>
               </div>
+
+                {/* SIZE CHART IMAGE PICKER (CONDITIONAL) */}
+                {businessType === 'SABLON_SERVICE' && categories.find(c => c.id === watch('categoryId'))?.name?.toLowerCase().includes('pakaian') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Gambar Size Chart (Khusus Pakaian)</label>
+                    <div className="relative border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden aspect-video group">
+                      {(sizeChartFile || currentSizeChartImage) ? (
+                        <>
+                          <img 
+                            src={sizeChartFile ? URL.createObjectURL(sizeChartFile) : currentSizeChartImage} 
+                            alt="Size Chart" 
+                            className="w-full h-full object-contain" 
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col gap-2 items-center justify-center transition-opacity">
+                            <label htmlFor="sizeChartInput" className="bg-white text-gray-800 px-4 py-2 rounded-full cursor-pointer hover:bg-gray-100 transition-colors shadow-md text-sm font-medium">
+                              Ganti
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSizeChartFile(null);
+                                setValue('sizeChartImage', '');
+                              }}
+                              className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-md"
+                              title="Hapus Size Chart"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <label htmlFor="sizeChartInput" className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
+                          <FiImage className="h-8 w-8 text-gray-400 mb-2" />
+                          <span className="text-sm font-medium text-gray-600">Upload Size Chart</span>
+                        </label>
+                      )}
+                      <input
+                        id="sizeChartInput"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setSizeChartFile(e.target.files[0])}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex justify-between">

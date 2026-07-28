@@ -115,8 +115,8 @@ export default function Layout() {
 
   return (
     <div className="dark:bg-black min-h-screen flex flex-col transition-colors duration-300">
-      <RewardBanner />
-      <header className={`sticky w-full top-0 z-50 transition-all duration-500 ${isTransparent ? 'bg-transparent text-white border-transparent' : 'bg-white dark:bg-aria-charcoal text-aria-charcoal dark:text-white border-b border-aria-lightgray dark:border-gray-800 shadow-sm'}`}>
+      <div className="print:hidden"><RewardBanner /></div>
+      <header className={`sticky w-full top-0 z-50 transition-all duration-500 print:hidden ${isTransparent ? 'bg-transparent text-white border-transparent' : 'bg-white dark:bg-aria-charcoal text-aria-charcoal dark:text-white border-b border-aria-lightgray dark:border-gray-800 shadow-sm'}`}>
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           
           {/* Left Side - Mobile Menu & Desktop Navigation */}
@@ -354,13 +354,13 @@ export default function Layout() {
         />
       </header>
 
-      <main className={`flex-grow w-full dark:bg-black dark:text-white transition-colors duration-300 ${!isHomePage ? '' : '-mt-20'}`}>
+      <main className={`flex-grow w-full dark:bg-black dark:text-white transition-colors duration-300 ${!isHomePage ? '' : '-mt-20'} print:mt-0`}>
         <Outlet />
       </main>
 
-      <footer className="bg-white dark:bg-aria-charcoal text-aria-charcoal dark:text-gray-400 border-t border-aria-lightgray dark:border-gray-800 py-20 mt-20 transition-colors duration-300">
+      <footer className="bg-white dark:bg-aria-charcoal text-aria-charcoal dark:text-gray-400 border-t border-aria-lightgray dark:border-gray-800 py-20 mt-20 transition-colors duration-300 print:hidden">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-16">
             <div className="col-span-1 md:col-span-2">
               <img src="/logo AriaNation.svg" alt="Arianation Logo" className="w-12 h-12 mb-6 dark:bg-white dark:rounded-full dark:p-0.5 transition-colors" />
               <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
@@ -380,7 +380,14 @@ export default function Layout() {
               <ul className="space-y-4 text-sm text-gray-500 dark:text-gray-400">
                 <li><Link to="/contact" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('contactUs')}</Link></li>
                 <li><Link to="/faq" className="hover:text-aria-maroon dark:hover:text-white transition-colors">FAQ</Link></li>
-                <li><Link to="/shipping" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('shippingReturns')}</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-aria-charcoal dark:text-white mb-6 tracking-widest uppercase">{t('legal')}</h3>
+              <ul className="space-y-4 text-sm text-gray-500 dark:text-gray-400">
+                <li><Link to="/terms" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('terms')}</Link></li>
+                <li><Link to="/privacy" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('privacy')}</Link></li>
+                <li><Link to="/refund" className="hover:text-aria-maroon dark:hover:text-white transition-colors">{t('refund')}</Link></li>
               </ul>
             </div>
           </div>

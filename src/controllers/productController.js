@@ -187,6 +187,7 @@ const createProduct = async (req, res, next) => {
       productType,
       productTypeId,
       imageUrl,
+      sizeChartImage,
       businessType,
       tags,
       isSale,
@@ -195,6 +196,7 @@ const createProduct = async (req, res, next) => {
       variants,
       imageUrls,
       trackStock,
+      weight_gram,
     } = req.body;
 
     // Calculate total stock if variants exist
@@ -218,6 +220,7 @@ const createProduct = async (req, res, next) => {
       productType,
       productTypeId: productTypeId === '' ? null : productTypeId,
       imageUrl: imageUrl || null,
+      sizeChartImage: sizeChartImage || null,
       businessType,
       tags: tags || null,
       isSale: isSale === true || isSale === 'true' || isSale === 1 || isSale === '1',
@@ -225,7 +228,8 @@ const createProduct = async (req, res, next) => {
       isActive: isActive === undefined ? true : (isActive === true || isActive === 'true' || isActive === 1 || isActive === '1'),
       trackStock: trackStock === undefined ? true : (trackStock === true || trackStock === 'true' || trackStock === 1 || trackStock === '1'),
       imageUrls: imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null,
-      variants: variants // pass variants to productService.create
+      variants: variants, // pass variants to productService.create
+      weight_gram: weight_gram === '' || weight_gram === undefined ? null : parseInt(weight_gram, 10)
     });
 
     // Save collectionIds jika ada
@@ -253,7 +257,7 @@ const updateProduct = async (req, res, next) => {
       require('fs').appendFileSync('debug-error.log', 'UPDATE PRODUCT PAYLOAD: ' + JSON.stringify(req.body) + '\n');
     } catch(e) {}
 
-    const { productName, description, descriptionEn, price, stockQuantity, imageUrl, imageUrls, isActive, tags, isSale, salePrice, categoryId, productTypeId, variants, trackStock } = req.body;
+    const { productName, description, descriptionEn, price, stockQuantity, imageUrl, sizeChartImage, imageUrls, isActive, tags, isSale, salePrice, categoryId, productTypeId, variants, trackStock, weight_gram } = req.body;
 
     const existing = await productService.findById(id);
     if (!existing) {
@@ -267,6 +271,7 @@ const updateProduct = async (req, res, next) => {
     if (price !== undefined) updateData.price = price;
     if (stockQuantity !== undefined) updateData.stockQuantity = stockQuantity;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (sizeChartImage !== undefined) updateData.sizeChartImage = sizeChartImage;
     if (isActive !== undefined) updateData.isActive = isActive === true || isActive === 'true' || isActive === 1 || isActive === '1';
     if (tags !== undefined) updateData.tags = tags;
     if (isSale !== undefined) updateData.isSale = isSale === true || isSale === 'true' || isSale === 1 || isSale === '1';
@@ -275,6 +280,7 @@ const updateProduct = async (req, res, next) => {
     if (imageUrls !== undefined) updateData.imageUrls = imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (productTypeId !== undefined) updateData.productTypeId = productTypeId === '' ? null : productTypeId;
+    if (weight_gram !== undefined) updateData.weight_gram = weight_gram === '' ? null : parseInt(weight_gram, 10);
     
     // Process variants and dynamic stock
     if (variants !== undefined) {

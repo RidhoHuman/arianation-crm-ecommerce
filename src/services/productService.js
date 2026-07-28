@@ -55,6 +55,7 @@ const productService = {
         'product.isSale',
         'product.salePrice',
         'product.imageUrls',
+        'product.weight_gram',
         'product.createdAt',
         'product.updatedAt'
       )
@@ -120,6 +121,7 @@ const productService = {
         'salePrice',
         'imageUrls',
         'allowedPrintAreas',
+        'weight_gram',
         'createdAt',
         'updatedAt'
       )
@@ -152,6 +154,7 @@ const productService = {
     salePrice = null,
     imageUrls = null,
     allowedPrintAreas = null,
+    weight_gram = null,
     variants = [],
   }) {
     const id = require('cuid')();
@@ -172,6 +175,7 @@ const productService = {
       tags,
       isSale,
       salePrice,
+      weight_gram,
       imageUrls: imageUrls ? JSON.stringify(imageUrls) : null,
       allowedPrintAreas: allowedPrintAreas ? JSON.stringify(allowedPrintAreas) : null,
       createdAt: new Date(),

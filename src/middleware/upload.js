@@ -483,9 +483,8 @@ const getFileUrl = (filename, type = 'products') => {
     return `${baseUrl}/uploads/${type}/${filename}`;
   }
 
-  // For development
-  const port = process.env.PORT || 3000;
-  return `http://localhost:${port}/uploads/${type}/${filename}`;
+  // For development: Use relative URL so Vite proxy handles it
+  return `/uploads/${type}/${filename}`;
 };
 
 /**

@@ -18,12 +18,16 @@ const handleXenditWebhook = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Missing external_id' });
     }
 
-    // external_id from Xendit is now our payment.id
+    // external_id from Xendit can be a direct paymentId OR orderId-DP / orderId-LUNAS
     const paymentId = external_id;
 
     if (status === 'PAID' || status === 'SETTLED') {
-      // Find payment by payment.id (external_id)
-      const existingPayment = await paymentService.findById(paymentId) || await knex('payment').where('id', paymentId).first();
+      // Find payment by xenditId (id) or fallback to external_id (paymentId)
+      let existingPayment = await knex('payment').where('xenditId', id).first();
+      
+      if (!existingPayment) {
+        existingPayment = await paymentService.findById(paymentId) || await knex('payment').where('id', paymentId).first();
+      }
       
       if (!existingPayment) {
         return res.status(404).json({ success: false, message: 'Payment not found' });
@@ -37,9 +41,37 @@ const handleXenditWebhook = async (req, res, next) => {
            return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
-        let newOrderStatus = 'PAID_WAITING_APPROVAL'; // Default for Retail & Sablon DP
-        if (order.status === 'WAITING_FINAL_PAYMENT' || order.status === 'ON_HOLD') {
-          newOrderStatus = 'READY_TO_SHIP'; // Sablon Pelunasan
+        let newOrderStatus = order.status;
+        let updateProductPaymentStatus = null;
+
+        const isSablon = order.orderNumber && order.orderNumber.startsWith('SAB-');
+
+        if (order.status === 'PENDING' || order.status === 'CONFIRMED') {
+          if (isSablon) {
+            if (existingPayment.paymentType === 'DP') {
+              newOrderStatus = 'IN_PRODUCTION';
+              updateProductPaymentStatus = 'HALF_PAID';
+            } else if (existingPayment.paymentType === 'FULL') {
+              newOrderStatus = 'IN_PRODUCTION'; 
+              updateProductPaymentStatus = 'FULLY_PAID';
+            }
+          } else {
+            // Retail
+            if (existingPayment.paymentType === 'FULL') {
+              newOrderStatus = 'PROCESSING';
+              updateProductPaymentStatus = 'FULLY_PAID';
+            }
+          }
+        } else if (order.status === 'WAITING_FINAL_PAYMENT' || order.status === 'ON_HOLD' || order.status === 'IN_PRODUCTION') {
+          if (existingPayment.paymentType === 'FULL' || existingPayment.paymentType === 'REMAINING') {
+            newOrderStatus = 'READY_TO_SHIP';
+            updateProductPaymentStatus = 'FULLY_PAID';
+          }
+        }
+
+        // Update productPaymentStatus in order if needed
+        if (updateProductPaymentStatus) {
+          await knex('order').where('id', orderId).update({ productPaymentStatus: updateProductPaymentStatus, shippingPaymentStatus: 'PAID' });
         }
 
         // 1. Simpan atau update record pembayaran DULU agar validasi State Machine lolos
@@ -68,11 +100,45 @@ const handleXenditWebhook = async (req, res, next) => {
         } catch (err) {
           console.error('[Xendit Webhook] Error sending notification:', err.message);
         }
+
+        // 4. Admin Notification Injection (Post-Payment)
+        try {
+          let adminTitle = 'Pesanan Retail Baru Lunas!';
+          let adminMsg = `Pesanan Retail #${order.orderNumber} baru saja dilunasi senilai Rp ${amount}.`;
+          
+          if (order.orderNumber && order.orderNumber.startsWith('SAB-')) {
+            if (existingPayment.paymentType === 'DP') {
+              adminTitle = 'DP Pesanan Sablon Dibayar!';
+              adminMsg = `DP untuk Pesanan Custom Sablon #${order.orderNumber} telah dibayar senilai Rp ${amount}.`;
+            } else if (existingPayment.paymentType === 'FULL') {
+              adminTitle = 'Pelunasan Pesanan Sablon Dibayar!';
+              adminMsg = `Pelunasan untuk Pesanan Custom Sablon #${order.orderNumber} telah dibayar senilai Rp ${amount}.`;
+            } else {
+              adminTitle = 'Pembayaran Pesanan Sablon Diterima!';
+              adminMsg = `Pembayaran untuk Pesanan Custom Sablon #${order.orderNumber} telah dibayar senilai Rp ${amount}.`;
+            }
+          } else if (!order.userId) {
+            adminTitle = 'Pesanan Retail Guest Baru Lunas!';
+            adminMsg = `Pesanan Retail Guest #${order.orderNumber} baru saja dilunasi senilai Rp ${amount}.`;
+          }
+
+          await knex('admin_notifications').insert({
+            title: adminTitle,
+            message: adminMsg,
+            type: 'NEW_ORDER',
+            isRead: false
+          });
+        } catch (err) {
+          console.error('[Xendit Webhook] Error sending admin notification:', err.message);
+        }
       } else {
         console.log(`[Xendit Webhook] Payment ${paymentId} is already PAID. Skipping duplicate processing.`);
       }
     } else if (status === 'EXPIRED') {
-      const existingPayment = await knex('payment').where('id', paymentId).first();
+      let existingPayment = await knex('payment').where('xenditId', id).first();
+      if (!existingPayment) {
+        existingPayment = await knex('payment').where('id', paymentId).first();
+      }
       if (existingPayment && existingPayment.status !== 'FAILED' && existingPayment.status !== 'COMPLETED') {
         await orderFulfillmentService.updateOrderStatus(
           existingPayment.orderId,

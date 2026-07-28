@@ -180,13 +180,14 @@ export default function ProductDetail() {
       return;
     }
     addItem({
-      id: product.id,
+      id: product.id + (selectedVariant?.id ? '-' + selectedVariant.id : ''),
+      originalId: product.id,
       variantId: selectedVariant?.id,
       sku: selectedVariant?.sku,
-      name: product.productName,
+      productName: product.productName,
       price: displayPrice,
       quantity,
-      image: allImages[currentImageIdx] || product.imageUrl,
+      imageUrl: allImages[currentImageIdx] || product.imageUrl,
       size: selectedSize,
       color: selectedColor
     });

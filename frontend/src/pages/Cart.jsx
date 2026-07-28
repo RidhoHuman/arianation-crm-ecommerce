@@ -72,10 +72,10 @@ export default function Cart() {
                       {/* Product Info */}
                       <div className="md:col-span-6 flex gap-6">
                         <div className="w-24 h-32 bg-gray-100 dark:bg-gray-800 flex-shrink-0">
-                          {item.imageUrl ? (
+                          {item.imageUrl || item.image ? (
                             <OptimizedImage
-                              publicId={item.imageUrl}
-                              alt={item.productName}
+                              publicId={item.imageUrl || item.image}
+                              alt={item.productName || item.name}
                               className="w-full h-full object-cover grayscale-[20%]"
                               width={96}
                               height={128}
@@ -88,7 +88,7 @@ export default function Cart() {
                         </div>
                         <div className="flex flex-col justify-center">
                           <Link to={`/products/${item.originalId || item.id}`} className="font-medium text-aria-charcoal dark:text-white hover:text-aria-maroon transition-colors uppercase tracking-wider text-sm mb-2">
-                            {item.productName}
+                            {item.productName || item.name}
                           </Link>
                           {item.color && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">{t('color')}: {item.color}</p>

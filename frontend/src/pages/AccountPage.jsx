@@ -54,6 +54,15 @@ function ProfileTab({ t, profile, onSave, i18n }) {
   const [form, setForm] = useState({ fullName: '', phone: '' });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [storeSettings, setStoreSettings] = useState({});
+
+  useEffect(() => {
+    api.get('/settings').then(res => {
+      setStoreSettings(res.data?.data || {});
+    }).catch(err => console.error(err));
+  }, []);
+
+  const getSetting = (key, defaultVal) => storeSettings[key] !== undefined ? Number(storeSettings[key]) : defaultVal;
 
   // Loyalty calculations
   const metrics = {
@@ -62,12 +71,17 @@ function ProfileTab({ t, profile, onSave, i18n }) {
     loyaltyPoints: profile?.rewardPoints || 0
   };
   
-  const TIER_THRESHOLDS = { BRONZE: 0, SILVER: 500000, GOLD: 2000000, PLATINUM: 5000000 };
+  const TIER_THRESHOLDS = { 
+    BRONZE: 0, 
+    SILVER: getSetting('tier_silver_min', 500000), 
+    GOLD: getSetting('tier_gold_min', 2000000), 
+    PLATINUM: getSetting('tier_platinum_min', 5000000) 
+  };
   const TIER_BENEFITS = {
     BRONZE: "Dapatkan poin (Aria Points) di setiap transaksi.",
-    SILVER: "Bonus Poin 1.2x lipat & Akses promo eksklusif.",
-    GOLD: "Diskon 5% untuk semua produk & Prioritas antrean sablon.",
-    PLATINUM: "Diskon 10% all items, Bebas Ongkir, & Prioritas utama."
+    SILVER: `Bonus Poin 1.2x lipat & Diskon ${getSetting('tier_silver_discount', 5)}%.`,
+    GOLD: `Diskon ${getSetting('tier_gold_discount', 10)}% untuk semua produk & Prioritas antrean sablon.`,
+    PLATINUM: `Diskon ${getSetting('tier_platinum_discount', 15)}% all items, Bebas Ongkir, & Prioritas utama.`
   };
   const TIER_COLORS = {
     BRONZE: "bg-gradient-to-br from-amber-600 to-amber-900 text-amber-50",
@@ -320,13 +334,26 @@ function OrdersTab({ t, i18n }) {
                   </div>
                   <div className="flex gap-6 text-xs text-gray-400">
                     <span>{t.orders.date}: {new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'medium' }).format(new Date(order.createdAt))}</span>
-                    <span>{t.orders.total}: Rp {Number(order.totalAmount || 0).toLocaleString('id-ID')}</span>
+                    <span>{t.orders.total}: Rp {Number(order.totalAmount || order.totalPrice || 0).toLocaleString('id-ID')}</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 items-end">
                   <Link to={`/order-tracking/${order.id}`} className="text-xs font-semibold uppercase tracking-wider text-aria-maroon dark:text-amber-400 hover:underline flex items-center gap-1">
                     {t.orders.detail} <ChevronIcon />
                   </Link>
+
+                  {/* Sablon Specific UI */}
+                  {order.orderNumber?.startsWith('SAB-') && order.status === 'PENDING' && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wider bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400 px-3 py-1.5 rounded-lg mt-2 text-center cursor-not-allowed">
+                      Menunggu Tinjauan Admin
+                    </span>
+                  )}
+                  {order.orderNumber?.startsWith('SAB-') && order.status === 'CONFIRMED' && (
+                    <Link to={`/checkout-sablon/${order.id}`} className="text-[10px] font-bold uppercase tracking-wider bg-aria-maroon text-white hover:bg-black dark:hover:bg-gray-800 px-4 py-2 rounded-xl flex items-center justify-center mt-2 transition-colors shadow-sm animate-pulse">
+                      BAYAR SEKARANG
+                    </Link>
+                  )}
+
                   {order.status === 'DELIVERED' && (
                     <Link to={`/order-tracking/${order.id}`} className="text-[10px] font-semibold uppercase tracking-wider bg-aria-maroon text-white hover:bg-black dark:hover:bg-gray-800 px-3 py-1.5 rounded-lg flex items-center gap-1 mt-2 transition-colors shadow-sm">
                       <StarIcon /> Beri Ulasan
@@ -378,6 +405,35 @@ function SablonTab({ t, i18n }) {
 
   if (loading) return <div className="py-12 text-center text-gray-400 text-sm">Loading...</div>;
 
+  const groupedOrders = requests.reduce((acc, req) => {
+    const groupId = req.orderId || req.id;
+    if (!acc[groupId]) {
+      acc[groupId] = {
+        orderId: req.orderId,
+        fallbackId: req.id,
+        createdAt: req.createdAt,
+        requests: [],
+        orderStatus: req.orderStatus,
+        paymentStatus: req.paymentStatus,
+        needsPayment: false,
+        totalEstimatedPrice: 0,
+      };
+    }
+    acc[groupId].requests.push(req);
+    
+    // Only needs payment if order is strictly CONFIRMED (needs DP) or WAITING_FINAL_PAYMENT (needs Pelunasan)
+    if (req.orderStatus === 'CONFIRMED' || req.orderStatus === 'WAITING_FINAL_PAYMENT') {
+      acc[groupId].needsPayment = true;
+    }
+
+    if (req.status === 'APPROVED' || req.status === 'SUBMITTED' || req.status === 'REVIEWED' || req.status === 'IN_PRODUCTION' || req.status === 'COMPLETED') {
+        acc[groupId].totalEstimatedPrice += Number(req.estimatedPrice || 0);
+    }
+    return acc;
+  }, {});
+
+  const orderGroups = Object.values(groupedOrders);
+
   return (
     <div>
       <h2 className="text-xl font-display font-semibold mb-2 dark:text-white">{t.sablon.title}</h2>
@@ -394,83 +450,137 @@ function SablonTab({ t, i18n }) {
         </div>
       ) : (
         <div className="space-y-8">
-          {requests.map((req) => {
-            const currentStep = getProgressIndex(req.status);
+          {orderGroups.map((group) => {
+            const firstReq = group.requests[0];
+            const currentStep = getProgressIndex(firstReq.status); // Fallback progress
             return (
-              <div key={req.id} className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-black p-6 md:p-8">
-                <div className="flex flex-col md:flex-row justify-between md:items-start gap-4 border-b border-gray-100 dark:border-gray-800 pb-6 mb-6">
+              <div key={group.orderId || group.fallbackId} className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-black p-6 md:p-8 rounded-xl shadow-sm">
+                <div className="flex flex-col md:flex-row justify-between md:items-start gap-4 border-b border-gray-100 dark:border-gray-800 pb-4 mb-6">
                   <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-bold dark:text-white uppercase tracking-widest">{req.designTitle || 'Custom Sablon'}</h3>
-                      <StatusBadge status={req.status} />
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="text-lg font-bold dark:text-white uppercase tracking-widest">
+                        {group.orderId ? `Pesanan Nota #${group.orderId.split('-').pop()}` : 'Custom Sablon'}
+                      </h3>
+                      {group.orderId && <span className="px-3 py-1 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-full">BULK ORDER</span>}
                     </div>
                     <p className="text-xs text-gray-500 uppercase tracking-widest">
-                      ID: {req.id.slice(0,8)} • Diajukan: {new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'short' }).format(new Date(req.createdAt))}
+                      ID: {(group.orderId || group.fallbackId).slice(0,8)} • Dibuat: {new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'short' }).format(new Date(group.createdAt))}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">Target Selesai</p>
-                    <p className="text-sm font-bold">{req.deadline ? new Intl.DateTimeFormat(i18n.language === 'EN' ? 'en-US' : 'id-ID', { dateStyle: 'short' }).format(new Date(req.deadline)) : 'TBA'}</p>
+                    {group.needsPayment && group.orderId && (
+                      <Link 
+                        to={group.orderStatus === 'WAITING_FINAL_PAYMENT' ? `/checkout-pelunasan/${group.orderId}` : `/checkout-sablon/${group.orderId}`} 
+                        className="px-6 py-3 bg-aria-charcoal dark:bg-white text-white dark:text-aria-charcoal text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors rounded-xl flex items-center justify-center gap-2"
+                      >
+                        {group.orderStatus === 'WAITING_FINAL_PAYMENT' ? 'Lanjutkan Pelunasan' : 'Lanjutkan Pembayaran'}
+                      </Link>
+                    )}
                   </div>
                 </div>
 
-                {/* Progress Tracker */}
-                <div className="relative mb-10 mt-4 overflow-hidden py-4">
-                  <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 dark:bg-gray-800 -translate-y-1/2 rounded"></div>
-                  <div className="absolute top-1/2 left-0 h-1 bg-aria-charcoal dark:bg-white -translate-y-1/2 rounded transition-all duration-1000" style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}></div>
-                  <div className="relative flex justify-between">
-                    {steps.map((step, idx) => (
-                      <div key={idx} className="flex flex-col items-center">
-                        <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold border-2 transition-colors z-10 ${idx <= currentStep ? 'bg-aria-charcoal border-aria-charcoal text-white dark:bg-white dark:border-white dark:text-black' : 'bg-white border-gray-300 text-gray-300 dark:bg-black dark:border-gray-700 dark:text-gray-700'}`}>
-                          {idx < currentStep ? '✓' : idx + 1}
+                <div className="space-y-6">
+                  {group.requests.map(req => {
+                    let effectiveStatus = req.status;
+                    if (group.orderStatus === 'IN_PRODUCTION') {
+                      effectiveStatus = 'IN_PRODUCTION';
+                    } else if (['WAITING_FINAL_PAYMENT', 'READY_TO_SHIP', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(group.orderStatus)) {
+                      effectiveStatus = 'COMPLETED';
+                    }
+                    const reqStep = getProgressIndex(effectiveStatus);
+                    return (
+                      <div key={req.id} className="border border-gray-100 p-4 rounded-xl relative bg-gray-50/50">
+                        <div className="flex justify-between items-center mb-4">
+                          <h4 className="font-bold text-sm uppercase">{req.designTitle || 'Tanpa Judul'}</h4>
+                          <StatusBadge status={effectiveStatus} />
                         </div>
-                        <p className={`text-[10px] uppercase tracking-widest mt-3 font-semibold hidden md:block ${idx <= currentStep ? 'text-black dark:text-white' : 'text-gray-400 dark:text-gray-600'}`}>{step.label}</p>
+                        
+                        {/* Progress Tracker (Mini) */}
+                        <div className="relative mb-6 mt-2 overflow-hidden py-2 px-2">
+                          <div className="absolute top-1/2 left-2 right-2 h-1 bg-gray-200 dark:bg-gray-800 -translate-y-1/2 rounded"></div>
+                          <div className="absolute top-1/2 left-2 h-1 bg-aria-charcoal dark:bg-white -translate-y-1/2 rounded transition-all duration-1000" style={{ width: `calc(${(reqStep / (steps.length - 1)) * 100}% - 16px)` }}></div>
+                          <div className="relative flex justify-between">
+                            {steps.map((step, idx) => (
+                              <div key={idx} className="flex flex-col items-center">
+                                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold border-2 transition-colors z-10 ${idx <= reqStep ? 'bg-aria-charcoal border-aria-charcoal text-white' : 'bg-white border-gray-300 text-gray-300'}`}>
+                                </div>
+                                <p className={`text-[8px] uppercase tracking-widest mt-1 font-semibold hidden md:block ${idx <= reqStep ? 'text-black' : 'text-gray-400'}`}>{step.label}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-4 rounded border border-gray-100">
+                          <div>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Produk</p>
+                            <p className="text-xs font-semibold">{req.productTypeForSablon || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Total</p>
+                            <p className="text-xs font-semibold">{req.quantity} Pcs</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Teknik</p>
+                            <p className="text-xs font-semibold">{req.printTechnique || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Estimasi</p>
+                            <p className="text-xs font-bold text-aria-maroon">Rp {Number(req.estimatedPrice || 0).toLocaleString()}</p>
+                          </div>
+                        </div>
+
+                        {req.status === 'REJECTED' && (
+                          <div className="mt-4 border-t border-red-100 pt-4">
+                            <p className="text-[10px] text-red-600 font-bold uppercase mb-1">Alasan Penolakan</p>
+                            <p className="text-xs text-red-800 bg-red-50 p-2 rounded">
+                              {req.rejectReason || 'Desain Anda tidak dapat kami proses saat ini.'}
+                            </p>
+                          </div>
+                        )}
+
+                        {req.status === 'REVISION_REQUESTED' && (
+                          <div className="mt-4 border-t border-orange-100 pt-4">
+                            <p className="text-[10px] text-orange-600 font-bold uppercase mb-1">Catatan Revisi dari Admin</p>
+                            <p className="text-xs text-orange-800 bg-orange-50 p-2 rounded mb-3">
+                              {req.rejectReason || 'Silakan cek catatan revisi dari admin.'}
+                            </p>
+                            <a 
+                              href={`https://wa.me/6281234567890?text=${encodeURIComponent(`Halo admin, saya ingin mengirimkan file revisi untuk pesanan sablon saya dengan ID Request: ${req.id} (Judul: ${req.designTitle}).`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 bg-[#25D366] text-white text-[10px] font-bold uppercase rounded-lg inline-flex items-center gap-2 hover:bg-[#128C7E] transition-colors"
+                            >
+                              Kirim File Revisi via WhatsApp
+                            </a>
+                          </div>
+                        )}
+                        {/* Fallback button if there's no orderId (old data) */}
+                        {!group.orderId && req.status === 'APPROVED' && (
+                          <div className="mt-4 text-right">
+                             <Link 
+                                to={`/checkout-sablon/${req.id}`} 
+                                className="px-4 py-2 bg-aria-charcoal text-white text-xs font-bold uppercase rounded-lg inline-block"
+                              >
+                                Lanjutkan Pembayaran
+                              </Link>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-
-                {/* Details Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-gray-50 dark:bg-gray-900/50 p-6 border border-gray-100 dark:border-gray-800">
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Produk</p>
-                    <p className="text-xs font-semibold">{req.productTypeForSablon || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Total</p>
-                    <p className="text-xs font-semibold">{req.quantity} Pcs</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Teknik</p>
-                    <p className="text-xs font-semibold">{req.printTechnique || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Tujuan</p>
-                    <p className="text-xs font-semibold">{req.purpose || '-'}</p>
-                  </div>
-                </div>
-
-                {req.status === 'APPROVED' && (
-                  <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-6 flex justify-between items-center">
-                    <div>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Estimasi Harga</p>
-                      <p className="text-lg font-bold text-aria-maroon dark:text-amber-400">Rp {Number(req.estimatedPrice || 0).toLocaleString()}</p>
-                    </div>
-                    <Link 
-                      to={`/checkout-sablon/${req.id}`} 
-                      className="px-6 py-3 bg-aria-charcoal dark:bg-white text-white dark:text-aria-charcoal text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors rounded-xl flex items-center gap-2"
-                    >
-                      Lanjutkan Pembayaran
-                    </Link>
-                  </div>
-                )}
                 
-                {req.status === 'REJECTED' && (
-                  <div className="mt-6 border-t border-red-100 dark:border-red-900/30 pt-6">
-                    <p className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase tracking-widest mb-1">Alasan Penolakan</p>
-                    <p className="text-sm font-medium text-red-800 dark:text-red-300 bg-red-50 dark:bg-red-900/20 p-4 border border-red-100 dark:border-red-900/30">
-                      {req.rejectReason || 'Desain Anda tidak dapat kami proses saat ini. Silakan hubungi admin.'}
-                    </p>
+                {group.orderId && (group.orderStatus !== 'SUBMITTED' && group.orderStatus !== 'REVIEWED' && group.orderStatus !== 'REJECTED') && (
+                  <div className="mt-6 border-t border-gray-200 pt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 p-4 rounded-xl border gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Status Pesanan</p>
+                      <p className="text-sm font-bold text-gray-800">{group.orderStatus || 'DIPROSES'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Total Nota</p>
+                      <p className="text-xl font-bold text-aria-maroon">Rp {group.totalEstimatedPrice.toLocaleString()}</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -619,12 +729,27 @@ function WishlistTab({ t }) {
 function PointHistoryTab({ t, i18n }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [earningRate, setEarningRate] = useState(10000); // Default 10000
+  const [exchangeRate, setExchangeRate] = useState(10); // Default 10
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get('/users/points-history');
-        setHistory(res.data?.data || []);
+        const [pointsRes, settingsRes] = await Promise.all([
+          api.get('/users/points-history'),
+          api.get('/settings').catch(() => ({ data: { data: {} } }))
+        ]);
+        setHistory(pointsRes.data?.data || []);
+        
+        const earnRate = settingsRes.data?.data?.points_earning_rate;
+        if (earnRate && !isNaN(Number(earnRate))) {
+          setEarningRate(Number(earnRate));
+        }
+
+        const exchRate = settingsRes.data?.data?.points_exchange_rate;
+        if (exchRate && !isNaN(Number(exchRate))) {
+          setExchangeRate(Number(exchRate));
+        }
       } catch (err) {
         console.error('Failed to load points history:', err);
       } finally {
@@ -639,8 +764,8 @@ function PointHistoryTab({ t, i18n }) {
     <div>
       <h2 className="text-xl font-display font-semibold mb-2 dark:text-white">{t.pointHistory.title}</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Dapatkan 1 Poin setiap pembelanjaan Rp 10.000 (status pesanan terkirim). 
-        Tukarkan poin Anda saat Checkout (1 Poin = Potongan Rp 1.000).
+        Dapatkan 1 Poin setiap pembelanjaan Rp {earningRate.toLocaleString('id-ID')} (status pesanan terkirim). 
+        Tukarkan poin Anda saat Checkout (1 Poin = Potongan Rp {exchangeRate.toLocaleString('id-ID')}).
       </p>
       <div className="h-[1px] bg-gray-200 dark:bg-gray-700 mb-8" />
       

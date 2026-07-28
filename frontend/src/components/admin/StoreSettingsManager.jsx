@@ -5,8 +5,25 @@ import { FiSave, FiSettings } from 'react-icons/fi';
 export default function StoreSettingsManager() {
   const [settings, setSettings] = useState({
     welcome_bonus_points: '',
+    points_earning_rate: '',
+    review_text_points: '',
+    review_image_points: '',
+    points_exchange_rate: '',
+    max_points_discount_percentage: '',
     best_seller_threshold: '',
-    pickup_instructions: ''
+    pickup_instructions: '',
+    store_postal_code: '',
+    sablon_tier1_max_qty: '',
+    sablon_tier1_min_days: '',
+    sablon_tier2_max_qty: '',
+    sablon_tier2_min_days: '',
+    sablon_tier3_min_days: '',
+    tier_silver_min: '',
+    tier_gold_min: '',
+    tier_platinum_min: '',
+    tier_silver_discount: '',
+    tier_gold_discount: '',
+    tier_platinum_discount: ''
   });
   const [couriers, setCouriers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +131,216 @@ export default function StoreSettingsManager() {
                   Jumlah "Aria Points" otomatis yang diberikan saat kustomer baru berhasil mendaftar (Register).
                 </p>
               </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Poin Pembelanjaan (Earn Rate)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-sm text-gray-400">Rp</span>
+                  <input
+                    type="number"
+                    name="points_earning_rate"
+                    value={settings.points_earning_rate || ''}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 pl-9 focus:ring-2 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                    placeholder="Contoh: 10000"
+                    min="1"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Nominal belanja (Rupiah) untuk mendapatkan 1 Poin.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Poin Ulasan (Hanya Teks)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    name="review_text_points"
+                    value={settings.review_text_points || ''}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                    placeholder="Contoh: 100"
+                    min="0"
+                  />
+                  <span className="absolute right-3 top-3 text-sm text-gray-400">Poin</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Poin hadiah untuk ulasan tanpa melampirkan foto.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Poin Ulasan (Dengan Foto)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    name="review_image_points"
+                    value={settings.review_image_points || ''}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                    placeholder="Contoh: 500"
+                    min="0"
+                  />
+                  <span className="absolute right-3 top-3 text-sm text-gray-400">Poin</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Poin ekstra hadiah untuk ulasan yang melampirkan foto.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Nilai Tukar Poin (Burn Rate)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-sm text-gray-400">Rp</span>
+                  <input
+                    type="number"
+                    name="points_exchange_rate"
+                    value={settings.points_exchange_rate || ''}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 pl-9 focus:ring-2 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                    placeholder="Contoh: 10"
+                    min="1"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Nilai 1 Poin dalam Rupiah saat ditukarkan. Misal: 10 berarti 1 Poin = Potongan Rp 10.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Batas Maksimal Penggunaan Poin (%)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    name="max_points_discount_percentage"
+                    value={settings.max_points_discount_percentage || ''}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                    placeholder="Contoh: 50"
+                    min="1"
+                    max="100"
+                  />
+                  <span className="absolute right-3 top-3 text-sm text-gray-400">%</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Maksimal potongan dari total belanja. Misal: 50 berarti maks potong 50% tagihan.
+                </p>
+              </div>
+            </div>
+
+            <h3 className="text-sm font-bold uppercase tracking-widest text-aria-charcoal dark:text-gray-300 mb-4 mt-8 border-b border-gray-100 dark:border-gray-700 pb-2">
+              Pengaturan Customer Tier (Otomatis)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* SILVER TIER */}
+              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                <h4 className="font-bold text-gray-800 dark:text-white mb-3 flex justify-between items-center">
+                  SILVER 
+                  <span className="text-xs font-normal text-gray-500">Tier Menengah</span>
+                </h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Ambang Batas Belanja (Rp)</label>
+                    <input
+                      type="number"
+                      name="tier_silver_min"
+                      value={settings.tier_silver_min || ''}
+                      onChange={handleChange}
+                      placeholder="Contoh: 500000"
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-1 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Diskon Pesanan (%)</label>
+                    <input
+                      type="number"
+                      name="tier_silver_discount"
+                      value={settings.tier_silver_discount || ''}
+                      onChange={handleChange}
+                      placeholder="Contoh: 5"
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-1 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* GOLD TIER */}
+              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30">
+                <h4 className="font-bold text-amber-700 dark:text-amber-500 mb-3 flex justify-between items-center">
+                  GOLD 
+                  <span className="text-xs font-normal opacity-70">Tier Tinggi</span>
+                </h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-amber-900 dark:text-amber-200 mb-1">Ambang Batas Belanja (Rp)</label>
+                    <input
+                      type="number"
+                      name="tier_gold_min"
+                      value={settings.tier_gold_min || ''}
+                      onChange={handleChange}
+                      placeholder="Contoh: 2000000"
+                      className="w-full border border-amber-300 dark:border-amber-700/50 rounded p-2 text-sm focus:ring-1 focus:ring-amber-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-amber-900 dark:text-amber-200 mb-1">Diskon Pesanan (%)</label>
+                    <input
+                      type="number"
+                      name="tier_gold_discount"
+                      value={settings.tier_gold_discount || ''}
+                      onChange={handleChange}
+                      placeholder="Contoh: 10"
+                      className="w-full border border-amber-300 dark:border-amber-700/50 rounded p-2 text-sm focus:ring-1 focus:ring-amber-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* PLATINUM TIER */}
+              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800/30 md:col-span-2">
+                <h4 className="font-bold text-indigo-700 dark:text-indigo-400 mb-3 flex justify-between items-center">
+                  PLATINUM 
+                  <span className="text-xs font-normal opacity-70">Tier Tertinggi</span>
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-200 mb-1">Ambang Batas Belanja (Rp)</label>
+                    <input
+                      type="number"
+                      name="tier_platinum_min"
+                      value={settings.tier_platinum_min || ''}
+                      onChange={handleChange}
+                      placeholder="Contoh: 5000000"
+                      className="w-full border border-indigo-300 dark:border-indigo-700/50 rounded p-2 text-sm focus:ring-1 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-200 mb-1">Diskon Pesanan (%)</label>
+                    <input
+                      type="number"
+                      name="tier_platinum_discount"
+                      value={settings.tier_platinum_discount || ''}
+                      onChange={handleChange}
+                      placeholder="Contoh: 15"
+                      className="w-full border border-indigo-300 dark:border-indigo-700/50 rounded p-2 text-sm focus:ring-1 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-3">
+                  Tier Bronze tidak perlu diatur karena merupakan tier default (batas Rp 0, diskon 0%).
+                </p>
+              </div>
             </div>
           </div>
 
@@ -147,13 +374,129 @@ export default function StoreSettingsManager() {
             </div>
           </div>
 
+            {/* Smart Date Sablon Settings */}
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-aria-charcoal dark:text-gray-300 mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+                Pengaturan Smart Date (Custom Sablon)
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Tier 1 */}
+                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                  <h4 className="font-bold text-gray-800 dark:text-white mb-3">Pesanan Skala Kecil</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Maksimal Qty (pcs)</label>
+                      <input
+                        type="number"
+                        name="sablon_tier1_max_qty"
+                        value={settings.sablon_tier1_max_qty || ''}
+                        onChange={handleChange}
+                        placeholder="Contoh: 11"
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-1 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Minimal Waktu (Hari)</label>
+                      <input
+                        type="number"
+                        name="sablon_tier1_min_days"
+                        value={settings.sablon_tier1_min_days || ''}
+                        onChange={handleChange}
+                        placeholder="Contoh: 7"
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-1 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tier 2 */}
+                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                  <h4 className="font-bold text-gray-800 dark:text-white mb-3">Pesanan Skala Menengah</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Maksimal Qty (pcs)</label>
+                      <input
+                        type="number"
+                        name="sablon_tier2_max_qty"
+                        value={settings.sablon_tier2_max_qty || ''}
+                        onChange={handleChange}
+                        placeholder="Contoh: 100"
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-1 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Minimal Waktu (Hari)</label>
+                      <input
+                        type="number"
+                        name="sablon_tier2_min_days"
+                        value={settings.sablon_tier2_min_days || ''}
+                        onChange={handleChange}
+                        placeholder="Contoh: 14"
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-1 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tier 3 */}
+                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                  <h4 className="font-bold text-gray-800 dark:text-white mb-3">Pesanan Skala Besar</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Maksimal Qty (pcs)</label>
+                      <input
+                        type="text"
+                        disabled
+                        value="> Skala Menengah"
+                        className="w-full border border-gray-200 rounded p-2 text-sm bg-gray-100 text-gray-500 dark:bg-gray-900 cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Minimal Waktu (Hari)</label>
+                      <input
+                        type="number"
+                        name="sablon_tier3_min_days"
+                        value={settings.sablon_tier3_min_days || ''}
+                        onChange={handleChange}
+                        placeholder="Contoh: 30"
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-1 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Pengaturan ini akan langsung mengunci kalender di form permintaan sablon pelanggan jika jumlah melebihi ketentuan. Kosongkan untuk menggunakan default sistem.
+              </p>
+            </div>
+  
           {/* Omnichannel Settings */}
           <div>
             <h3 className="text-sm font-bold uppercase tracking-widest text-aria-charcoal dark:text-gray-300 mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
               Omnichannel (Logistik & Pickup)
             </h3>
             
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Kode Pos Toko (Origin Postal Code)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="store_postal_code"
+                    value={settings.store_postal_code || ''}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-aria-maroon dark:bg-gray-700 dark:text-white"
+                    placeholder="Contoh: 65141 (Malang) atau 12110 (Jakarta)"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Titik asal perhitungan ongkir kurir otomatis (Biteship). Jika kosong, menggunakan pengaturan sistem default.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Instruksi "Ambil di Toko"
@@ -167,7 +510,7 @@ export default function StoreSettingsManager() {
                   placeholder="Contoh: Silakan datang ke toko dengan membawa KTP dan ID Pesanan..."
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  Instruksi ini akan ditampilkan kepada kustomer saat mereka memilih opsi "Ambil di Toko", dan juga akan disertakan dalam email konfirmasi. Gunakan baris baru (Enter) untuk memisahkan poin.
+                  Instruksi ini akan ditampilkan kepada kustomer saat mereka memilih opsi "Ambil di Toko", dan juga akan disertakan dalam email konfirmasi.
                 </p>
               </div>
             </div>

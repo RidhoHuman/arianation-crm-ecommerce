@@ -44,6 +44,7 @@ const portfolioRoutes = require('./routes/portfolioRoutes');
 const printTechniqueRoutes = require('./routes/printTechniques');
 const reviewRoutes = require('./routes/reviews');
 const voucherRoutes = require('./routes/vouchers');
+const staffRoutes = require('./routes/staffRoutes');
 
 // Validate environment variables (throws if invalid)
 try {
@@ -604,10 +605,8 @@ app.use('/api/print-techniques', printTechniqueRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/vouchers', voucherRoutes);
 app.use('/api/banners', bannerRoutes);
-
-// Public Settings Route
-const settingsController = require('./controllers/settingsController');
-app.get('/api/settings', settingsController.getSettings);
+app.use('/api/settings', require('./routes/settings'));
+app.use('/api/staff', staffRoutes);
 
 // SEO Routes (Sitemap)
 app.use('/api', sitemapRoutes);

@@ -5,8 +5,10 @@ const knex = require('../config/knex');
 const { hashPassword, comparePassword } = require('../utils/password');
 const { generateToken, generateRefreshToken, verifyToken } = require('../utils/jwt');
 const { sendSuccess, sendCreated } = require('../utils/response');
-const { ConflictError, AuthenticationError, NotFoundError } = require('../utils/errors');
+const { ConflictError, AuthenticationError, NotFoundError, BadRequestError } = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
+const crypto = require('crypto');
+const emailService = require('../services/emailService');
 
 const cookieOptions = {
   httpOnly: true,
@@ -200,4 +202,71 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, logout, refreshToken, getMe, oauthCallback };
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) throw new BadRequestError('Email is required');
+
+    const user = await userService.findByEmail(email);
+    if (!user) {
+      // Don't leak that user doesn't exist, just return success
+      return sendSuccess(res, null, 'Jika email terdaftar, tautan reset telah dikirim.');
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
+
+    await knex('user').where('id', user.id).update({
+      resetPasswordToken: resetToken,
+      resetPasswordExpires,
+    });
+
+    try {
+      await emailService.sendPasswordResetEmail(user.email, resetToken, user.fullName);
+    } catch (emailErr) {
+      // Rollback token if email fails
+      await knex('user').where('id', user.id).update({
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      });
+      throw emailErr;
+    }
+
+    return sendSuccess(res, null, 'Tautan reset password telah dikirim ke email Anda.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      throw new BadRequestError('Token dan password baru diperlukan');
+    }
+
+    const user = await knex('user')
+      .where('resetPasswordToken', token)
+      .andWhere('resetPasswordExpires', '>', new Date())
+      .first();
+
+    if (!user) {
+      throw new BadRequestError('Token reset password tidak valid atau sudah kadaluarsa');
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+
+    await knex('user').where('id', user.id).update({
+      password: hashedPassword,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+      updatedAt: new Date()
+    });
+
+    return sendSuccess(res, null, 'Password berhasil diubah. Silakan login dengan password baru.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, logout, refreshToken, getMe, oauthCallback, forgotPassword, resetPassword };

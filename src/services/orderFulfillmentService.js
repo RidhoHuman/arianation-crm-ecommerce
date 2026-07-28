@@ -5,16 +5,17 @@ const { BadRequestError } = require('../utils/errors');
 const notificationService = require('./notificationService');
 
 const validTransitions = {
-  PENDING: ['PAID_WAITING_APPROVAL', 'CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['PROCESSING', 'CANCELLED', 'REFUND_REQUESTED'],
-  PAID_WAITING_APPROVAL: ['PROCESSING', 'IN_PRODUCTION', 'CANCELLED'],
-  IN_PRODUCTION: ['WAITING_FINAL_PAYMENT', 'CANCELLED'],
+  PENDING: ['PAID_WAITING_APPROVAL', 'CONFIRMED', 'CANCELLED', 'READY_TO_SHIP', 'PROCESSING', 'ON_HOLD', 'IN_PRODUCTION'],
+  CONFIRMED: ['PROCESSING', 'CANCELLED', 'REFUND_REQUESTED', 'IN_PRODUCTION', 'READY_TO_SHIP'],
+  PAID_WAITING_APPROVAL: ['PROCESSING', 'IN_PRODUCTION', 'CANCELLED', 'REFUND_REQUESTED'],
+  IN_PRODUCTION: ['WAITING_FINAL_PAYMENT', 'CANCELLED', 'READY_TO_SHIP'],
   WAITING_FINAL_PAYMENT: ['READY_TO_SHIP', 'CANCELLED', 'ABANDONED', 'ON_HOLD'],
   PROCESSING: ['READY_TO_SHIP', 'READY_FOR_DELIVERY', 'FAILED', 'ON_HOLD'],
   READY_TO_SHIP: ['SHIPPED', 'FAILED'],
   READY_FOR_DELIVERY: ['SHIPPED', 'FAILED', 'ON_HOLD'],
-  SHIPPED: ['DELIVERED', 'FAILED', 'RETURNED'],
-  DELIVERED: ['RETURNED'], // Final state but allows returns
+  SHIPPED: ['DELIVERED', 'COMPLETED', 'FAILED', 'RETURNED'],
+  DELIVERED: ['COMPLETED', 'RETURNED'],
+  COMPLETED: ['RETURNED'], // Final state but allows returns
   CANCELLED: [], // Final state
   ABANDONED: [], // Final state
   FAILED: ['PROCESSING', 'CANCELLED'], // Can retry or cancel
@@ -55,17 +56,17 @@ const validateTransitionRules = async (trx, order, newStatus) => {
   const isCustomSablon = await trx('designRequest').where('orderId', order.id).first();
 
   if (isCustomSablon) {
-    if (order.status === 'PAID_WAITING_APPROVAL' && !['IN_PRODUCTION', 'CANCELLED'].includes(newStatus)) {
+    if (order.status === 'PAID_WAITING_APPROVAL' && !['IN_PRODUCTION', 'CANCELLED', 'REFUND_REQUESTED'].includes(newStatus)) {
       throw new BadRequestError('Custom Sablon orders must go to IN_PRODUCTION after approval');
     }
   } else {
-    if (order.status === 'PAID_WAITING_APPROVAL' && !['PROCESSING', 'CANCELLED'].includes(newStatus)) {
+    if (order.status === 'PAID_WAITING_APPROVAL' && !['PROCESSING', 'CANCELLED', 'REFUND_REQUESTED'].includes(newStatus)) {
       throw new BadRequestError('Retail orders must go to PROCESSING after approval');
     }
   }
 
-  // PENDING → CONFIRMED / PAID_WAITING_APPROVAL: Only if Payment.status = 'COMPLETED'
-  if (order.status === 'PENDING' && ['CONFIRMED', 'PAID_WAITING_APPROVAL'].includes(newStatus)) {
+  // PENDING → CONFIRMED / PAID_WAITING_APPROVAL / READY_TO_SHIP: Only if Payment.status = 'COMPLETED'
+  if (order.status === 'PENDING' && ['CONFIRMED', 'PAID_WAITING_APPROVAL', 'READY_TO_SHIP'].includes(newStatus)) {
     if (!order.payment || order.payment.status !== 'COMPLETED') {
       throw new BadRequestError('Cannot approve order without completed payment');
     }
@@ -149,10 +150,19 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
         });
     }
 
-    // Award points if DELIVERED and order belongs to a user
-    if (newStatus === 'DELIVERED' && order.userId) {
+    // Award points if COMPLETED and order belongs to a user
+    if (newStatus === 'COMPLETED' && order.userId) {
       const orderData = await trx('order').where('id', orderId).select('totalAmount').first();
-      const earnedPoints = Math.floor((orderData.totalAmount || 0) / 10000); // 1 point per 10.000 IDR
+      
+      const earningRateSetting = await trx('store_settings').where('settingKey', 'points_earning_rate').first();
+      const earningRate = earningRateSetting && !isNaN(Number(earningRateSetting.settingValue)) 
+        ? Number(earningRateSetting.settingValue) 
+        : 10000;
+        
+      // Mencegah pembagian dengan 0 secara absolut (fallback to 10000)
+      const safeRate = earningRate > 0 ? earningRate : 10000; 
+      
+      const earnedPoints = Math.floor((orderData.totalAmount || 0) / safeRate);
       
       if (earnedPoints > 0) {
         // Update User table
@@ -176,12 +186,25 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
         const newTotalSpent = parseFloat(metrics.totalSpent || 0) + parseFloat(orderData.totalAmount || 0);
         const newAverageOrderValue = newTotalSpent / newTotalTransactions;
         
-        // Tier calculation (e.g. Bronze, Silver > 500k, Gold > 2m, Platinum > 5m)
+        // Fetch tier thresholds
+        const tierSettings = await trx('store_settings')
+          .whereIn('settingKey', ['tier_silver_min', 'tier_gold_min', 'tier_platinum_min']);
+        
+        const getTierMin = (key, defaultMin) => {
+          const setting = tierSettings.find(s => s.settingKey === key);
+          return setting && !isNaN(Number(setting.settingValue)) ? Number(setting.settingValue) : defaultMin;
+        };
+
+        const platinumMin = getTierMin('tier_platinum_min', 5000000);
+        const goldMin = getTierMin('tier_gold_min', 2000000);
+        const silverMin = getTierMin('tier_silver_min', 500000);
+        
+        // Tier calculation
         let newTier = metrics.currentTier || 'BRONZE';
         if (!metrics.isTierManuallySet) {
-          if (newTotalSpent >= 5000000) newTier = 'PLATINUM';
-          else if (newTotalSpent >= 2000000) newTier = 'GOLD';
-          else if (newTotalSpent >= 500000) newTier = 'SILVER';
+          if (newTotalSpent >= platinumMin) newTier = 'PLATINUM';
+          else if (newTotalSpent >= goldMin) newTier = 'GOLD';
+          else if (newTotalSpent >= silverMin) newTier = 'SILVER';
           else newTier = 'BRONZE';
         }
 
@@ -194,8 +217,7 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
           updatedAt: new Date()
         });
       }
-
-      }
+    }
 
     // Create status history record
     const cuid = require('cuid');
@@ -231,38 +253,53 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
 const triggerStatusNotification = async (trx, orderId, status, order) => {
   const notificationConfig = {
     CONFIRMED: {
-      title: 'Order Confirmed! 🎉',
-      message: 'Your order has been confirmed. We will prepare it shortly.',
+      title: 'Pesanan Dikonfirmasi! 🎉',
+      message: 'Pesanan Anda telah kami terima dan akan segera disiapkan.',
       type: 'CONFIRMED',
     },
     PROCESSING: {
-      title: 'Order is Being Prepared',
-      message: 'Your order is currently being prepared for shipment.',
+      title: 'Pesanan Sedang Disiapkan',
+      message: 'Pesanan Anda saat ini sedang dalam proses penyiapan oleh tim kami.',
       type: 'PROCESSING',
     },
+    IN_PRODUCTION: {
+      title: 'Pesanan Diproses ⚙️',
+      message: 'Pesanan Anda saat ini sedang dalam tahap produksi oleh tim kami.',
+      type: 'IN_PRODUCTION',
+    },
+    READY_TO_SHIP: {
+      title: 'Pesanan Siap Dikirim/Diambil 📦',
+      message: 'Pesanan Anda sudah selesai dikemas dan siap untuk dikirim oleh kurir atau diambil di toko.',
+      type: 'READY_TO_SHIP',
+    },
     READY_FOR_DELIVERY: {
-      title: 'Ready for Pickup',
-      message: 'Your order is ready and will be picked up by courier soon.',
+      title: 'Pesanan Menunggu Penjemputan Kurir',
+      message: 'Pesanan Anda sudah siap dan sedang menunggu dijemput oleh pihak kurir.',
       type: 'READY_FOR_DELIVERY',
     },
     SHIPPED: {
-      title: 'Order Shipped! 📦',
-      message: 'Your order has been shipped. Check tracking info for details.',
+      title: 'Pesanan Telah Dikirim! 📦',
+      message: 'Pesanan Anda telah diserahkan ke kurir. Silakan cek nomor resi Anda.',
       type: 'SHIPPED',
     },
     DELIVERED: {
-      title: 'Order Delivered! ✅',
-      message: 'Your order has been delivered. Thank you for your purchase!',
+      title: 'Pesanan Telah Tiba! ✅',
+      message: 'Pesanan Anda telah sampai di tujuan. Terima kasih telah berbelanja di AriaNation!',
       type: 'DELIVERED',
     },
+    COMPLETED: {
+      title: 'PESANAN SELESAI! 🚀',
+      message: 'Pesanan Anda telah selesai. Poin hadiah telah ditambahkan ke akun Anda!',
+      type: 'COMPLETED',
+    },
     CANCELLED: {
-      title: 'Order Cancelled',
-      message: 'Your order has been cancelled. Please contact support for details.',
+      title: 'Pesanan Dibatalkan',
+      message: 'Pesanan Anda telah dibatalkan. Silakan hubungi admin jika ada pertanyaan.',
       type: 'CANCELLED',
     },
     FAILED: {
-      title: 'Order Issue ⚠️',
-      message: 'There was an issue with your order. Please contact support.',
+      title: 'Pesanan Bermasalah ⚠️',
+      message: 'Terjadi masalah dengan pesanan Anda. Silakan hubungi admin untuk bantuan.',
       type: 'FAILED',
     },
     ABANDONED: {
@@ -434,7 +471,6 @@ const updateOrderTracking = async (orderId, payload = {}) => {
       trackingNumber: payload.trackingNumber || null,
       lastUpdate: new Date(),
       notes: payload.notes || null,
-      createdAt: new Date(),
       updatedAt: new Date(),
     };
     await knex('orderTracking').insert(newTracking);
@@ -449,8 +485,7 @@ const updateOrderTracking = async (orderId, payload = {}) => {
       status: nextStatus,
       location: payload.currentLocation || null,
       notes: payload.notes || null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      timestamp: new Date(),
     });
   }
 

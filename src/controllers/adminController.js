@@ -2,7 +2,7 @@
 
 const knex = require('../config/knex');
 const { sendSuccess, sendCreated, sendPaginated } = require('../utils/response');
-const { NotFoundError, ValidationError } = require('../utils/errors');
+const { NotFoundError, ValidationError, BadRequestError } = require('../utils/errors');
 const orderFulfillmentService = require('../services/orderFulfillmentService');
 const productService = require('../services/productService');
 const orderService = require('../services/orderService');
@@ -208,6 +208,7 @@ const createProduct = async (req, res, next) => {
       variants,
       productTypeId,
       allowedPrintAreas,
+      weight_gram,
     } = req.body;
 
     if (!categoryId || !productName || !price || !productType || !businessType) {
@@ -238,6 +239,7 @@ const createProduct = async (req, res, next) => {
       isActive: req.body.isActive === undefined ? true : (req.body.isActive === 'true' || req.body.isActive === true || req.body.isActive === '1' || req.body.isActive === 1),
       variants: variants ? (typeof variants === 'string' ? JSON.parse(variants) : variants) : [],
       allowedPrintAreas: allowedPrintAreas ? (typeof allowedPrintAreas === 'string' ? JSON.parse(allowedPrintAreas) : allowedPrintAreas) : null,
+      weight_gram: weight_gram === '' || weight_gram === undefined ? null : parseInt(weight_gram, 10),
     });
 
     let colIds = req.body.collectionIds;
@@ -272,7 +274,7 @@ const createProduct = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { productName, description, descriptionEn, price, stockQuantity, productType, imageUrl, imageUrls, isActive, variants, categoryId, productTypeId, allowedPrintAreas } =
+    const { productName, description, descriptionEn, price, stockQuantity, productType, imageUrl, imageUrls, isActive, variants, categoryId, productTypeId, allowedPrintAreas, weight_gram } =
       req.body;
 
     const product = await productService.findById(id);
@@ -300,6 +302,7 @@ const updateProduct = async (req, res, next) => {
       ...(categoryId !== undefined && { categoryId }),
       ...(productTypeId !== undefined && { productTypeId: productTypeId === '' ? null : productTypeId }),
       ...(allowedPrintAreas !== undefined && { allowedPrintAreas: typeof allowedPrintAreas === 'string' ? JSON.parse(allowedPrintAreas) : allowedPrintAreas }),
+      ...(weight_gram !== undefined && { weight_gram: weight_gram === '' ? null : parseInt(weight_gram, 10) }),
     });
 
     // Save collectionIds jika ada
@@ -420,7 +423,12 @@ const getOrders = async (req, res, next) => {
           .select('orderItem.id', 'orderItem.quantity', 'product.productName')
           .leftJoin('product', 'orderItem.productId', 'product.id')
           .where('orderItem.orderId', order.id);
-        return { ...order, items };
+        
+        const designRequests = await knex('designRequest')
+          .select('id', 'deadline', 'quantity', 'designTitle')
+          .where('orderId', order.id);
+            
+        return { ...order, items, designRequests };
       })
     );
 
@@ -495,7 +503,7 @@ const getOrderDetail = async (req, res, next) => {
 
     // Get design requests
     const designRequests = await knex('designRequest')
-      .select('id', 'designTitle', 'mockupPreviewUrl', 'designFileUrl', 'status', 'createdAt', 'updatedAt')
+      .select('id', 'designTitle', 'mockupPreviewUrl', 'designFileUrl', 'status', 'createdAt', 'updatedAt', 'printTechnique', 'printPosition', 'printSize', 'colorPreferences', 'sizeBreakdown')
       .where('orderId', id);
 
     // Get order status history for cancellation reasons
@@ -791,7 +799,7 @@ const getDesignRequestDetail = async (req, res, next) => {
 const updateDesignRequestStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, comments, estimatedPrice, hppPrice } = req.body;
+    const { status, comments, estimatedPrice, hppPrice, mockupPreviewUrl } = req.body;
 
     if (!status) throw new ValidationError('Status is required');
 
@@ -800,9 +808,14 @@ const updateDesignRequestStatus = async (req, res, next) => {
 
     const updated = await designRequestService.updateStatus(id, status);
     
-    // Save reject reason to request table
-    if (status === 'REJECTED' && comments) {
+    // Save reject reason or revision notes to request table
+    if ((status === 'REJECTED' || status === 'REVISION_REQUESTED') && comments) {
       await require('../config/knex')('designRequest').where({ id }).update({ rejectReason: comments });
+    }
+
+    // Update mockup if admin provides a final override
+    if (mockupPreviewUrl && status === 'APPROVED') {
+      await require('../config/knex')('designRequest').where({ id }).update({ mockupPreviewUrl });
     }
 
     // Save feedback if provided
@@ -812,13 +825,14 @@ const updateDesignRequestStatus = async (req, res, next) => {
     }
     
     if (hppPrice && estimatedPrice) {
-      const margin = parseInt(estimatedPrice) - parseInt(hppPrice);
-      const marginPercent = Math.round((margin / parseInt(estimatedPrice)) * 100);
-      fullComment += `\nModal (HPP): Rp ${parseInt(hppPrice).toLocaleString('id-ID')}\nMargin: Rp ${margin.toLocaleString('id-ID')} (${marginPercent}%)`;
+      // Save to DB but DO NOT append to fullComment to avoid leaking sensitive data to the customer
+      await require('../config/knex')('designRequest').where({ id }).update({ 
+        estimatedPrice: parseInt(estimatedPrice)
+      }).catch(() => {});
     }
 
     if (fullComment) {
-      await knex('designFeedback').insert({
+      await require('../config/knex')('designFeedback').insert({
         id: require('cuid')(),
         designRequestId: id,
         designStaffId: req.user.id,
@@ -826,6 +840,35 @@ const updateDesignRequestStatus = async (req, res, next) => {
         feedbackText: fullComment,
         createdAt: new Date(),
       });
+    }
+
+    // If status changed to APPROVED, REJECTED, or CANCELLED, check if all siblings are processed
+    if (['APPROVED', 'REJECTED', 'CANCELLED'].includes(status)) {
+      const knex = require('../config/knex');
+      const siblings = await knex('designRequest').where('orderId', request.orderId);
+      
+      const allProcessed = siblings.every(req => 
+        ['APPROVED', 'REJECTED', 'CANCELLED'].includes(req.status)
+      );
+
+      if (allProcessed) {
+        // Calculate new total amount for the order based ONLY on APPROVED designs
+        const newTotalAmount = siblings
+          .filter(req => req.status === 'APPROVED')
+          .reduce((sum, req) => {
+            const estPrice = parseFloat(req.estimatedPrice) || 0;
+            return sum + estPrice;
+          }, 0);
+
+        // Update the parent order
+        await knex('order')
+          .where('id', request.orderId)
+          .update({
+            totalAmount: newTotalAmount,
+            status: 'CONFIRMED',
+            updatedAt: new Date()
+          });
+      }
     }
 
     // Try to send email notification to customer
@@ -858,13 +901,12 @@ const updateDesignRequestStatus = async (req, res, next) => {
               </div>` : ''}
               ${status === 'APPROVED' ? `
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                  <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/account?tab=sablon" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                   Lanjutkan Pembayaran
                 </a>
               </div>
               <p>Silakan klik tombol di atas untuk melanjutkan pembayaran pesanan Anda.</p>
-              ` : `
-              <p style="margin-top: 20px;">Silakan cek dashboard akun Anda untuk melihat detailnya.</p>
+              ` : `<p style="margin-top: 20px;">Silakan cek <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/account?tab=sablon" style="color: #2563eb; font-weight: bold;">Riwayat Sablon</a> Anda untuk melihat detailnya.</p>
               `}
             </div>
           `
@@ -888,7 +930,7 @@ const updateDesignRequestStatus = async (req, res, next) => {
         userId: request.userId,
         type: `DESIGN_REQUEST_${status}`,
         title: subjectStatus,
-        message: `Permintaan desain "${request.designTitle}" Anda sekarang berstatus ${status.replace('_', ' ')}. ${fullComment ? 'Ada catatan dari Admin.' : ''}`
+        message: `Permintaan desain "${request.designTitle}" Anda sekarang berstatus ${status.replace('_', ' ')}. ${fullComment ? 'Ada catatan dari Admin.' : ''}${status === 'APPROVED' ? ' Silakan menuju halaman Riwayat Sablon untuk melanjutkan pembayaran.' : ''}`
       });
     } catch (err) {
       console.error('Failed to queue customer notification:', err);
@@ -1307,19 +1349,31 @@ const requestPickup = async (req, res, next) => {
       .select('orderItem.*', 'product.productName', 'product.weight')
       .where('orderId', id);
 
-    let totalWeight = order.actualWeight || 0;
+    let totalWeight = Number(req.body.actualWeight) || order.actualWeight || 0;
     
-    const items = orderItems.map(item => {
+    let items = orderItems.map(item => {
       const itemWeight = item.weight || 250;
-      if (!order.actualWeight) totalWeight += itemWeight * item.quantity;
+      if (!order.actualWeight && !req.body.actualWeight) totalWeight += itemWeight * item.quantity;
       return {
-        name: item.productName,
+        name: item.productName || "Product",
         description: `Variant: ${item.variantId || 'Default'}`,
-        value: item.unitPrice,
+        value: item.unitPrice || 100000,
         weight: itemWeight,
-        quantity: item.quantity
+        quantity: item.quantity || 1
       };
     });
+
+    if (items.length === 0) {
+      items = [
+        {
+          name: `Custom Sablon Order`,
+          description: `Pesanan #${order.orderNumber || id}`,
+          value: order.totalAmount || 100000,
+          weight: totalWeight || 250,
+          quantity: 1
+        }
+      ];
+    }
 
     if (totalWeight === 0) totalWeight = 250;
 
@@ -1351,16 +1405,36 @@ const requestPickup = async (req, res, next) => {
       else if (lowerCourier.includes('jne')) mappedCourier = 'jne';
       else if (lowerCourier.includes('anteraja')) mappedCourier = 'anteraja';
       else if (lowerCourier.includes('ninja')) mappedCourier = 'ninja';
+      else if (lowerCourier.includes('gojek')) mappedCourier = 'gojek';
+      else if (lowerCourier.includes('grab')) mappedCourier = 'grab';
+      else if (lowerCourier.includes('idexpress')) mappedCourier = 'idexpress';
+      else if (lowerCourier.includes('lion')) mappedCourier = 'lion';
+      else if (lowerCourier.includes('paxel')) mappedCourier = 'paxel';
+      else if (lowerCourier.includes('pos')) mappedCourier = 'pos';
+      else if (lowerCourier.includes('sap')) mappedCourier = 'sap';
+      else if (lowerCourier.includes('tiki')) mappedCourier = 'tiki';
+      else if (lowerCourier.includes('wahana')) mappedCourier = 'wahana';
       else mappedCourier = lowerCourier.split(' ')[0].trim();
       
+      let rawType = '';
+      if (lowerCourier.includes('-')) {
+        rawType = lowerCourier.split('-')[1].trim().replace(/\s+/g, '_');
+      }
+
       if (lowerCourier.includes('ez')) mappedType = 'ez';
-      else if (lowerCourier.includes('reg')) mappedType = 'reg';
-      else if (lowerCourier.includes('best')) mappedType = 'best';
+      else if (lowerCourier.includes('reg') && !lowerCourier.includes('reg_pack') && !lowerCourier.includes('reg_half')) mappedType = 'reg';
+      else if (lowerCourier.includes('best') || lowerCourier.includes('besok sampai')) mappedType = 'best';
       else if (lowerCourier.includes('yes')) mappedType = 'yes';
       else if (lowerCourier.includes('oke')) mappedType = 'oke';
-      else if (lowerCourier.includes('sameday')) mappedType = 'sameday';
+      else if (lowerCourier.includes('sameday') || lowerCourier.includes('same day')) mappedType = 'same_day';
       else if (lowerCourier.includes('instan')) mappedType = 'instant';
-      else if (lowerCourier.includes('-')) mappedType = lowerCourier.split('-')[1].trim();
+      else if (rawType) mappedType = rawType;
+      
+      // Override for specific couriers that have strict Biteship service types
+      if (mappedCourier === 'ninja') mappedType = 'standard';
+      if (mappedCourier === 'pos' && mappedType === 'same_day') mappedType = 'sameday'; // POS uses sameday
+      if (mappedCourier === 'wahana') mappedType = 'deno'; // Wahana only uses deno
+      if (mappedCourier === 'paxel') mappedType = 'medium'; // Safe fallback for paxel
     }
 
     const shippingService = require('../services/shippingService');
@@ -1387,23 +1461,34 @@ const requestPickup = async (req, res, next) => {
       updatedAt: new Date()
     });
 
-    const trackingId = require('cuid')();
-    await knex('orderTracking').insert({
-      id: trackingId,
-      orderId: id,
-      trackingNumber,
-      courier: order.shippingCourier,
-      status: 'SHIPPED',
-      estimatedDelivery: null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
+    let existingTracking = await knex('orderTracking').where('orderId', id).first();
+    let trackingId;
+    if (existingTracking) {
+      trackingId = existingTracking.id;
+      await knex('orderTracking').where('id', trackingId).update({
+        trackingNumber,
+        carrier: order.shippingCourier,
+        status: 'SHIPPED',
+        updatedAt: new Date()
+      });
+    } else {
+      trackingId = require('cuid')();
+      await knex('orderTracking').insert({
+        id: trackingId,
+        orderId: id,
+        trackingNumber,
+        carrier: order.shippingCourier,
+        status: 'SHIPPED',
+        estimatedDeliveryDate: null,
+        updatedAt: new Date()
+      });
+    }
     
     await knex('trackingHistory').insert({
       id: require('cuid')(),
       trackingId,
       status: 'SHIPPED',
-      description: 'Kurir telah dipesan, menunggu penjemputan (pickup)',
+      notes: 'Kurir telah dipesan, menunggu penjemputan (pickup)',
       timestamp: new Date()
     });
     

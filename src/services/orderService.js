@@ -4,7 +4,7 @@ const activityService = require('./activityService');
 
 const orderService = {
   // Ambil semua order dengan filter dan pagination
-  async findMany({ page = 1, limit = 10, userId, status } = {}) {
+  async findMany({ page = 1, limit = 10, userId, status, excludeStatus } = {}) {
     const skip = (page - 1) * limit;
     let query = knex('order');
 
@@ -16,32 +16,46 @@ const orderService = {
       query = query.where('order.status', status);
     }
 
+    if (excludeStatus && excludeStatus.length > 0) {
+      query = query.whereNotIn('order.status', excludeStatus);
+    }
+
     const orders = await query
-      .leftJoin('payment', 'order.id', 'payment.orderId')
-      .leftJoin('orderTracking', 'order.id', 'orderTracking.orderId')
       .select(
-        'order.id',
-        'order.userId',
-        'order.orderNumber',
-        'order.status',
-        'order.totalAmount as totalPrice',
-        'payment.status as paymentStatus',
-        'order.deliveryAddress',
-        'order.shippingCost',
-        'order.shippingCourier',
-        'orderTracking.trackingNumber',
-        'order.createdAt',
-        'order.updatedAt'
+        'id',
+        'userId',
+        'orderNumber',
+        'status',
+        'totalAmount as totalPrice',
+        'deliveryAddress',
+        'shippingCost',
+        'shippingCourier',
+        'createdAt',
+        'updatedAt'
       )
-      .orderBy('order.createdAt', 'desc')
+      .orderBy('createdAt', 'desc')
       .limit(limit)
       .offset(skip);
+
+    if (orders.length > 0) {
+      const orderIds = orders.map(o => o.id);
+      const payments = await knex('payment').whereIn('orderId', orderIds);
+      const trackings = await knex('orderTracking').whereIn('orderId', orderIds);
+      
+      for (const order of orders) {
+        const orderPayments = payments.filter(p => p.orderId === order.id).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+        order.paymentStatus = orderPayments.length > 0 ? orderPayments[0].status : null;
+        
+        const orderTracking = trackings.find(t => t.orderId === order.id);
+        order.trackingNumber = orderTracking ? orderTracking.trackingNumber : null;
+      }
+    }
 
     return orders;
   },
 
   // Hitung total order
-  async count({ userId, status } = {}) {
+  async count({ userId, status, excludeStatus } = {}) {
     let query = knex('order');
 
     if (userId) {
@@ -50,6 +64,10 @@ const orderService = {
 
     if (status) {
       query = query.where('status', status);
+    }
+
+    if (excludeStatus && excludeStatus.length > 0) {
+      query = query.whereNotIn('status', excludeStatus);
     }
 
     const result = await query.count('* as count').first();
@@ -66,13 +84,17 @@ const orderService = {
         'order.userId',
         'order.orderNumber',
         'order.status',
+        'order.totalAmount',
         'order.totalAmount as totalPrice',
+        'order.paymentOption',
+        'order.totalItemPrice',
         'payment.status as paymentStatus',
         'payment.method as paymentMethod',
         'payment.qrisUrl as paymentUrl',
         'order.deliveryAddress',
         'order.shippingCost',
         'order.shippingCourier',
+        'order.refundDetails',
         knex.raw('COALESCE(orderTracking.trackingNumber, order.trackingNumber) as trackingNumber'),
         'order.createdAt',
         'order.updatedAt'
@@ -101,7 +123,10 @@ const orderService = {
         'order.userId',
         'order.orderNumber',
         'order.status',
+        'order.totalAmount',
         'order.totalAmount as totalPrice',
+        'order.paymentOption',
+        'order.totalItemPrice',
         'payment.status as paymentStatus',
         'order.deliveryAddress',
         'order.shippingCost',
@@ -158,7 +183,7 @@ const orderService = {
           id: require('cuid')(),
           orderId: id,
           trackingNumber,
-          createdAt: new Date(),
+          updatedAt: new Date(),
         });
       }
     });
@@ -205,7 +230,7 @@ const orderService = {
             id: require('cuid')(),
             orderId: id,
             trackingNumber: data.trackingNumber,
-            createdAt: new Date(),
+            updatedAt: new Date(),
           });
         }
       }
@@ -274,7 +299,7 @@ const orderService = {
         id: require('cuid')(),
         orderId: id,
         trackingNumber,
-        createdAt: new Date(),
+        updatedAt: new Date(),
       });
     }
 
@@ -296,7 +321,6 @@ const orderService = {
   // Ambil order untuk user tertentu dengan status tertentu
   async findUserOrders(userId, status = null) {
     let query = knex('order')
-      .leftJoin('payment', 'order.id', 'payment.orderId')
       .where('order.userId', userId);
 
     if (status) {
@@ -309,7 +333,6 @@ const orderService = {
         'order.orderNumber',
         'order.status',
         'order.totalAmount as totalPrice',
-        'payment.status as paymentStatus',
         'order.createdAt'
       )
       .orderBy('order.createdAt', 'desc');

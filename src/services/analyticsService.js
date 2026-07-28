@@ -28,6 +28,8 @@ const getFulfillmentAnalytics = async (filters = {}) => {
     summary: {
       totalOrders,
       totalRevenue: orderMetrics.totalRevenue,
+      sablonRevenue: orderMetrics.sablonRevenue,
+      retailRevenue: orderMetrics.retailRevenue,
       averageOrderValue: orderMetrics.averageOrderValue,
       completionRate: calculateCompletionRate(ordersByStatus),
       averageFulfillmentDays: averageFulfillmentTime,
@@ -119,12 +121,16 @@ const getOrderMetrics = async (query) => {
     .select(
       knex.raw('SUM(totalAmount) as totalRevenue'),
       knex.raw('AVG(totalAmount) as avgAmount'),
+      knex.raw("SUM(CASE WHEN orderNumber LIKE 'SAB-%' THEN totalAmount ELSE 0 END) as sablonRevenue"),
+      knex.raw("SUM(CASE WHEN orderNumber LIKE 'ORD-%' THEN totalAmount ELSE 0 END) as retailRevenue"),
       knex.raw('COUNT(*) as count')
     )
     .first();
 
   return {
     totalRevenue: result?.totalRevenue || 0,
+    sablonRevenue: result?.sablonRevenue || 0,
+    retailRevenue: result?.retailRevenue || 0,
     averageOrderValue: Math.round((result?.avgAmount || 0) * 100) / 100,
   };
 };

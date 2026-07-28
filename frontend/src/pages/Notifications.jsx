@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, Check, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import useAuthStore from '../store/authStore';
 import PageTransition from '../components/PageTransition';
@@ -15,6 +16,21 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
+  const navigate = useNavigate();
+
+  const handleNotificationClick = (notif) => {
+    if (!notif.isRead) {
+      handleMarkAsRead(notif.id);
+    }
+    
+    if (notif.type) {
+      if (notif.type.startsWith('DESIGN_REQUEST')) {
+        navigate('/account?tab=sablon');
+      } else if (notif.type === 'SHIPPED' || notif.type === 'DELIVERED' || notif.type.startsWith('ORDER')) {
+        navigate('/account?tab=orders');
+      }
+    }
+  };
 
   const fetchNotifications = async (pageNum = 1) => {
     try {
@@ -104,7 +120,8 @@ export default function Notifications() {
             {notifications.map(notif => (
               <div 
                 key={notif.id} 
-                className={`p-6 rounded-xl border transition-all ${!notif.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 shadow-sm' : 'bg-white dark:bg-black border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'}`}
+                onClick={() => handleNotificationClick(notif)}
+                className={`p-6 rounded-xl border transition-all cursor-pointer hover:shadow-md ${!notif.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 shadow-sm' : 'bg-white dark:bg-black border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'}`}
               >
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex-1">
@@ -129,7 +146,10 @@ export default function Notifications() {
                   
                   {!notif.isRead && (
                     <button 
-                      onClick={() => handleMarkAsRead(notif.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkAsRead(notif.id);
+                      }}
                       className="flex-shrink-0 text-[10px] uppercase tracking-widest font-bold text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-2"
                       title="Mark as read"
                     >

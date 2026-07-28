@@ -4,7 +4,7 @@ const { BadRequestError, NotFoundError, ForbiddenError } = require('../middlewar
 // Kustomer: Membuat ulasan
 const createReview = async (req, res, next) => {
   try {
-    const { productId, orderId, rating, comment, imageUrl } = req.body;
+    const { productId, orderId, rating, comment, imageUrl, itemType } = req.body;
     const userId = req.user.id; // Asumsikan user id dari auth middleware
 
     if (!productId || !orderId || !rating || !comment) {
@@ -31,12 +31,27 @@ const createReview = async (req, res, next) => {
     }
 
     // Pastikan produk ada di dalam order
-    const orderItem = await knex('orderItem')
-      .where('orderId', orderId)
-      .andWhere('productId', productId)
-      .first();
+    let isItemValid = false;
 
-    if (!orderItem) {
+    if (itemType === 'CUSTOM_SABLON') {
+      // Fast path: langsung validasi ke tabel designRequest
+      const sablonReq = await knex('designRequest')
+        .where('orderId', orderId)
+        .andWhere('id', productId) // ID unik dari designRequest
+        .first();
+      
+      if (sablonReq) isItemValid = true;
+    } else {
+      // Default: validasi ke tabel orderItem (retail)
+      const orderItem = await knex('orderItem')
+        .where('orderId', orderId)
+        .andWhere('productId', productId)
+        .first();
+
+      if (orderItem) isItemValid = true;
+    }
+
+    if (!isItemValid) {
       throw new BadRequestError('Produk tidak ditemukan dalam pesanan Anda');
     }
 
@@ -50,9 +65,16 @@ const createReview = async (req, res, next) => {
       throw new BadRequestError('Anda sudah memberikan ulasan untuk produk ini pada pesanan ini');
     }
 
-    // 2. Tentukan Poin Insentif (1 Poin = Rp 10 -> 500 Poin = Rp 5000, 100 Poin = Rp 1000)
-    // Sesuai masukan QC:
-    const pointsAwarded = imageUrl ? 500 : 100;
+    // 2. Tentukan Poin Insentif
+    // Ambil konfigurasi poin ulasan dari database
+    const textSetting = await knex('store_settings').where('settingKey', 'review_text_points').first();
+    const imageSetting = await knex('store_settings').where('settingKey', 'review_image_points').first();
+    
+    const textPoints = textSetting && !isNaN(Number(textSetting.settingValue)) ? Number(textSetting.settingValue) : 100;
+    const imagePoints = imageSetting && !isNaN(Number(imageSetting.settingValue)) ? Number(imageSetting.settingValue) : 500;
+
+    // Kalkulasi poin
+    const pointsAwarded = imageUrl ? imagePoints : textPoints;
 
     // 3. Simpan Ulasan
     await knex('product_review').insert({

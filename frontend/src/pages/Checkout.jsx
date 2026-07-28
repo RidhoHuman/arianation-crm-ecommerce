@@ -31,6 +31,8 @@ export default function Checkout() {
   const cartItems = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
   const setLoading = useUIStore((s) => s.setLoading);
+  const isLoading = useUIStore((s) => s.isLoading);
+  const language = useUIStore((s) => s.language) || 'ID';
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1); // 1: Choose, 2: Address, 2.5: Shipping, 3: Review, 4: Success
@@ -40,7 +42,14 @@ export default function Checkout() {
   const [createdOrderId, setCreatedOrderId] = useState(null);
   const [usePoints, setUsePoints] = useState(false);
   const [profile, setProfile] = useState(null);
-  const pointsValue = user?.rewardPoints ? user.rewardPoints * 1000 : 0;
+  const [exchangeRate, setExchangeRate] = useState(10);
+  const [maxDiscountPercent, setMaxDiscountPercent] = useState(50);
+  const [tierDiscounts, setTierDiscounts] = useState({
+    SILVER: 5,
+    GOLD: 10,
+    PLATINUM: 15
+  });
+  const pointsValue = user?.rewardPoints ? user.rewardPoints * exchangeRate : 0;
 
   // NEW STATES FOR BITESHIP
   const [shippingRates, setShippingRates] = useState([]);
@@ -57,6 +66,22 @@ export default function Checkout() {
         .then(res => setProfile(res.data?.data))
         .catch(err => console.error('Failed to fetch profile', err));
     }
+    api.get('/settings').then(res => {
+      if (res.data?.success) {
+        const s = res.data.data;
+        if (s.points_exchange_rate && !isNaN(Number(s.points_exchange_rate))) {
+          setExchangeRate(Number(s.points_exchange_rate));
+        }
+        if (s.max_points_discount_percentage && !isNaN(Number(s.max_points_discount_percentage))) {
+          setMaxDiscountPercent(Number(s.max_points_discount_percentage));
+        }
+        setTierDiscounts({
+          SILVER: s.tier_silver_discount && !isNaN(Number(s.tier_silver_discount)) ? Number(s.tier_silver_discount) : 5,
+          GOLD: s.tier_gold_discount && !isNaN(Number(s.tier_gold_discount)) ? Number(s.tier_gold_discount) : 10,
+          PLATINUM: s.tier_platinum_discount && !isNaN(Number(s.tier_platinum_discount)) ? Number(s.tier_platinum_discount) : 15,
+        });
+      }
+    }).catch(e => console.error('Failed to fetch settings', e));
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -109,9 +134,9 @@ export default function Checkout() {
   const cartTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   let tierDiscountPercentage = 0;
-  if (profile?.currentTier === 'SILVER') tierDiscountPercentage = 5;
-  else if (profile?.currentTier === 'GOLD') tierDiscountPercentage = 10;
-  else if (profile?.currentTier === 'PLATINUM') tierDiscountPercentage = 15;
+  if (profile?.currentTier && tierDiscounts[profile.currentTier]) {
+    tierDiscountPercentage = tierDiscounts[profile.currentTier];
+  }
 
   const tierDiscountAmount = Math.floor(cartTotal * (tierDiscountPercentage / 100));
   let finalTotal = Math.max(0, cartTotal - tierDiscountAmount);
@@ -137,7 +162,10 @@ export default function Checkout() {
 
   let pointsDeducted = 0;
   if (usePoints) {
-    if (pointsValue > finalTotal) {
+    const maxAllowed = Math.floor(finalTotal * (maxDiscountPercent / 100));
+    if (pointsValue > maxAllowed) {
+      pointsDeducted = maxAllowed;
+    } else if (pointsValue > finalTotal) {
       pointsDeducted = finalTotal;
     } else {
       pointsDeducted = pointsValue;
@@ -290,11 +318,11 @@ export default function Checkout() {
                     {t('signIn')}
                   </button>
                   <button
-                      onClick={() => navigate('/track-order')}
-                      className="w-full sm:w-auto bg-aria-charcoal dark:bg-white text-white dark:text-black py-4 px-8 text-sm font-medium tracking-widest uppercase hover:bg-aria-maroon transition-colors"
-                    >
-                      {language === 'EN' ? 'Track Order & Pay' : 'Lacak Pesanan & Bayar'}
-                    </button>
+                    onClick={() => navigate('/track-order')}
+                    className="w-full border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-4 text-sm font-medium tracking-[0.15em] uppercase hover:border-aria-charcoal dark:hover:border-white transition-colors"
+                  >
+                    {language === 'EN' ? 'Track Order & Pay' : 'Lacak Pesanan & Bayar'}
+                  </button>
                   <div className="relative my-8">
                     <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-gray-800"></div></div>
                     <div className="relative flex justify-center text-xs"><span className="bg-white dark:bg-black px-4 text-gray-400 uppercase tracking-widest">{t('or')}</span></div>
@@ -446,9 +474,16 @@ export default function Checkout() {
                   </div>
                 )}
                 {usePoints && (
-                  <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-maroon dark:text-yellow-400 pt-2">
-                    <span>Aria Points</span>
-                    <span>- Rp {pointsDeducted.toLocaleString('id-ID')}</span>
+                  <div className="flex flex-col gap-1 pt-2">
+                    <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-maroon dark:text-yellow-400">
+                      <span>Aria Points</span>
+                      <span>- Rp {pointsDeducted.toLocaleString('id-ID')}</span>
+                    </div>
+                    {pointsValue > Math.floor((cartTotal - tierDiscountAmount - voucherDiscountAmount) * (maxDiscountPercent / 100)) && (
+                      <span className="text-[10px] text-gray-500 italic text-right">
+                        Maksimal diskon poin {maxDiscountPercent}%
+                      </span>
+                    )}
                   </div>
                 )}
                 
@@ -527,7 +562,7 @@ export default function Checkout() {
                           🌟 {t('points')}
                         </h3>
                         <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider">
-                          {t('usePoints', { points: user.rewardPoints, value: (user.rewardPoints * 1000).toLocaleString('id-ID') })}
+                          {t('usePoints', { points: user.rewardPoints, value: (user.rewardPoints * exchangeRate).toLocaleString('id-ID') })}
                         </p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer scale-90">
@@ -636,9 +671,16 @@ export default function Checkout() {
                   </div>
                 )}
                 {usePoints && (
-                  <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-maroon dark:text-yellow-400 pt-2">
-                    <span>{t('points')}</span>
-                    <span>- Rp {pointsDeducted.toLocaleString('id-ID')}</span>
+                  <div className="flex flex-col gap-1 pt-2">
+                    <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-maroon dark:text-yellow-400">
+                      <span>{t('points')}</span>
+                      <span>- Rp {pointsDeducted.toLocaleString('id-ID')}</span>
+                    </div>
+                    {pointsValue > Math.floor((cartTotal - tierDiscountAmount - voucherDiscountAmount) * (maxDiscountPercent / 100)) && (
+                      <span className="text-[10px] text-gray-500 italic text-right">
+                        Maksimal diskon poin {maxDiscountPercent}%
+                      </span>
+                    )}
                   </div>
                 )}
                 
@@ -781,9 +823,10 @@ export default function Checkout() {
                         setOrderError(e?.response?.data?.message || 'Failed to process order.');
                       }
                     }}
-                    className="w-2/3 bg-aria-charcoal dark:bg-white text-white dark:text-black py-4 text-sm font-medium tracking-widest uppercase hover:bg-aria-maroon transition-colors"
+                    disabled={isLoading}
+                    className={`w-2/3 py-4 text-sm font-medium tracking-widest uppercase transition-colors ${isLoading ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-aria-charcoal dark:bg-white text-white dark:text-black hover:bg-aria-maroon'}`}
                   >
-                    Place Order
+                    {isLoading ? 'Processing...' : 'Place Order'}
                   </button>
                 </div>
               </div>
@@ -849,6 +892,13 @@ export default function Checkout() {
                       </button>
                     </div>
                     {voucherError && <p className="text-red-500 text-xs mt-2 font-medium">{voucherError}</p>}
+                  </div>
+                )}
+                
+                {!isSablonOrder && selectedShipping && (
+                  <div className="flex justify-between text-xs font-semibold uppercase tracking-widest text-aria-charcoal dark:text-white pt-2">
+                    <span>Ongkos Kirim ({selectedShipping.courier_name})</span>
+                    <span>+ Rp {selectedShipping.price.toLocaleString('id-ID')}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-lg font-bold uppercase tracking-widest border-t border-gray-200 dark:border-gray-800 pt-4 mt-4 dark:text-white">

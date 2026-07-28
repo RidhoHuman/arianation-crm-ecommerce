@@ -14,7 +14,10 @@ import Breadcrumb from '../components/Breadcrumb';
 import useCategoryStore from '../store/categoryStore';
 import usePrintTechniqueStore from '../store/printTechniqueStore';
 import { useTranslation, Trans } from 'react-i18next';
-
+import SizeChartModal from '../components/SizeChartModal';
+import { toast } from 'react-toastify';
+import SablonCartDrawer from '../components/SablonCartDrawer';
+import { ShoppingBag } from 'lucide-react';
 const ProductImageCarousel = ({ product, className = "w-12 h-12 object-cover rounded-md" }) => {
   let allImages = [];
 
@@ -133,6 +136,7 @@ export default function DesignRequest() {
   const { techniques: printTechniques, fetchTechniquesPublic } = usePrintTechniqueStore();
 
   const [portfolioItems, setPortfolioItems] = useState([]);
+  const [showSizeModal, setShowSizeModal] = useState(false);
 
   useEffect(() => {
     const fetchPortfolio = async () => {
@@ -152,6 +156,7 @@ export default function DesignRequest() {
   const [customProducts, setCustomProducts] = useState([]);
   const [faqItems, setFaqItems] = useState(FAQ_ITEMS);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [storeSettings, setStoreSettings] = useState({});
 
   const fetchCustomProducts = React.useCallback(async () => {
     try {
@@ -172,11 +177,13 @@ export default function DesignRequest() {
 
     const fetchData = async () => {
       try {
-        const [faqRes] = await Promise.all([
-          api.get('/design-info/faqs').catch(() => ({ data: {} }))
+        const [faqRes, settingsRes] = await Promise.all([
+          api.get('/design-info/faqs').catch(() => ({ data: {} })),
+          api.get('/settings').catch(() => ({ data: { data: {} } }))
         ]);
 
         if (faqRes.data?.success && faqRes.data.data.length > 0) setFaqItems(faqRes.data.data);
+        if (settingsRes.data?.data) setStoreSettings(settingsRes.data.data);
 
       } catch (error) {
         console.error('Failed to fetch data', error);
@@ -187,6 +194,8 @@ export default function DesignRequest() {
     fetchData();
   }, [fetchCategories, fetchCustomProducts, fetchTechniquesPublic]);
 
+  const [designMethod, setDesignMethod] = useState('canvas'); // 'canvas' | 'upload'
+  const [mockupFile, setMockupFile] = useState(null);
   const [file, setFile] = useState(null); // Deprecated, kept for submit compatibility
   const [previewUrl, setPreviewUrl] = useState(null);
   const mockupRef = React.useRef(null);
@@ -202,18 +211,42 @@ export default function DesignRequest() {
 
   // Derive categories dynamically based on customProducts and global categories store
   const sablonCategories = React.useMemo(() => {
-    const defaultCats = ['Pakaian', 'Tas & Merchandise', 'Packaging'];
-    if (!customProducts.length || !categories.length) return defaultCats;
+    const defaultOrder = ['Pakaian', 'Packaging', 'Tas & Merchandise'];
+    if (!customProducts.length || !categories.length) return defaultOrder;
+    
     const usedCategoryIds = [...new Set(customProducts.map(p => p.categoryId))];
     const catNames = usedCategoryIds.map(id => categories.find(c => c.id === id)?.categoryName).filter(Boolean);
-    if (catNames.length === 0) return defaultCats;
-    // Sort to keep 'Pakaian' first if it exists
-    return catNames.sort((a, b) => a === 'Pakaian' ? -1 : b === 'Pakaian' ? 1 : a.localeCompare(b));
+    if (catNames.length === 0) return defaultOrder;
+    
+    // Sort based on the strict defaultOrder index to prevent UI swapping left/right
+    return [...new Set(catNames)].sort((a, b) => {
+      const indexA = defaultOrder.indexOf(a);
+      const indexB = defaultOrder.indexOf(b);
+      // If both are in defaultOrder, sort by their position
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      // If only one is in defaultOrder, prioritize it
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      // Otherwise fallback to alphabetical for any new dynamic categories
+      return a.localeCompare(b);
+    });
   }, [customProducts, categories]);
 
   const [activeCategory, setActiveCategory] = useState('Pakaian');
   const [specModalProduct, setSpecModalProduct] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartDraftCount, setCartDraftCount] = useState(0);
+  const [submitLoading, setSubmitLoading] = useState(false);
+
+  // Fetch initial draft count when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      api.get('/orders/custom-sablon/draft')
+        .then(res => setCartDraftCount(res.data.data?.length || 0))
+        .catch(() => {});
+    }
+  }, [isAuthenticated]);
 
 
 
@@ -300,17 +333,38 @@ export default function DesignRequest() {
     deadline: z.string().min(1, t.form.errors.deadline),
     productTypeForSablon: z.string().min(1, t.form.errors.material),
     quantity: z.number().min(1, t.form.errors.qtyMin),
-    sizeBreakdown: z.string().min(1, t.form.errors.sizes),
+    sizeBreakdown: z.string().optional(),
     colorPreferences: z.string().min(2, t.form.errors.color),
-    printPosition: z.string().min(1, t.form.errors.pos),
+    printPosition: z.string().optional(),
+    printSize: z.string().optional(),
     printTechnique: z.string().min(1, t.form.errors.tech),
-    numberOfColors: z.number().optional(),
+    numberOfColors: z.coerce.number().optional(),
     picName: z.string().min(2, t.form.errors.pic),
     whatsappNumber: z.string().min(9, t.form.errors.wa),
     shippingAddress: z.string().min(10, t.form.errors.address),
     shippingNotes: z.string().optional(),
     designDescription: z.string().optional(),
   }).superRefine((data, ctx) => {
+    // SOP 1: Pakaian requires sizes, printSize, and printPosition
+    if (activeCategory === 'Pakaian') {
+      if (!data.sizeBreakdown || data.sizeBreakdown.trim() === '') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: t.form.errors.sizes || "Rincian ukuran wajib diisi (misal: S:3, M:5)", path: ['sizeBreakdown'] });
+      }
+      if (!data.printSize || data.printSize.trim() === '') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: i18n.language === 'EN' ? 'Print size is required' : 'Ukuran sablon wajib dipilih', path: ['printSize'] });
+      }
+      if (!data.printPosition || data.printPosition.trim() === '') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: t.form.errors.pos || "Posisi sablon wajib dipilih", path: ['printPosition'] });
+      }
+    } 
+    // SOP 2: Tas & Merchandise requires printPosition
+    else if (activeCategory === 'Tas & Merchandise') {
+      if (!data.printPosition || data.printPosition.trim() === '') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: t.form.errors.pos || "Posisi sablon wajib dipilih", path: ['printPosition'] });
+      }
+    }
+    // SOP 3: Packaging has no required printSize/printPosition (hardcoded on submit)
+
     const isManual = data.printTechnique === 'Plastisol' || data.printTechnique === 'Rubber';
     if (isManual && data.quantity < 12) {
       ctx.addIssue({
@@ -330,7 +384,7 @@ export default function DesignRequest() {
         });
       }
     }
-  }), [t, printTechniques]);
+  }), [t, i18n, printTechniques, activeCategory]);
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, setValue } = useForm({
     resolver: zodResolver(designSchema),
@@ -347,6 +401,12 @@ export default function DesignRequest() {
   const currentColor = watch('colorPreferences');
   const printTechnique = watch('printTechnique');
   const selectedTech = React.useMemo(() => printTechniques.find(t => t.name === printTechnique), [printTechniques, printTechnique]);
+
+  useEffect(() => {
+    if (selectedTech?.pricingType === 'area_based' || selectedTech?.pricingType === 'fixed') {
+      setValue('numberOfColors', 1);
+    }
+  }, [selectedTech, setValue]);
 
   useEffect(() => {
     // Dynamically get products for current category
@@ -460,13 +520,24 @@ export default function DesignRequest() {
 
   const onSubmit = async (data) => {
     if (!isAuthenticated) return;
+    
+    // --- ENFORCE DEFAULT SOP VALUES FOR NON-APPAREL CATEGORIES ---
+    if (activeCategory === 'Packaging') {
+      data.printSize = 'Proporsional';
+      data.printPosition = 'Tengah (Center Aligned)';
+      data.sizeBreakdown = `All Size: ${data.quantity}`;
+    } else if (activeCategory === 'Tas & Merchandise') {
+      data.printSize = 'Proporsional';
+      data.sizeBreakdown = `All Size: ${data.quantity}`;
+    }
+
     if (!file && !Object.values(designs).some(d => d.file)) {
       setFileError(i18n.language === 'EN' ? 'Design file is required' : 'File desain wajib diunggah');
       return;
     }
 
     try {
-      setLoading(true);
+      setSubmitLoading(true);
       setSubmitError('');
 
       const formData = new FormData();
@@ -489,27 +560,62 @@ export default function DesignRequest() {
         formData.append('designFile', file);
       }
 
-      if (mockupRef.current) {
-        try {
-          const blob = await htmlToImage.toBlob(mockupRef.current, { quality: 0.95 });
-          if (blob) {
-            formData.append('mockupPreview', blob, 'mockup-preview.jpg');
+      if (designMethod === 'upload') {
+        if (mockupFile) formData.append('mockupPreview', mockupFile);
+      } else {
+        if (mockupRef.current) {
+          try {
+            const blob = await htmlToImage.toBlob(mockupRef.current, { quality: 0.95 });
+            if (blob) {
+              formData.append('mockupPreview', blob, 'mockup-preview.jpg');
+            }
+          } catch (snapErr) {
+            console.error('Error snapping mockup:', snapErr);
           }
-        } catch (snapErr) {
-          console.error('Error snapping mockup:', snapErr);
         }
       }
 
-      await api.post('/orders/custom-sablon', formData, {
+      await api.post('/orders/custom-sablon/draft', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      navigate('/account?tab=orders');
+      toast.success(i18n.language === 'EN' ? 'Design added to cart!' : 'Desain berhasil masuk keranjang!');
+      setCartDraftCount(prev => prev + 1);
+      
+      // Magic UX: Reset only specific states, keep canvas intact
+      setSizes({ S: 0, M: 0, L: 0, XL: 0, XXL: 0, XXXL: 0 });
+      setValue('quantity', 0);
+      setMockupFile(null);
+      setFile(null);
+      setValue('colorPreferences', '');
+      setIsCartOpen(true);
+      
     } catch (err) {
       setSubmitError(err.response?.data?.message || (i18n.language === 'EN' ? 'Failed to submit design request' : 'Gagal mengirim permintaan desain'));
     } finally {
-      setLoading(false);
+      setSubmitLoading(false);
     }
+  };
+
+  const getMinDateStr = () => {
+    const qty = watch('quantity') || 1;
+    const date = new Date();
+    
+    const t1Max = parseInt(storeSettings.sablon_tier1_max_qty) || 11;
+    const t2Max = parseInt(storeSettings.sablon_tier2_max_qty) || 100;
+    
+    const t1Days = parseInt(storeSettings.sablon_tier1_min_days) || 7;
+    const t2Days = parseInt(storeSettings.sablon_tier2_min_days) || 14;
+    const t3Days = parseInt(storeSettings.sablon_tier3_min_days) || 30;
+
+    if (qty <= t1Max) {
+      date.setDate(date.getDate() + t1Days);
+    } else if (qty <= t2Max) {
+      date.setDate(date.getDate() + t2Days);
+    } else {
+      date.setDate(date.getDate() + t3Days);
+    }
+    return date.toISOString().split('T')[0];
   };
 
   if (isSuccess) {
@@ -780,8 +886,9 @@ export default function DesignRequest() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.deadline}</label>
-                      <input type="date" {...register('deadline')} className="w-full border border-gray-300 dark:border-gray-700 p-3 bg-transparent text-sm focus:outline-none focus:border-black dark:focus:border-white" />
+                      <input type="date" min={getMinDateStr()} {...register('deadline')} className="w-full border border-gray-300 dark:border-gray-700 p-3 bg-transparent text-sm focus:outline-none focus:border-black dark:focus:border-white" />
                       {errors.deadline && <span className="text-xs text-red-500">{errors.deadline.message}</span>}
+                      <p className="text-[10px] text-gray-500 mt-1">*Batas minimum disesuaikan otomatis dengan jumlah (qty).</p>
                     </div>
                   </div>
                 </div>
@@ -918,8 +1025,15 @@ export default function DesignRequest() {
                     <div className="space-y-4 md:col-span-2 bg-gray-50 dark:bg-gray-900/50 p-6 border border-gray-200 dark:border-gray-800 mt-4">
                       {activeCategory === 'Pakaian' ? (
                         <>
-                          <div className="flex justify-between items-end mb-2">
-                            <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.sizes}</label>
+                          <div className="flex justify-between items-end mb-4">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.sizes}</label>
+                                {customProducts.find(p => p.id === watch('productTypeForSablon'))?.sizeChartImage && (
+                                  <button type="button" onClick={() => setShowSizeModal(true)} className="bg-aria-charcoal text-white dark:bg-white dark:text-black px-4 py-2 text-xs font-bold uppercase tracking-widest flex items-center gap-2 w-max hover:bg-black transition-colors rounded-md shadow-sm border border-black/10">
+                                    <span className="text-base">📏</span> LIHAT PANDUAN UKURAN (SIZE CHART)
+                                  </button>
+                                )}
+                            </div>
                             <div className="text-right">
                               <label className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 block mb-1">Total Quantity</label>
                               <div className="text-2xl font-display font-bold">{watch('quantity') || 0} <span className="text-sm font-normal text-gray-500">Pcs</span></div>
@@ -1022,34 +1136,116 @@ export default function DesignRequest() {
                         {errors.numberOfColors && <span className="text-xs text-red-500 block mt-1">{errors.numberOfColors.message}</span>}
                       </div>
                     )}
-                    <div className="space-y-3 md:col-span-2">
-                      <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.pos}</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 border border-gray-300 dark:border-gray-700 p-4">
-                        {t.form.posOptions.map((pos) => (
-                          <label key={pos} className="flex items-center space-x-3 cursor-pointer group">
-                            <input
-                              type="checkbox"
-                              checked={selectedPositions.includes(pos)}
-                              onChange={() => handlePositionToggle(pos)}
-                              className="w-4 h-4 text-aria-charcoal dark:text-white bg-gray-100 border-gray-300 focus:ring-black dark:focus:ring-white dark:bg-gray-800 dark:border-gray-600"
-                            />
-                            <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white">{pos}</span>
-                          </label>
-                        ))}
+                    {activeCategory !== 'Packaging' && (
+                      <div className="space-y-3 md:col-span-2">
+                        <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.pos}</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 border border-gray-300 dark:border-gray-700 p-4">
+                          {(() => {
+                            const posOptions = activeCategory === 'Pakaian' 
+                              ? ['Dada Kiri (Logo)', 'Dada Kanan (Logo)', 'Dada Tengah (Medium)', 'Full Depan (A4/A3)', 'Punggung Belakang (A4/A3)', 'Lengan Kiri', 'Lengan Kanan', 'Tengkuk Leher (Neck label)']
+                              : ['Tengah Depan', 'Tengah Belakang'];
+                              
+                            return posOptions.map((pos) => (
+                              <label key={pos} className="flex items-center space-x-3 cursor-pointer group">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPositions.includes(pos)}
+                                  onChange={() => handlePositionToggle(pos)}
+                                  className="w-4 h-4 text-aria-charcoal dark:text-white bg-gray-100 border-gray-300 focus:ring-black dark:focus:ring-white dark:bg-gray-800 dark:border-gray-600"
+                                />
+                                <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white">{pos}</span>
+                              </label>
+                            ));
+                          })()}
+                        </div>
+                        <input type="hidden" {...register('printPosition')} />
+                        {errors.printPosition && <span className="text-xs text-red-500">{errors.printPosition.message}</span>}
                       </div>
-                      <input type="hidden" {...register('printPosition')} />
-                      {errors.printPosition && <span className="text-xs text-red-500">{errors.printPosition.message}</span>}
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.upload}</label>
-                      <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 p-6 text-center">
-                        <input type="file" onChange={handleFileChange} className="mx-auto block text-sm file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:bg-gray-100 file:text-black hover:file:bg-gray-200" accept=".png,.jpg,.jpeg,.pdf,.ai,.cdr,.zip" />
-                        <p className="text-xs text-gray-500 mt-3 font-semibold uppercase tracking-widest">Format yang didukung: PNG, JPG, PDF, AI, CDR, ZIP (Maks. 20 MB)</p>
-                        <p className="text-[10px] text-gray-400 mt-1">{t.form.uploadDesc}</p>
-                        {fileError && <p className="text-xs text-red-500 mt-2">{fileError}</p>}
+                    )}
+
+                    {activeCategory === 'Pakaian' && (
+                      <div className="space-y-3 md:col-span-2">
+                        <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">Ukuran Sablon *</label>
+                        <select {...register('printSize')} className="w-full border border-gray-300 dark:border-gray-700 p-3 bg-transparent text-sm focus:outline-none focus:border-black dark:focus:border-white appearance-none">
+                          <option value="">-- Pilih Ukuran Sablon --</option>
+                          {(() => {
+                            if (selectedTech && selectedTech.pricingType === 'area_based' && selectedTech.priceMatrix) {
+                              const matrix = typeof selectedTech.priceMatrix === 'string' ? JSON.parse(selectedTech.priceMatrix) : selectedTech.priceMatrix;
+                              return Object.keys(matrix).map(sizeKey => (
+                                <option key={sizeKey} value={sizeKey}>{sizeKey}</option>
+                              ));
+                            }
+                            // Fallback
+                            return (
+                              <>
+                                <option value="Logo/Kecil (Maks 10x10cm)">Logo/Kecil (Maks 10x10cm)</option>
+                                <option value="A4 / Sedang (Maks 21x30cm)">A4 / Sedang (Maks 21x30cm)</option>
+                                <option value="A3 / Besar (Maks 30x42cm)">A3 / Besar (Maks 30x42cm)</option>
+                                <option value="Full / Custom">Full / Custom</option>
+                              </>
+                            );
+                          })()}
+                        </select>
+                        {errors.printSize && <span className="text-xs text-red-500">{errors.printSize.message}</span>}
+                      </div>
+                    )}
+
+                    <div className="space-y-4 md:col-span-2 mt-4 border-t border-gray-200 dark:border-gray-700 pt-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.upload}</label>
+                        <div className="flex items-center gap-6 bg-gray-100 dark:bg-gray-800 p-2 rounded-full">
+                          <label className="flex items-center gap-2 cursor-pointer px-4 py-1.5 rounded-full transition-all" style={designMethod === 'canvas' ? { backgroundColor: 'white', color: 'black', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: 'gray' }}>
+                            <input 
+                              type="radio" 
+                              name="designMethod" 
+                              value="canvas" 
+                              checked={designMethod === 'canvas'} 
+                              onChange={() => setDesignMethod('canvas')}
+                              className="hidden"
+                            />
+                            <span className="text-xs font-bold uppercase tracking-widest">Gunakan Canvas</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer px-4 py-1.5 rounded-full transition-all" style={designMethod === 'upload' ? { backgroundColor: 'white', color: 'black', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: 'gray' }}>
+                            <input 
+                              type="radio" 
+                              name="designMethod" 
+                              value="upload" 
+                              checked={designMethod === 'upload'} 
+                              onChange={() => setDesignMethod('upload')}
+                              className="hidden"
+                            />
+                            <span className="text-xs font-bold uppercase tracking-widest">Punya Mockup Sendiri</span>
+                          </label>
+                        </div>
                       </div>
 
-                      {/* Arianation Studio MVP (Canvas) */}
+                      {fileError && <p className="text-xs text-red-500 text-center font-bold">{fileError}</p>}
+
+                      {designMethod === 'upload' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                          <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 p-6 text-center bg-white dark:bg-black transition-colors hover:border-black dark:hover:border-white">
+                            <h4 className="text-xs font-bold uppercase tracking-widest mb-4">1. Upload Mockup Anda</h4>
+                            <input 
+                              type="file" 
+                              onChange={(e) => setMockupFile(e.target.files[0])} 
+                              className="mx-auto block text-sm file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:bg-gray-100 file:text-black hover:file:bg-gray-200" 
+                              accept=".png,.jpg,.jpeg" 
+                            />
+                            {mockupFile && <p className="text-xs text-green-600 mt-2 font-semibold">Mockup: {mockupFile.name}</p>}
+                          </div>
+                          <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 p-6 text-center bg-white dark:bg-black transition-colors hover:border-black dark:hover:border-white">
+                            <h4 className="text-xs font-bold uppercase tracking-widest mb-2">2. Upload File Master Desain</h4>
+                            <input 
+                              type="file" 
+                              onChange={handleFileChange} 
+                              className="mx-auto block text-sm file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:bg-gray-100 file:text-black hover:file:bg-gray-200" 
+                              accept=".png,.jpg,.jpeg,.pdf,.ai,.cdr,.zip" 
+                            />
+                            <p className="text-[10px] text-gray-500 mt-2 uppercase tracking-widest">Format: PNG, JPG, PDF, AI, CDR, ZIP (Maks 20MB)</p>
+                            {file && <p className="text-xs text-green-600 mt-2 font-semibold">File Desain: {file.name}</p>}
+                          </div>
+                        </div>
+                      ) : (
                       <div className="mt-6 border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
                         <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-800 pb-3">
                           <h4 className="text-xs font-bold uppercase tracking-widest text-aria-charcoal dark:text-white">Arianation Studio Lite</h4>
@@ -1174,6 +1370,7 @@ export default function DesignRequest() {
                           </div>
                         </div>
                       </div>
+                      )}
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">{t.form.notes}</label>
@@ -1233,6 +1430,9 @@ export default function DesignRequest() {
                     let techPrice = 0;
                     const colors = parseInt(watch('numberOfColors')) || 1;
                     const qty = parseInt(watch('quantity')) || 0;
+                    const printPos = watch('printPosition') || '';
+                    const numSides = printPos ? printPos.split(',').filter(Boolean).length : 0;
+                    const multiplierSisi = numSides > 0 ? numSides : 1;
 
                     // Dynamic technique pricing
                     if (selectedTech) {
@@ -1241,31 +1441,33 @@ export default function DesignRequest() {
                       if (selectedTech.pricingType === 'fixed') {
                         techPrice = baseTechPrice;
                       } else if (selectedTech.pricingType === 'color_based') {
-                        techPrice = baseTechPrice * colors;
+                        techPrice = baseTechPrice * colors * multiplierSisi;
                       } else if (selectedTech.pricingType === 'area_based') {
-                        const positionMultiplier = {
-                          'Dada Kiri (Logo)': 1.0,
-                          'Dada Kanan (Logo)': 1.0,
-                          'Dada Tengah (Medium)': 1.5,
-                          'Full Depan (A4/A3)': 2.0,
-                          'Punggung Belakang (A4/A3)': 2.0,
-                          'Lengan Kiri': 1.0,
-                          'Lengan Kanan': 1.0,
-                          'Tengkuk Leher (Neck label)': 1.0
-                        };
-
-                        let totalMultiplier = 0;
-                        selectedPositions.forEach(pos => {
-                          totalMultiplier += (positionMultiplier[pos] || 1.0);
-                        });
-
-                        if (totalMultiplier === 0) totalMultiplier = 1.0;
-                        techPrice = baseTechPrice * totalMultiplier;
+                        const matrix = selectedTech.priceMatrix ? (typeof selectedTech.priceMatrix === 'string' ? JSON.parse(selectedTech.priceMatrix) : selectedTech.priceMatrix) : null;
+                        const currentSize = watch('printSize');
+                        if (matrix && currentSize && matrix[currentSize] !== undefined) {
+                          techPrice = parseFloat(matrix[currentSize]) * multiplierSisi;
+                        } else {
+                          techPrice = baseTechPrice * multiplierSisi;
+                        }
                       }
                     }
 
                     const estimatedUnit = basePrice + techPrice;
                     const estimatedTotal = estimatedUnit * qty;
+
+                    let sablonLabel = "Sablon";
+                    if (selectedTech) {
+                      const techName = selectedTech.name.split(' (')[0];
+                      if (selectedTech.pricingType === 'color_based') {
+                        sablonLabel = `Sablon (${techName} - ${colors} Warna)`;
+                      } else if (selectedTech.pricingType === 'area_based') {
+                        const size = watch('printSize');
+                        sablonLabel = `Sablon (${techName}${size ? ` - ${size.split(' /')[0]}` : ''})`;
+                      } else {
+                        sablonLabel = `Sablon (${techName})`;
+                      }
+                    }
 
                     if (qty > 0) {
                       return (
@@ -1280,7 +1482,7 @@ export default function DesignRequest() {
                             </div>
                             <div className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider flex flex-wrap gap-x-4 gap-y-1">
                               <span>Produk: Rp {basePrice.toLocaleString('id-ID')}</span>
-                              <span>Sablon: Rp {techPrice.toLocaleString('id-ID')}</span>
+                              <span>{sablonLabel}: Rp {techPrice.toLocaleString('id-ID')}</span>
                             </div>
                           </div>
                           <div className="mt-4 sm:mt-0 text-[10px] text-gray-400 dark:text-gray-500 max-w-xs sm:text-right">
@@ -1291,9 +1493,14 @@ export default function DesignRequest() {
                     }
                     return null;
                   })()}
-                  <button type="submit" disabled={!file || submitError || fileError || isSubmitting} className="w-full bg-aria-charcoal text-white dark:bg-white dark:text-black py-5 text-sm font-bold uppercase tracking-[0.2em] hover:bg-black transition-colors disabled:opacity-50 lg:hidden">
-                    {t.form.submit}
-                  </button>
+                  <button
+                      type="submit"
+                      disabled={isSubmitting || isLoadingProducts}
+                      className="w-full flex items-center justify-center gap-2 bg-aria-charcoal text-white dark:bg-white dark:text-black py-5 text-sm font-bold uppercase tracking-[0.2em] hover:bg-black dark:hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                    >
+                      <ShoppingBag className="w-5 h-5" />
+                      {isSubmitting ? (i18n.language === 'EN' ? 'Adding to Cart...' : 'Menambahkan ke Keranjang...') : (i18n.language === 'EN' ? 'Add to Sablon Cart' : 'Tambah ke Keranjang Sablon')}
+                    </button>
                   <p className="text-center text-xs text-gray-500 mt-4 lg:hidden">
                     {t.form.terms}
                   </p>
@@ -1301,7 +1508,7 @@ export default function DesignRequest() {
               </div>
 
               {/* Right Column: Sticky Order Summary Desktop */}
-              <div className="hidden lg:block lg:col-span-1 sticky top-24 space-y-6">
+              <div className="hidden lg:block lg:col-span-1 space-y-6">
                 <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
                   <h3 className="text-sm font-bold uppercase tracking-widest border-b border-gray-200 dark:border-gray-800 pb-4 mb-4">Ringkasan Pesanan</h3>
                   
@@ -1330,29 +1537,43 @@ export default function DesignRequest() {
                     const colors = parseInt(watch('numberOfColors')) || 1;
                     const qty = parseInt(watch('quantity')) || 0;
 
+                    const printPos = watch('printPosition') || '';
+                    const numSides = printPos ? printPos.split(',').filter(Boolean).length : 0;
+                    const multiplierSisi = numSides > 0 ? numSides : 1;
+
                     if (selectedTech) {
                       const baseTechPrice = parseFloat(selectedTech.basePrice) || 0;
 
                       if (selectedTech.pricingType === 'fixed') {
                         techPrice = baseTechPrice;
                       } else if (selectedTech.pricingType === 'color_based') {
-                        techPrice = baseTechPrice * colors;
+                        techPrice = baseTechPrice * colors * multiplierSisi;
                       } else if (selectedTech.pricingType === 'area_based') {
-                        const positionMultiplier = {
-                          'Dada Kiri (Logo)': 1.0, 'Dada Kanan (Logo)': 1.0, 'Dada Tengah (Medium)': 1.5,
-                          'Full Depan (A4/A3)': 2.0, 'Punggung Belakang (A4/A3)': 2.0, 'Lengan Kiri': 1.0,
-                          'Lengan Kanan': 1.0, 'Tengkuk Leher (Neck label)': 1.0
-                        };
-
-                        let totalMultiplier = 0;
-                        selectedPositions.forEach(pos => totalMultiplier += (positionMultiplier[pos] || 1.0));
-                        if (totalMultiplier === 0) totalMultiplier = 1.0;
-                        techPrice = baseTechPrice * totalMultiplier;
+                        const matrix = selectedTech.priceMatrix ? (typeof selectedTech.priceMatrix === 'string' ? JSON.parse(selectedTech.priceMatrix) : selectedTech.priceMatrix) : null;
+                        const currentSize = watch('printSize');
+                        if (matrix && currentSize && matrix[currentSize] !== undefined) {
+                          techPrice = parseFloat(matrix[currentSize]) * multiplierSisi;
+                        } else {
+                          techPrice = baseTechPrice * multiplierSisi;
+                        }
                       }
                     }
 
                     const estimatedUnit = basePrice + techPrice;
                     const estimatedTotal = estimatedUnit * qty;
+
+                    let sablonLabel = "Sablon";
+                    if (selectedTech) {
+                      const techName = selectedTech.name.split(' (')[0];
+                      if (selectedTech.pricingType === 'color_based') {
+                        sablonLabel = `Sablon (${techName} - ${colors} Warna)`;
+                      } else if (selectedTech.pricingType === 'area_based') {
+                        const size = watch('printSize');
+                        sablonLabel = `Sablon (${techName}${size ? ` - ${size.split(' /')[0]}` : ''})`;
+                      } else {
+                        sablonLabel = `Sablon (${techName})`;
+                      }
+                    }
 
                     if (qty > 0) {
                       return (
@@ -1364,7 +1585,7 @@ export default function DesignRequest() {
                           </div>
                           <div className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider flex flex-col gap-1 mb-4 pb-4 border-b border-gray-800 dark:border-gray-200">
                             <span>Produk: Rp {basePrice.toLocaleString('id-ID')}</span>
-                            <span>Sablon: Rp {techPrice.toLocaleString('id-ID')}</span>
+                            <span>{sablonLabel}: Rp {techPrice.toLocaleString('id-ID')}</span>
                           </div>
                           <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-4">
                             *Harga ini adalah estimasi sistem berdasarkan input Anda. Harga final akan disesuaikan kembali saat proses konfirmasi desain & review oleh tim kami.
@@ -1375,8 +1596,13 @@ export default function DesignRequest() {
                     return null;
                   })()}
 
-                  <button type="submit" disabled={!file || submitError || fileError || isSubmitting} className="w-full bg-aria-charcoal text-white dark:bg-white dark:text-black py-5 text-sm font-bold uppercase tracking-[0.2em] hover:bg-black transition-colors disabled:opacity-50">
-                    {t.form.submit}
+                  <button 
+                    type="submit" 
+                    disabled={isSubmitting || isLoadingProducts} 
+                    className="w-full flex items-center justify-center gap-2 bg-aria-charcoal text-white dark:bg-white dark:text-black py-5 text-sm font-bold uppercase tracking-[0.2em] hover:bg-black dark:hover:bg-gray-200 transition-all disabled:opacity-50 group"
+                  >
+                    <ShoppingBag className="w-5 h-5" />
+                    {isSubmitting ? (i18n.language === 'EN' ? 'Adding to Cart...' : 'Menambahkan ke Keranjang...') : (i18n.language === 'EN' ? 'Add to Sablon Cart' : 'Tambah ke Keranjang Sablon')}
                   </button>
                   <p className="text-center text-[10px] text-gray-500 mt-4">
                     {t.form.terms}
@@ -1481,7 +1707,40 @@ export default function DesignRequest() {
         </div>
       )}
 
+      {/* Floating Sablon Cart Button */}
+      {cartDraftCount > 0 && (
+        <button 
+          onClick={() => setIsCartOpen(true)}
+          className="fixed top-28 right-8 bg-aria-charcoal dark:bg-white text-white dark:text-black px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 hover:scale-105 transition-transform z-50 group border border-white/20 dark:border-black/20"
+        >
+          <div className="relative">
+            <ShoppingBag className="w-5 h-5" />
+            <span className="absolute -top-2 -right-2 bg-aria-maroon text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              {cartDraftCount}
+            </span>
+          </div>
+          <span className="text-xs font-bold uppercase tracking-widest hidden sm:block">
+            Keranjang Sablon
+          </span>
+        </button>
+      )}
 
+      <SablonCartDrawer 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+        onDraftsChange={(count) => setCartDraftCount(count)}
+        onCheckoutSuccess={(data) => {
+          setCartDraftCount(0);
+          setIsCartOpen(false);
+          // Redirect to orders or open payment url
+          if (data && data.paymentUrl) {
+            window.location.href = data.paymentUrl;
+          } else {
+            navigate('/account?tab=orders');
+          }
+        }} 
+      />
     </div>
   );
 }
+// Trigger HMR

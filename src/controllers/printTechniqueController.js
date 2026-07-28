@@ -9,10 +9,11 @@ const printTechniqueController = {
         .where('isActive', true)
         .orderBy('name', 'asc');
       
-      // parse JSON allowedCategories
+      // parse JSON allowedCategories and priceMatrix
       const formatted = techniques.map(t => ({
         ...t,
-        allowedCategories: typeof t.allowedCategories === 'string' ? JSON.parse(t.allowedCategories) : (t.allowedCategories || [])
+        allowedCategories: typeof t.allowedCategories === 'string' ? JSON.parse(t.allowedCategories) : (t.allowedCategories || []),
+        priceMatrix: typeof t.priceMatrix === 'string' ? JSON.parse(t.priceMatrix) : (t.priceMatrix || {})
       }));
 
       res.status(200).json(formatted);
@@ -29,7 +30,8 @@ const printTechniqueController = {
       
       const formatted = techniques.map(t => ({
         ...t,
-        allowedCategories: typeof t.allowedCategories === 'string' ? JSON.parse(t.allowedCategories) : (t.allowedCategories || [])
+        allowedCategories: typeof t.allowedCategories === 'string' ? JSON.parse(t.allowedCategories) : (t.allowedCategories || []),
+        priceMatrix: typeof t.priceMatrix === 'string' ? JSON.parse(t.priceMatrix) : (t.priceMatrix || {})
       }));
 
       res.status(200).json(formatted);
@@ -44,7 +46,7 @@ const printTechniqueController = {
     try {
       const { 
         name, description, allowedCategories, 
-        minOrder, pricingType, basePrice, 
+        minOrder, pricingType, basePrice, priceMatrix,
         maxColors, imageUrl, isActive 
       } = req.body;
 
@@ -62,6 +64,7 @@ const printTechniqueController = {
         minOrder: minOrder || 1,
         pricingType: pricingType || 'fixed',
         basePrice: basePrice || 0,
+        priceMatrix: priceMatrix ? JSON.stringify(priceMatrix) : null,
         maxColors: maxColors || null,
         imageUrl: imageUrl || null,
         isActive: isActive !== undefined ? isActive : true
@@ -85,7 +88,7 @@ const printTechniqueController = {
       const { id } = req.params;
       const { 
         name, description, allowedCategories, 
-        minOrder, pricingType, basePrice, 
+        minOrder, pricingType, basePrice, priceMatrix,
         maxColors, imageUrl, isActive 
       } = req.body;
 
@@ -101,6 +104,7 @@ const printTechniqueController = {
         minOrder: minOrder || 1,
         pricingType: pricingType || 'fixed',
         basePrice: basePrice || 0,
+        priceMatrix: priceMatrix ? JSON.stringify(priceMatrix) : null,
         maxColors: maxColors || null,
         imageUrl,
         isActive,

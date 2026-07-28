@@ -3,7 +3,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
-const { register, login, logout, refreshToken, getMe, oauthCallback } = require('../controllers/authController');
+const { register, login, logout, refreshToken, getMe, oauthCallback, forgotPassword, resetPassword } = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
 const passport = require('passport');
@@ -21,7 +21,8 @@ router.post('/login', authLimiter, validateBody(schemas.login), login);
 router.post('/logout', authLimiter, authenticate, logout);
 router.post('/refresh-token', authLimiter, refreshToken);
 router.get('/me', authLimiter, authenticate, getMe);
-
+router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/reset-password', authLimiter, resetPassword);
 // Google OAuth routes
 router.get('/oauth/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false }));
 

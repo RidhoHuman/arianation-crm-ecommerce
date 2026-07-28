@@ -88,7 +88,6 @@ const updateCourierWebhook = async (req, res, next) => {
         trackingNumber,
         lastUpdate: new Date(),
         notes,
-        createdAt: new Date(),
         updatedAt: new Date(),
       });
       tracking = await knex('orderTracking').where('id', trackingId).first();
@@ -101,8 +100,7 @@ const updateCourierWebhook = async (req, res, next) => {
         status,
         location: currentLocation,
         notes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        timestamp: new Date(),
       });
     }
 

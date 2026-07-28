@@ -95,6 +95,7 @@ export default function AdminLayout() {
       title: '⚙️ PENGATURAN',
       items: [
         { id: 'settings', path: '/admin/settings', icon: <FiSettings />, label: 'Pengaturan Global' },
+        ...(user?.role === 'OWNER' ? [{ id: 'staff', path: '/admin/staff', icon: <FiUsers />, label: 'Manajemen Staf' }] : [])
       ]
     }
   ];
@@ -107,7 +108,7 @@ export default function AdminLayout() {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-aria-charcoal text-white shadow-xl h-full border-r border-white/5 overflow-y-auto">
+      <aside className="hidden md:flex flex-col w-64 bg-aria-charcoal text-white shadow-xl h-full border-r border-white/5 overflow-y-auto print:hidden">
         <div className="flex items-center gap-4 border-b border-white/10 pb-6 mb-6 p-6">
           <span className="font-black tracking-widest text-xl uppercase text-white">Arianation</span>
         </div>
@@ -169,9 +170,9 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden print:overflow-visible">
         {/* Topbar */}
-        <header className="h-16 bg-white shadow-sm flex items-center justify-between px-6 border-b border-gray-200 z-10">
+        <header className="h-16 bg-white shadow-sm flex items-center justify-between px-6 border-b border-gray-200 z-10 print:hidden">
           <div className="flex items-center gap-4">
             <button
               className="md:hidden text-gray-500 text-2xl"
@@ -193,7 +194,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Scrollable Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-6 print:bg-white print:p-0 print:overflow-visible print:block">
           <Outlet />
         </main>
       </div>

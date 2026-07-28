@@ -13,7 +13,22 @@
     "support": "Support",
     "points": "PTS",
     "account": "My Account",
-    "adminPanel": "Admin Panel"
+    "adminPanel": "Admin Panel",
+    "legal": "Legal",
+    "terms": "Terms & Conditions",
+    "privacy": "Privacy Policy",
+    "refund": "Refund & Returns"
+  },
+  "breadcrumb": {
+    "home": "Home",
+    "cart": "Cart",
+    "products": "Products",
+    "checkout": "Checkout",
+    "dashboard": "Dashboard",
+    "login": "Login",
+    "register": "Register",
+    "admin": "Admin",
+    "account": "Account"
   },
   "home": {
     "newDrops": "New Drops",

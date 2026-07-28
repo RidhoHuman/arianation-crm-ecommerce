@@ -20,9 +20,10 @@ export default function OptimizedImage({
   onLoad = null,
 }) {
   const isExternalUrl = publicId?.startsWith('http');
+  const isLocalUpload = publicId?.startsWith('/uploads');
 
-  // If external URL, use native image (no Cloudinary transform)
-  if (isExternalUrl) {
+  // If external URL or local upload, use native image (no Cloudinary transform)
+  if (isExternalUrl || isLocalUpload) {
     return (
       <img
         src={publicId}

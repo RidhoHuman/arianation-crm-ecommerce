@@ -1,2 +1,7 @@
 const knex = require('./src/config/knex');
-knex.raw('SHOW COLUMNS FROM payment LIKE "method"').then(r => console.log(r[0][0].Type)).finally(() => knex.destroy());
+async function check() {
+  const result = await knex.raw("SELECT m.isTierManuallySet, m.currentTier, m.totalSpent FROM customerMetrics m JOIN user u ON u.id = m.userId WHERE u.email = 'ridhohuman11@gmail.com'");
+  console.log(result[0]);
+  process.exit();
+}
+check();

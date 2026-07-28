@@ -68,7 +68,7 @@ export default function About() {
               </div>
               <div className="relative h-[400px] md:h-[500px] rounded-lg overflow-hidden shadow-xl">
                 <img
-                  src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                  src="/store-interiror.jfif"
                   alt="Arianation Screen Printing Workshop"
                   className="w-full h-full object-cover grayscale-[20%]"
                 />

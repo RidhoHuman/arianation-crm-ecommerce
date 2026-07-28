@@ -10,6 +10,7 @@ import OrderList from '../components/admin/OrderList';
 import OrderDetail from '../components/admin/OrderDetail';
 import InventoryList from '../components/admin/InventoryList';
 import Dashboard from '../components/admin/Dashboard';
+import AdminSettings from '../components/admin/AdminSettings';
 
 export default function AdminPage() {
   const location = useLocation();
@@ -21,6 +22,7 @@ export default function AdminPage() {
     { id: 'products', label: 'Produk', icon: '📦', path: '/admin/products' },
     { id: 'orders', label: 'PO Orders', icon: '🛒', path: '/admin/orders' },
     { id: 'inventory', label: 'Inventory', icon: '📦', path: '/admin/inventory' },
+    { id: 'settings', label: 'Pengaturan', icon: '⚙️', path: '/admin/settings' },
   ];
 
   useEffect(() => {
@@ -30,6 +32,8 @@ export default function AdminPage() {
       setActiveTab('products');
     } else if (path.includes('/orders')) {
       setActiveTab('orders');
+    } else if (path.includes('/settings')) {
+      setActiveTab('settings');
     } else {
       setActiveTab('dashboard');
     }
@@ -107,6 +111,7 @@ export default function AdminPage() {
           <Route path="orders" element={<OrderList />} />
           <Route path="orders/:id" element={<OrderDetail />} />
           <Route path="inventory" element={<InventoryList />} />
+          <Route path="settings" element={<AdminSettings />} />
         </Routes>
       </div>
     </div>

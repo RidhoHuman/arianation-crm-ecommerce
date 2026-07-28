@@ -13,7 +13,22 @@
     "support": "Bantuan",
     "points": "POIN",
     "account": "Akun Saya",
-    "adminPanel": "Panel Admin"
+    "adminPanel": "Panel Admin",
+    "legal": "Legal",
+    "terms": "Syarat & Ketentuan",
+    "privacy": "Kebijakan Privasi",
+    "refund": "Refund & Retur"
+  },
+  "breadcrumb": {
+    "home": "Beranda",
+    "cart": "Keranjang",
+    "products": "Produk",
+    "checkout": "Pembayaran",
+    "dashboard": "Dashboard",
+    "login": "Masuk",
+    "register": "Daftar",
+    "admin": "Admin",
+    "account": "Akun"
   },
   "home": {
     "newDrops": "Koleksi Terbaru",
@@ -81,7 +96,7 @@
     "items_other": "Subtotal ({{count}} item)",
     "shipping": "Pengiriman",
     "calculatedAtCheckout": "Dihitung saat checkout",
-    "checkoutBtn": "Checkout"
+    "checkoutBtn": "Lanjut Pembayaran"
   },
   "checkout": {
     "title": "Checkout",
@@ -220,7 +235,8 @@
     "WAITING_FINAL_PAYMENT": "Menunggu Pelunasan",
     "READY_TO_SHIP": "Siap Dikirim",
     "IN_PRODUCTION": "Sedang Diproduksi",
-    "PAID_WAITING_APPROVAL": "Menunggu Persetujuan"
+    "PAID_WAITING_APPROVAL": "Menunggu Persetujuan",
+    "DELIVERED": "Pesanan Diterima"
   },
   "orderTracking": {
     "title": "Lacak Pesanan",
@@ -229,7 +245,8 @@
     "saveLinkTitle": "Penting: Simpan Link Ini",
     "saveLinkDesc": "Anda berbelanja sebagai Tamu (tanpa akun). ",
     "copyDesc": "Harap Salin (Copy) link URL ini agar Anda bisa melihat halaman ini dan mengecek status pesanan Anda besok atau kapan saja.",
-    "warningDesc": "PERINGATAN: Jika Anda tidak menyalin link ini dan kehilangan akses pelacakan, pihak Arianation tidak bertanggung jawab atas hilangnya data pelacakan pesanan Anda.",
+    "warningDesc": "Demi keamanan privasi, kami tidak menyimpan riwayat pesanan Tamu. Harap simpan tautan ini. Jika hilang, Anda harus menghubungi Admin WhatsApp kami untuk pelacakan manual.",
+    "loading": "Memuat data pesanan...",
     "copyBtn": "Salin Link",
     "copiedBtn": "Tersalin!",
     "paymentTitle": "Instruksi Pembayaran",
@@ -281,7 +298,7 @@
       "saving": "Menyimpan...",
       "saved": "Tersimpan!",
       "ariaPoints": "Aria Points",
-      "pointsNote": "1 Poin = Rp 1.000"
+      "pointsNote": "1 Poin = Rp 10"
     },
     "address": {
       "title": "Alamat Pengiriman",

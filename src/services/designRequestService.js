@@ -6,7 +6,8 @@ const designRequestService = {
   async findMany({ page = 1, limit = 10, userId, status } = {}) {
     const skip = (page - 1) * limit;
     let query = knex('designRequest')
-      .leftJoin('user', 'designRequest.userId', 'user.id');
+      .leftJoin('user', 'designRequest.userId', 'user.id')
+      .leftJoin('order', 'designRequest.orderId', 'order.id');
 
     if (userId) {
       query = query.where('designRequest.userId', userId);
@@ -25,16 +26,24 @@ const designRequestService = {
         'designRequest.designDescription',
         'designRequest.status',
         'designRequest.designFileUrl',
+        'designRequest.mockupPreviewUrl',
         'designRequest.fileType',
         'designRequest.quantity',
         'designRequest.productTypeForSablon',
         'designRequest.printTechnique',
         'designRequest.numberOfColors',
         'designRequest.estimatedPrice',
+        'designRequest.printSize',
+        'designRequest.printPosition',
+        'designRequest.colorPreferences',
+        'designRequest.sizeBreakdown',
+        'designRequest.picName',
+        'designRequest.whatsappNumber',
         'designRequest.createdAt',
         'designRequest.updatedAt',
         'user.fullName as customerName',
-        'user.email as customerEmail'
+        'user.email as customerEmail',
+        'order.status as orderStatus'
       )
       .orderBy('designRequest.createdAt', 'desc')
       .limit(limit)

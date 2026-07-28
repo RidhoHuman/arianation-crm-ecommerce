@@ -62,6 +62,10 @@ export default function InvoicePage() {
     ].filter(Boolean).join(', ');
   }
 
+  const itemsSubtotal = items?.reduce((sum, item) => sum + Number(item.subtotal || 0), 0) || 0;
+  const shippingCost = Number(order.shippingCost || 0);
+  const grandTotal = Number(order.totalPrice || order.totalAmount || 0);
+
   return (
     <div className="bg-white text-black font-sans min-h-screen p-8 max-w-4xl mx-auto">
       {/* Hide on screen, print only styles */}
@@ -118,16 +122,33 @@ export default function InvoicePage() {
           </tr>
         </thead>
         <tbody>
-          {items?.length > 0 ? items.map((item, index) => (
+          {items?.length > 0 ? items.map((item, index) => {
+            const isSablon = !item.productId && order.designRequest;
+            const sablonData = order.designRequest;
+            const itemName = item.product?.productName || (isSablon ? `Custom Sablon - ${sablonData.designTitle}` : 'Produk');
+            const itemImg = item.variantImage || item.productImage || (sablonData ? (sablonData.mockupPreviewUrl || sablonData.designFileUrl) : null);
+
+            return (
             <tr key={index} className="border-b border-gray-200">
-              <td className="py-4 px-2">
-                <p className="font-semibold text-sm">{item.product?.productName || 'Produk'}</p>
+              <td className="py-4 px-2 flex items-start gap-3">
+                {itemImg && (
+                  <img src={itemImg} alt={itemName} className="w-12 h-12 object-cover rounded border border-gray-100" />
+                )}
+                <div>
+                  <p className="font-semibold text-sm">{itemName}</p>
+                  {(item.color || item.size) && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {item.color && `Warna: ${item.color} `}
+                      {item.size && `Ukuran: ${item.size}`}
+                    </p>
+                  )}
+                </div>
               </td>
               <td className="py-4 px-2 text-center text-sm">{item.quantity}</td>
               <td className="py-4 px-2 text-right text-sm">Rp {Number(item.unitPrice).toLocaleString('id-ID')}</td>
               <td className="py-4 px-2 text-right text-sm font-semibold">Rp {Number(item.subtotal).toLocaleString('id-ID')}</td>
             </tr>
-          )) : (
+          )}) : (
             <tr>
               <td colSpan="4" className="py-4 text-center text-gray-500 text-sm">Tidak ada produk ditemukan.</td>
             </tr>
@@ -137,13 +158,29 @@ export default function InvoicePage() {
 
       {/* Total Calculation */}
       <div className="flex justify-end mb-12">
-        <div className="w-64">
-          <div className="flex justify-between py-2 border-b border-black">
-            <span className="font-bold">TOTAL</span>
-            <span className="font-bold text-xl">Rp {Number(order.totalAmount || 0).toLocaleString('id-ID')}</span>
+        <div className="w-80">
+          <div className="flex justify-between py-2 border-b border-gray-200 text-sm">
+            <span>Subtotal Produk</span>
+            <span className="font-semibold">Rp {itemsSubtotal.toLocaleString('id-ID')}</span>
+          </div>
+          {shippingCost > 0 && (
+            <div className="flex justify-between py-2 border-b border-gray-200 text-sm">
+              <span>Ongkos Kirim {order.shippingCourier ? `(${order.shippingCourier.toUpperCase()})` : ''}</span>
+              <span className="font-semibold">Rp {shippingCost.toLocaleString('id-ID')}</span>
+            </div>
+          )}
+          {order.tierDiscountAmount > 0 && (
+            <div className="flex justify-between py-2 border-b border-gray-200 text-sm text-green-600">
+              <span>Diskon Member</span>
+              <span className="font-semibold">- Rp {Number(order.tierDiscountAmount).toLocaleString('id-ID')}</span>
+            </div>
+          )}
+          <div className="flex justify-between py-3 border-b-2 border-black mt-2 items-center">
+            <span className="font-bold uppercase tracking-wider text-sm">TOTAL KESELURUHAN</span>
+            <span className="font-bold text-xl">Rp {grandTotal.toLocaleString('id-ID')}</span>
           </div>
           <p className="text-xs text-right mt-2 text-gray-500 uppercase tracking-wider">
-            Metode: {order.paymentMethod || 'Manual'}
+            Metode Pembayaran: {order.paymentMethod || 'Manual'}
           </p>
         </div>
       </div>

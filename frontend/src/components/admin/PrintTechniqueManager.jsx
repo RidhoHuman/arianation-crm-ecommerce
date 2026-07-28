@@ -16,6 +16,7 @@ export default function PrintTechniqueManager() {
     minOrder: 1,
     pricingType: 'fixed',
     basePrice: 0,
+    priceMatrix: {},
     maxColors: '',
     imageUrl: '',
     isActive: true
@@ -46,6 +47,7 @@ export default function PrintTechniqueManager() {
         minOrder: tech.minOrder || 1,
         pricingType: tech.pricingType || 'fixed',
         basePrice: tech.basePrice || 0,
+        priceMatrix: tech.priceMatrix || {},
         maxColors: tech.maxColors || '',
         imageUrl: tech.imageUrl || '',
         isActive: tech.isActive !== undefined ? tech.isActive : true
@@ -59,6 +61,7 @@ export default function PrintTechniqueManager() {
         minOrder: 1,
         pricingType: 'fixed',
         basePrice: 0,
+        priceMatrix: {},
         maxColors: '',
         imageUrl: '',
         isActive: true
@@ -211,16 +214,16 @@ export default function PrintTechniqueManager() {
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl m-4">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 shrink-0">
               <h3 className="text-xl font-bold">{editingId ? 'Edit Teknik Sablon' : 'Tambah Teknik Sablon'}</h3>
               <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-600">
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nama Teknik *</label>
@@ -260,7 +263,7 @@ export default function PrintTechniqueManager() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipe Perhitungan Harga *</label>
                   <select value={formData.pricingType} onChange={e => setFormData({...formData, pricingType: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-black focus:border-black">
                     <option value="fixed">Fixed (Tetap)</option>
-                    <option value="area_based">Berdasarkan Luas/Area</option>
+                    <option value="area_based">Berdasarkan Luas/Area/Ukuran</option>
                     <option value="color_based">Berdasarkan Jumlah Warna</option>
                   </select>
                 </div>
@@ -268,10 +271,81 @@ export default function PrintTechniqueManager() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Harga Dasar (Base Price) *</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
-                    <input type="number" min="0" value={formData.basePrice} onChange={e => setFormData({...formData, basePrice: parseInt(e.target.value)})} required className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-black focus:border-black" />
+                    <input type="number" min="0" value={formData.basePrice} onChange={e => setFormData({...formData, basePrice: parseInt(e.target.value) || 0})} required className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-black focus:border-black" />
                   </div>
                 </div>
               </div>
+
+              {formData.pricingType === 'area_based' && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Matriks Harga Berdasarkan Ukuran</label>
+                  <div className="space-y-3">
+                    {Object.keys(formData.priceMatrix).map((sizeKey) => (
+                      <div key={sizeKey} className="flex items-center gap-3">
+                        <input
+                          type="text"
+                          value={sizeKey}
+                          readOnly
+                          className="w-1/3 px-3 py-2 border rounded-lg bg-gray-100 text-gray-700 font-medium cursor-not-allowed"
+                        />
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
+                          <input
+                            type="number"
+                            value={formData.priceMatrix[sizeKey]}
+                            onChange={(e) => {
+                              const newMatrix = { ...formData.priceMatrix };
+                              newMatrix[sizeKey] = parseInt(e.target.value) || 0;
+                              setFormData({ ...formData, priceMatrix: newMatrix });
+                            }}
+                            className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-black focus:border-black"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newMatrix = { ...formData.priceMatrix };
+                            delete newMatrix[sizeKey];
+                            setFormData({ ...formData, priceMatrix: newMatrix });
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Hapus Ukuran"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    <div className="flex items-center gap-3 pt-2">
+                      <input
+                        type="text"
+                        id="new-matrix-key"
+                        placeholder="Contoh: A4, A3, Logo"
+                        className="w-1/3 px-3 py-2 border rounded-lg focus:ring-black focus:border-black"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const keyInput = document.getElementById('new-matrix-key');
+                          if (keyInput && keyInput.value.trim()) {
+                            const newKey = keyInput.value.trim();
+                            if (!formData.priceMatrix[newKey]) {
+                              setFormData({
+                                ...formData,
+                                priceMatrix: { ...formData.priceMatrix, [newKey]: 0 }
+                              });
+                            }
+                            keyInput.value = '';
+                          }
+                        }}
+                        className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-black transition-colors"
+                      >
+                        Tambah Ukuran
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Kompatibilitas Kategori Barang *</label>
@@ -291,7 +365,7 @@ export default function PrintTechniqueManager() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-gray-200">
+              <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-gray-200 shrink-0">
                 <button type="button" onClick={handleCloseModal} className="px-5 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">Batal</button>
                 <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-white bg-black rounded-lg hover:bg-gray-800 font-medium flex items-center gap-2">
                   {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}

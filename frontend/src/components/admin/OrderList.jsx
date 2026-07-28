@@ -9,6 +9,7 @@ const STATUS_OPTIONS = [
   { value: 'PROCESSING', label: 'Processing' },
   { value: 'SHIPPED', label: 'Shipped' },
   { value: 'DELIVERED', label: 'Delivered' },
+  { value: 'COMPLETED', label: 'Completed' },
   { value: 'CANCELLED', label: 'Canceled' },
 ];
 
@@ -144,6 +145,16 @@ export default function OrderList() {
             Selesai
           </button>
         )}
+        {order.status === 'DELIVERED' && (
+          <button
+            type="button"
+            onClick={() => updateOrder(order.id, 'COMPLETED')}
+            disabled={isLoading}
+            className="rounded-full bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          >
+            Pesanan Diterima
+          </button>
+        )}
       </div>
     );
   };
@@ -223,6 +234,20 @@ export default function OrderList() {
                     <td className="px-4 py-4 font-semibold text-gray-900">{order.orderNumber}</td>
                     <td className="px-4 py-4 text-gray-700 text-xs uppercase tracking-wider truncate max-w-[200px]" title={itemsSummary}>
                       {itemsSummary}
+                      {order.designRequests && order.designRequests.length > 0 && order.designRequests.some(dr => {
+                        if (!dr.deadline) return false;
+                        const deadlineDate = new Date(dr.deadline);
+                        const today = new Date();
+                        // Reset time to 00:00:00 for fair comparison
+                        deadlineDate.setHours(23, 59, 59, 999); 
+                        return today > deadlineDate && !['SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'RETURNED'].includes(order.status);
+                      }) && (
+                        <div className="mt-1">
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-600 text-white animate-pulse shadow-sm">
+                            OVERDUE / TERLAMBAT
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-gray-700 text-xs">
                       <div className="font-semibold">{order.customerName || 'Guest'}</div>
@@ -233,7 +258,7 @@ export default function OrderList() {
                       {order.totalAmount ? `Rp ${Number(order.totalAmount).toLocaleString('id-ID')}` : '—'}
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : order.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' : order.status === 'SHIPPED' ? 'bg-sky-100 text-sky-800' : order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : order.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' : order.status === 'SHIPPED' ? 'bg-sky-100 text-sky-800' : order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' : order.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
                         {order.status}
                       </span>
                     </td>

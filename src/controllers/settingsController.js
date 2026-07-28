@@ -15,6 +15,24 @@ const getSettings = async (req, res, next) => {
     if (!settingsObj.best_seller_threshold) {
       settingsObj.best_seller_threshold = '5';
     }
+    if (!settingsObj.welcome_bonus_points) {
+      settingsObj.welcome_bonus_points = '10';
+    }
+    if (!settingsObj.points_earning_rate) {
+      settingsObj.points_earning_rate = '10000';
+    }
+    if (!settingsObj.review_text_points) {
+      settingsObj.review_text_points = '100';
+    }
+    if (!settingsObj.review_image_points) {
+      settingsObj.review_image_points = '500';
+    }
+    if (!settingsObj.points_exchange_rate) {
+      settingsObj.points_exchange_rate = '10';
+    }
+    if (!settingsObj.max_points_discount_percentage) {
+      settingsObj.max_points_discount_percentage = '50';
+    }
 
     sendSuccess(res, settingsObj, 'Berhasil mengambil pengaturan toko');
   } catch (error) {

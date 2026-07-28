@@ -92,8 +92,8 @@ export default function Dashboard() {
         },
         revenueTrends: chartData,
         salesProportion: [
-          { name: 'Retail E-Commerce', value: fulfillment.summary?.totalRevenue || 0 },
-          { name: 'Custom Sablon', value: 0 }
+          { name: 'Retail E-Commerce', value: fulfillment.summary?.retailRevenue || fulfillment.summary?.totalRevenue || 0 },
+          { name: 'Custom Sablon', value: fulfillment.summary?.sablonRevenue || 0 }
         ],
         recentOrders: recent,
         activities: recentActivities,

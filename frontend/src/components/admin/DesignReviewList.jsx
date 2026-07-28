@@ -16,6 +16,7 @@ export default function DesignReviewList() {
   const [hppPrice, setHppPrice] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState('ALL');
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const getImageUrl = (path) => {
     if (!path) return null;
@@ -24,6 +25,16 @@ export default function DesignReviewList() {
     const baseUrl = apiUrl.replace(/\/api$/, '');
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     return `${baseUrl}${cleanPath}`;
+  };
+
+  const getWhatsAppLink = (req) => {
+    if (!req.whatsappNumber) return '#';
+    let waNumber = req.whatsappNumber.replace(/\D/g, '');
+    if (waNumber.startsWith('0')) {
+      waNumber = '62' + waNumber.substring(1);
+    }
+    const waText = `Halo Kak ${req.customerName || ''}, kami dari tim Arianation. Terkait pesanan Custom Sablon (${req.productTypeForSablon || 'Custom'}) dengan desain berjudul *"${req.designTitle}"*, kami ingin melakukan konfirmasi desain (Mockup Final) sebelum masuk ke tahap produksi...`;
+    return `https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}`;
   };
 
   useEffect(() => {
@@ -48,6 +59,7 @@ export default function DesignReviewList() {
     setComments('');
     setEstimatedPrice(request.estimatedPrice ? Math.round(Number(request.estimatedPrice)).toString() : '');
     setHppPrice('');
+    setSelectedFile(null);
   };
 
   const closeModal = () => {
@@ -60,19 +72,30 @@ export default function DesignReviewList() {
     setActionLoading(true);
     
     try {
-      let status = actionType === 'APPROVE' ? 'APPROVED' : 'REVISION_REQUESTED';
+      let status = (actionType === 'APPROVE' || actionType === 'APPROVE_WITH_FILE') ? 'APPROVED' : 'REVISION_REQUESTED';
       if (actionType === 'REJECT') status = 'REJECTED';
       if (actionType === 'CANCEL') status = 'CANCELLED';
+
+      let uploadedUrl = null;
+      if (actionType === 'APPROVE_WITH_FILE' && selectedFile) {
+        const formData = new FormData();
+        formData.append('designFile', selectedFile);
+        const uploadRes = await api.post(`/design-requests/upload-file`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        uploadedUrl = uploadRes.data.data.url;
+      }
 
       await api.put(`/admin/design-requests/${selectedRequest.id}/status`, {
         status,
         comments,
-        estimatedPrice: actionType === 'APPROVE' ? estimatedPrice : null,
-        hppPrice: actionType === 'APPROVE' ? hppPrice : null
+        estimatedPrice: (actionType === 'APPROVE' || actionType === 'APPROVE_WITH_FILE') ? estimatedPrice : null,
+        hppPrice: (actionType === 'APPROVE' || actionType === 'APPROVE_WITH_FILE') ? hppPrice : null,
+        mockupPreviewUrl: uploadedUrl
       });
       
       let toastMessage = 'Request direvisi!';
-      if (actionType === 'APPROVE') toastMessage = 'Request disetujui!';
+      if (actionType === 'APPROVE' || actionType === 'APPROVE_WITH_FILE') toastMessage = 'Request disetujui!';
       else if (actionType === 'REJECT') toastMessage = 'Request ditolak!';
       else if (actionType === 'CANCEL') toastMessage = 'Penawaran dibatalkan!';
       
@@ -148,9 +171,9 @@ export default function DesignReviewList() {
           requests.filter(req => filterStatus === 'ALL' || req.status === filterStatus).map((req) => (
             <div key={req.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
               <div className="h-48 bg-gray-100 relative group overflow-hidden">
-                {req.designFileUrl ? (
+                {(req.mockupPreviewUrl || req.designFileUrl) ? (
                   <img 
-                    src={getImageUrl(req.designFileUrl)} 
+                    src={getImageUrl(req.mockupPreviewUrl || req.designFileUrl)} 
                     alt="Design Preview" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     onError={(e) => {
@@ -162,7 +185,7 @@ export default function DesignReviewList() {
                 ) : null}
                 <div 
                   className="w-full h-full flex flex-col justify-center items-center text-gray-400 bg-gray-100"
-                  style={{ display: req.designFileUrl ? 'none' : 'flex' }}
+                  style={{ display: (req.mockupPreviewUrl || req.designFileUrl) ? 'none' : 'flex' }}
                 >
                   <FiImage className="text-4xl mb-2" />
                   <span className="text-xs">File Tidak Ada</span>
@@ -199,7 +222,11 @@ export default function DesignReviewList() {
                   </div>
                   <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 space-y-1">
                     <p><span className="font-semibold text-gray-700">Teknik:</span> {req.printTechnique || 'N/A'} ({req.numberOfColors || 1} Warna)</p>
-                    <p><span className="font-semibold text-gray-700">Estimasi Sistem:</span> Rp {Number(req.estimatedPrice || 0).toLocaleString('id-ID')}</p>
+                    <p><span className="font-semibold text-gray-700">Posisi:</span> {req.printPosition || 'N/A'}</p>
+                    <p><span className="font-semibold text-gray-700">Ukuran Sablon:</span> {req.printSize || 'N/A'}</p>
+                    <p><span className="font-semibold text-gray-700">Warna Produk:</span> {req.colorPreferences || 'N/A'}</p>
+                    <p><span className="font-semibold text-gray-700">Ukuran Baju/Tas:</span> {req.sizeBreakdown || 'N/A'}</p>
+                    <p className="pt-1 border-t border-gray-200 mt-1"><span className="font-semibold text-gray-800">Estimasi Sistem:</span> <span className="text-blue-700 font-bold">Rp {Number(req.estimatedPrice || 0).toLocaleString('id-ID')}</span></p>
                   </div>
                 </div>
 
@@ -207,18 +234,40 @@ export default function DesignReviewList() {
                   {req.designDescription || 'Tidak ada deskripsi dari customer.'}
                 </p>
 
-                {req.designFileUrl && (
-                  <div className="mb-4">
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {req.designFileUrl && (
                     <a 
                       href={getImageUrl(req.designFileUrl)} 
                       target="_blank" 
                       rel="noreferrer" 
-                      className="text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium flex items-center gap-1 w-max bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100"
+                      className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium flex items-center gap-1 w-max bg-blue-50 px-2 py-1.5 rounded-lg border border-blue-100"
                     >
-                      <FiImage /> Buka/Unduh File Desain
+                      <FiImage /> File Desain
                     </a>
-                  </div>
-                )}
+                  )}
+                  {req.mockupPreviewUrl && (
+                    <a 
+                      href={getImageUrl(req.mockupPreviewUrl)} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="text-purple-600 hover:text-purple-800 hover:underline text-xs font-medium flex items-center gap-1 w-max bg-purple-50 px-2 py-1.5 rounded-lg border border-purple-100"
+                    >
+                      <FiImage /> Mockup
+                    </a>
+                  )}
+                  {req.whatsappNumber && (
+                    <a 
+                      href={getWhatsAppLink(req)} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="text-green-700 hover:text-green-800 hover:underline text-xs font-medium flex items-center gap-1 w-max bg-green-50 px-2 py-1.5 rounded-lg border border-green-200"
+                      title="Kirim konfirmasi via WhatsApp"
+                    >
+                      <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.347-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.876 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                      Hubungi WA
+                    </a>
+                  )}
+                </div>
                 
                 <div className="pt-4 border-t border-gray-100 flex gap-2">
                   {(req.status === 'SUBMITTED' || req.status === 'PENDING') ? (
@@ -243,16 +292,34 @@ export default function DesignReviewList() {
                       </button>
                     </>
                   ) : req.status === 'APPROVED' ? (
-                    <button 
-                        onClick={() => openModal(req, 'CANCEL')}
-                        className="w-full py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold text-sm rounded-lg flex items-center justify-center gap-1 transition-colors"
-                      >
-                        <FiX /> Batalkan Penawaran Sepihak
-                    </button>
+                    <>
+                      <button 
+                          onClick={() => openModal(req, 'CANCEL')}
+                          className="flex-1 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold text-xs rounded-lg flex items-center justify-center gap-1 transition-colors"
+                        >
+                          <FiX /> Batalkan
+                      </button>
+                      <button 
+                          onClick={() => openModal(req, 'APPROVE_WITH_FILE')}
+                          className="flex-1 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs rounded-lg flex flex-col items-center justify-center transition-colors border border-blue-200"
+                        >
+                          Upload Final
+                      </button>
+                    </>
                   ) : (
-                    <button disabled className="w-full py-2 bg-gray-50 text-gray-400 font-medium text-sm rounded-lg cursor-not-allowed">
-                      Telah Di-review
-                    </button>
+                    <>
+                      <button disabled className="flex-1 py-2 bg-gray-50 text-gray-400 font-medium text-xs rounded-lg cursor-not-allowed">
+                        Telah Di-review
+                      </button>
+                      {(req.status === 'REVISION_REQUESTED') && (
+                         <button 
+                            onClick={() => openModal(req, 'APPROVE_WITH_FILE')}
+                            className="flex-1 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs rounded-lg flex items-center justify-center transition-colors border border-blue-200"
+                          >
+                            Upload Final
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -265,9 +332,9 @@ export default function DesignReviewList() {
       {selectedRequest && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-6">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] shadow-2xl flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className={`p-5 border-b border-gray-100 flex justify-between items-center shrink-0 ${actionType === 'APPROVE' ? 'bg-green-50' : actionType === 'REJECT' ? 'bg-red-50' : actionType === 'CANCEL' ? 'bg-gray-100' : 'bg-orange-50'}`}>
-              <h3 className={`text-lg font-bold flex items-center gap-2 ${actionType === 'APPROVE' ? 'text-green-800' : actionType === 'REJECT' ? 'text-red-800' : actionType === 'CANCEL' ? 'text-gray-800' : 'text-orange-800'}`}>
-                {actionType === 'APPROVE' ? <><FiCheckCircle /> Setujui & Beri Harga</> : actionType === 'REJECT' ? <><FiX /> Tolak Desain</> : actionType === 'CANCEL' ? <><FiX /> Batalkan Penawaran</> : <><FiAlertCircle /> Minta Revisi Desain</>}
+            <div className={`p-5 border-b border-gray-100 flex justify-between items-center shrink-0 ${['APPROVE', 'APPROVE_WITH_FILE'].includes(actionType) ? 'bg-green-50' : actionType === 'REJECT' ? 'bg-red-50' : actionType === 'CANCEL' ? 'bg-gray-100' : 'bg-orange-50'}`}>
+              <h3 className={`text-lg font-bold flex items-center gap-2 ${['APPROVE', 'APPROVE_WITH_FILE'].includes(actionType) ? 'text-green-800' : actionType === 'REJECT' ? 'text-red-800' : actionType === 'CANCEL' ? 'text-gray-800' : 'text-orange-800'}`}>
+                {['APPROVE', 'APPROVE_WITH_FILE'].includes(actionType) ? <><FiCheckCircle /> {actionType === 'APPROVE_WITH_FILE' ? 'Upload Final & Setujui' : 'Setujui & Beri Harga'}</> : actionType === 'REJECT' ? <><FiX /> Tolak Desain</> : actionType === 'CANCEL' ? <><FiX /> Batalkan Penawaran</> : <><FiAlertCircle /> Minta Revisi Desain</>}
               </h3>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-700">
                 <FiX className="text-xl" />
@@ -279,8 +346,25 @@ export default function DesignReviewList() {
                 <p className="text-sm text-gray-600 mb-4 border-l-4 border-gray-200 pl-3">
                   Aksi ini akan mengirimkan notifikasi email kepada kustomer.
                 </p>
+
+                {actionType === 'APPROVE_WITH_FILE' && (
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-4">
+                    <h4 className="text-sm font-bold text-blue-800 border-b border-blue-200 pb-2 flex items-center gap-2"><FiImage /> Upload Final Mockup</h4>
+                    <div>
+                      <label className="block text-xs font-semibold text-blue-700 mb-1">File Gambar (Wajib)</label>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        required
+                        onChange={(e) => setSelectedFile(e.target.files[0])}
+                        className="w-full text-xs border border-blue-200 rounded p-1 bg-white"
+                      />
+                      <p className="text-[10px] text-blue-600 mt-1">Upload desain final yang sudah Anda kerjakan. Kustomer akan melihat file ini saat membayar.</p>
+                    </div>
+                  </div>
+                )}
                 
-                {actionType === 'APPROVE' && (
+                {['APPROVE', 'APPROVE_WITH_FILE'].includes(actionType) && (
                   <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
                     <h4 className="text-sm font-bold text-gray-800 border-b border-gray-200 pb-2">Kalkulator Harga & Margin</h4>
                     
@@ -332,14 +416,14 @@ export default function DesignReviewList() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1">
-                    <FiMessageSquare /> {actionType === 'APPROVE' ? 'Catatan (Opsional)' : actionType === 'REVISE' ? 'Detail Revisi (Wajib)' : 'Alasan (Wajib)'}
+                    <FiMessageSquare /> {['APPROVE', 'APPROVE_WITH_FILE'].includes(actionType) ? 'Catatan (Opsional)' : actionType === 'REVISE' ? 'Detail Revisi (Wajib)' : 'Alasan (Wajib)'}
                   </label>
                   <textarea 
-                    required={actionType !== 'APPROVE'}
+                    required={!['APPROVE', 'APPROVE_WITH_FILE'].includes(actionType)}
                     rows="4"
                     value={comments}
                     onChange={(e) => setComments(e.target.value)}
-                    placeholder={actionType === 'APPROVE' ? "Catatan untuk customer..." : actionType === 'REVISE' ? "Beri tahu customer bagian mana yang harus direvisi..." : "Berikan alasan pembatalan/penolakan..."}
+                    placeholder={['APPROVE', 'APPROVE_WITH_FILE'].includes(actionType) ? "Catatan untuk customer..." : actionType === 'REVISE' ? "Beri tahu customer bagian mana yang harus direvisi..." : "Berikan alasan pembatalan/penolakan..."}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                   ></textarea>
                 </div>
@@ -352,7 +436,7 @@ export default function DesignReviewList() {
                 <button 
                   type="submit"
                   disabled={actionLoading}
-                  className={`flex-1 py-2 text-white font-medium rounded-lg flex items-center justify-center gap-2 ${actionType === 'APPROVE' ? 'bg-green-600 hover:bg-green-700' : actionType === 'REJECT' ? 'bg-red-600 hover:bg-red-700' : actionType === 'CANCEL' ? 'bg-gray-800 hover:bg-gray-900' : 'bg-orange-600 hover:bg-orange-700'}`}
+                  className={`flex-1 py-2 text-white font-medium rounded-lg flex items-center justify-center gap-2 ${['APPROVE', 'APPROVE_WITH_FILE'].includes(actionType) ? 'bg-green-600 hover:bg-green-700' : actionType === 'REJECT' ? 'bg-red-600 hover:bg-red-700' : actionType === 'CANCEL' ? 'bg-gray-800 hover:bg-gray-900' : 'bg-orange-600 hover:bg-orange-700'}`}
                 >
                   {actionLoading ? 'Menyimpan...' : 'Kirim'}
                 </button>

@@ -77,7 +77,14 @@ export default function LoginPage() {
             {...register('password', { required: 'Password wajib diisi' })}
             className="mt-1 block w-full border rounded px-3 py-2"
           />
-          {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
+          <div className="flex justify-between items-center mt-1">
+            {errors.password ? (
+              <p className="text-sm text-red-500">{errors.password.message}</p>
+            ) : (
+              <div /> // placeholder to keep flex space-between
+            )}
+            <a href="/forgot-password" className="text-xs text-blue-600 hover:underline">Lupa Password?</a>
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
