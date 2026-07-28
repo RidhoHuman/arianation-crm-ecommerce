@@ -125,13 +125,13 @@ const getOrderMetrics = async (query) => {
   const result = await query
     .clone()
     .select(
-      knex.raw('SUM(totalAmount) as totalRevenue'),
-      knex.raw('AVG(totalAmount) as avgAmount'),
+      knex.raw('SUM(??) as ??', ['totalAmount', 'totalRevenue']),
+      knex.raw('AVG(??) as ??', ['totalAmount', 'avgAmount']),
       knex.raw(
-        "SUM(CASE WHEN orderNumber LIKE 'SAB-%' THEN totalAmount ELSE 0 END) as sablonRevenue"
+        "SUM(CASE WHEN ?? LIKE 'SAB-%' THEN ?? ELSE 0 END) as ??", ['orderNumber', 'totalAmount', 'sablonRevenue']
       ),
       knex.raw(
-        "SUM(CASE WHEN orderNumber LIKE 'ORD-%' THEN totalAmount ELSE 0 END) as retailRevenue"
+        "SUM(CASE WHEN ?? LIKE 'ORD-%' THEN ?? ELSE 0 END) as ??", ['orderNumber', 'totalAmount', 'retailRevenue']
       ),
       knex.raw('COUNT(*) as count')
     )

@@ -92,8 +92,8 @@ const getRevenueAnalytics = async (req, res, next) => {
         'product.id as productId',
         'product.productName',
         'productCategory.categoryName as category',
-        knex.raw('COALESCE(SUM(orderItem.subtotal), 0) as revenue'),
-        knex.raw('COUNT(orderItem.id) as itemsSold')
+        knex.raw('COALESCE(SUM(??), 0) as revenue', ['orderItem.subtotal']),
+        knex.raw('COUNT(??) as itemsSold', ['orderItem.id'])
       )
       .join('product', 'orderItem.productId', 'product.id')
       .join('productCategory', 'product.categoryId', 'productCategory.id')
@@ -113,8 +113,8 @@ const getRevenueAnalytics = async (req, res, next) => {
     const paymentMethodRevenue = await knex('payment')
       .select(
         'paymentMethod as method',
-        knex.raw('COALESCE(SUM(amount), 0) as revenue'),
-        knex.raw('COUNT(id) as transactions')
+        knex.raw('COALESCE(SUM(??), 0) as revenue', ['amount']),
+        knex.raw('COUNT(??) as transactions', ['id'])
       )
       .where('createdAt', '>=', daysAgo)
       .where('status', 'COMPLETED')
@@ -159,8 +159,8 @@ const getOrderAnalytics = async (req, res, next) => {
     const ordersByStatus = await knex('order')
       .select(
         'status',
-        knex.raw('COUNT(id) as count'),
-        knex.raw('COALESCE(SUM(totalAmount), 0) as revenue')
+        knex.raw('COUNT(??) as count', ['id']),
+        knex.raw('COALESCE(SUM(??), 0) as revenue', ['totalAmount'])
       )
       .where('createdAt', '>=', daysAgo)
       .groupBy('status');
@@ -243,8 +243,8 @@ const getCustomerAnalytics = async (req, res, next) => {
     const topCustomers = await knex('order')
       .select(
         'userId',
-        knex.raw('SUM(totalAmount) as totalSpent'),
-        knex.raw('COUNT(id) as orderCount')
+        knex.raw('SUM(??) as totalSpent', ['totalAmount']),
+        knex.raw('COUNT(??) as orderCount', ['id'])
       )
       .where('createdAt', '>=', daysAgo)
       .groupBy('userId')

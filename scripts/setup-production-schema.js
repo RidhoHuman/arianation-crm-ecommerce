@@ -468,6 +468,43 @@ async function setupSchema() {
       console.log('⏭️  shoppingCart table sudah ada');
     }
 
+    // Cart Item table
+    const hasCartItemTable = await db.schema.hasTable('cartItem');
+    if (!hasCartItemTable) {
+      console.log('📝 Creating cartItem table...');
+      await db.schema.createTable('cartItem', (t) => {
+        t.string('id').primary();
+        t.string('cartId').references('id').inTable('shoppingCart').onDelete('CASCADE');
+        t.string('productId').references('id').inTable('product').onDelete('CASCADE');
+        t.string('variantId').nullable();
+        t.integer('quantity').defaultTo(1);
+        t.decimal('price', 10, 2).notNullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ cartItem table created');
+    } else {
+      console.log('⏭️  cartItem table sudah ada');
+    }
+
+    // Admin Notifications table
+    const hasAdminNotificationsTable = await db.schema.hasTable('admin_notifications');
+    if (!hasAdminNotificationsTable) {
+      console.log('📝 Creating admin_notifications table...');
+      await db.schema.createTable('admin_notifications', (t) => {
+        t.increments('id').primary();
+        t.string('type').notNullable();
+        t.string('title').notNullable();
+        t.text('message').notNullable();
+        t.boolean('isRead').defaultTo(false);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ admin_notifications table created');
+    } else {
+      console.log('⏭️  admin_notifications table sudah ada');
+    }
+
     // Wishlist table
     const hasWishlistTable = await db.schema.hasTable('wishlist');
     if (!hasWishlistTable) {
