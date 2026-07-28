@@ -569,5 +569,20 @@
     "new": "Baru",
     "loading": "Memuat...",
     "loadMore": "Muat Lebih Banyak"
+  },
+  "auth": {
+    "loginTitle": "Masuk ke akun Anda",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Lupa Password?",
+    "loginBtn": "Masuk",
+    "orLoginWith": "atau masuk dengan",
+    "noAccount": "Belum punya akun?",
+    "registerPromo": "Buat akun sekarang dan dapatkan bonus 10 Aria Points (setara Rp 10.000) untuk transaksi pertamamu!",
+    "registerBtn": "Daftar Sekarang",
+    "emailRequired": "Email wajib diisi",
+    "passwordRequired": "Password wajib diisi",
+    "loginFailed": "Login gagal. Periksa kredensial Anda.",
+    "loginError": "Terjadi kesalahan saat login"
   }
 }

@@ -567,5 +567,20 @@
     "new": "New",
     "loading": "Loading...",
     "loadMore": "Load More"
+  },
+  "auth": {
+    "loginTitle": "Login to your account",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "loginBtn": "Login",
+    "orLoginWith": "or login with",
+    "noAccount": "Don't have an account?",
+    "registerPromo": "Create an account now and get 10 Aria Points (Value Rp 10.000) for your first transaction!",
+    "registerBtn": "Register Now",
+    "emailRequired": "Email is required",
+    "passwordRequired": "Password is required",
+    "loginFailed": "Login failed. Check your credentials.",
+    "loginError": "An error occurred during login"
   }
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import useUIStore from '../store/uiStore';
 import useAuthStore from '../store/authStore';
 import { FcGoogle } from 'react-icons/fc';
@@ -10,6 +11,7 @@ import { FaFacebook } from 'react-icons/fa';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function LoginPage() {
+  const { t } = useTranslation('translation', { keyPrefix: 'auth' });
   const { login } = useAuth();
   const setLoading = useUIStore((s) => s.setLoading);
   const navigate = useNavigate();
@@ -43,11 +45,11 @@ export default function LoginPage() {
           navigate('/account');
         }
       } else {
-        setError('Login gagal. Periksa kredensial Anda.');
+        setError(t('loginFailed'));
       }
     } catch (e) {
       setLoading(false);
-      setError(e?.response?.data?.message || 'Terjadi kesalahan saat login');
+      setError(e?.response?.data?.message || t('loginError'));
     }
   };
 
@@ -60,25 +62,25 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-md mx-auto mt-16 p-6 bg-white rounded shadow">
-      <h1 className="text-2xl font-semibold mb-4">Masuk ke akun Anda</h1>
+      <h1 className="text-2xl font-semibold mb-4">{t('loginTitle')}</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium">Email</label>
+          <label className="block text-sm font-medium">{t('email')}</label>
           <input
             type="email"
-            {...register('email', { required: 'Email wajib diisi' })}
+            {...register('email', { required: t('emailRequired') })}
             className="mt-1 block w-full border rounded px-3 py-2"
           />
           {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Password</label>
+          <label className="block text-sm font-medium">{t('password')}</label>
           <div className="relative mt-1">
             <input
               type={showPassword ? "text" : "password"}
-              {...register('password', { required: 'Password wajib diisi' })}
+              {...register('password', { required: t('passwordRequired') })}
               className="block w-full border rounded px-3 py-2 pr-10"
             />
             <button
@@ -95,20 +97,20 @@ export default function LoginPage() {
             ) : (
               <div /> // placeholder to keep flex space-between
             )}
-            <a href="/forgot-password" className="text-xs text-blue-600 hover:underline">Lupa Password?</a>
+            <a href="/forgot-password" className="text-xs text-blue-600 hover:underline">{t('forgotPassword')}</a>
           </div>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-medium hover:bg-blue-700 transition-colors">
-          Masuk
+          {t('loginBtn')}
         </button>
       </form>
 
       <div className="my-6 flex items-center">
         <div className="flex-grow border-t border-gray-300"></div>
-        <span className="flex-shrink-0 mx-4 text-sm text-gray-500">atau masuk dengan</span>
+        <span className="flex-shrink-0 mx-4 text-sm text-gray-500">{t('orLoginWith')}</span>
         <div className="flex-grow border-t border-gray-300"></div>
       </div>
 
@@ -132,12 +134,12 @@ export default function LoginPage() {
       </div>
 
       <div className="mt-6 border-t pt-6 text-center">
-        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Belum punya akun?</p>
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">{t('noAccount')}</p>
         <p className="text-xs text-gray-500 mb-4">
-          Buat akun sekarang dan dapatkan bonus <strong>10 Aria Points</strong> (setara Rp 10.000) untuk transaksi pertamamu!
+          {t('registerPromo')}
         </p>
         <a href="/register" className="inline-block w-full bg-aria-charcoal text-white py-3 rounded-sm text-sm uppercase tracking-widest font-medium hover:bg-aria-maroon transition-colors">
-          Daftar Sekarang
+          {t('registerBtn')}
         </a>
       </div>
     </div>
