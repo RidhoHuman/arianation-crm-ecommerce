@@ -97,7 +97,7 @@ const orderService = {
         'order.shippingCost',
         'order.shippingCourier',
         'order.refundDetails',
-        knex.raw('COALESCE(orderTracking.trackingNumber, order.trackingNumber) as trackingNumber'),
+        knex.raw('COALESCE(??, ??) as ??', ['orderTracking.trackingNumber', 'order.trackingNumber', 'trackingNumber']),
         'order.createdAt',
         'order.updatedAt'
       )
@@ -336,7 +336,7 @@ const orderService = {
       .select(
         knex.raw('COUNT(*) as totalOrders'),
         knex.raw('SUM(totalAmount) as totalRevenue'),
-        knex.raw('COUNT(CASE WHEN status = "DELIVERED" THEN 1 END) as completedOrders')
+        knex.raw("COUNT(CASE WHEN status = 'DELIVERED' THEN 1 END) as completedOrders")
       )
       .first();
 
