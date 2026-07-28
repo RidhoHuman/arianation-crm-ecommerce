@@ -122,21 +122,55 @@ async function setupSchema() {
       console.log('📝 Creating product table...');
       await db.schema.createTable('product', (t) => {
         t.string('id').primary();
-        t.string('categoryId');
+        t.string('categoryId').references('id').inTable('productCategory').onDelete('SET NULL');
         t.string('productName');
-        t.decimal('price', 10, 2).defaultTo(0);
+        t.text('description');
+        t.text('descriptionEn').nullable();
+        t.decimal('price', 10, 2);
         t.integer('stockQuantity').defaultTo(0);
         t.string('productType');
+        t.string('productTypeId').nullable();
+        t.string('imageUrl');
         t.string('businessType');
-        t.string('imageUrl').nullable();
-        t.text('description').nullable();
         t.boolean('isActive').defaultTo(true);
+        t.string('tags').nullable();
+        t.boolean('isSale').defaultTo(false);
+        t.decimal('salePrice', 10, 2).nullable();
+        t.text('imageUrls').nullable();
+        t.boolean('trackStock').defaultTo(true);
+        t.text('allowedPrintAreas').nullable();
+        t.integer('weight_gram').nullable();
         t.timestamp('createdAt').defaultTo(db.fn.now());
         t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
       console.log('✅ product table created');
     } else {
       console.log('⏭️  product table sudah ada');
+    }
+
+    // Product Variant table
+    const hasProductVariantTable = await db.schema.hasTable('productVariant');
+    if (!hasProductVariantTable) {
+      console.log('📝 Creating productVariant table...');
+      await db.schema.createTable('productVariant', (t) => {
+        t.string('id').primary();
+        t.string('productId').references('id').inTable('product').onDelete('CASCADE');
+        t.string('variantName');
+        t.string('color').nullable();
+        t.string('colorCode').nullable();
+        t.string('imageUrl').nullable();
+        t.string('imageUrlBack').nullable();
+        t.string('imageUrlLeft').nullable();
+        t.string('imageUrlRight').nullable();
+        t.integer('stockQuantity').defaultTo(0);
+        t.string('sku').nullable();
+        t.decimal('additionalPrice', 10, 2).defaultTo(0);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ productVariant table created');
+    } else {
+      console.log('⏭️  productVariant table sudah ada');
     }
 
     // Order table
@@ -233,32 +267,47 @@ async function setupSchema() {
     }
 
     // Order Notification table
-    const hasNotificationTable = await db.schema.hasTable('orderNotification');
-    if (!hasNotificationTable) {
+    const hasOrderNotificationTable = await db.schema.hasTable('orderNotification');
+    if (!hasOrderNotificationTable) {
       console.log('📝 Creating orderNotification table...');
       await db.schema.createTable('orderNotification', (t) => {
         t.string('id').primary();
-        t.string('orderId');
-        t.string('userId').nullable();
-        t.string('recipientEmail').nullable();
-        t.string('type');
-        t.string('title');
-        t.text('message');
-        t.boolean('emailSent').defaultTo(false);
-        t.text('payload').nullable();
-        t.boolean('isRead').defaultTo(false);
+        t.string('orderId').references('id').inTable('order').onDelete('CASCADE');
+        t.string('type').notNullable();
+        t.text('message').notNullable();
+        t.string('status').defaultTo('pending');
+        t.integer('retryCount').defaultTo(0);
         t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
       console.log('✅ orderNotification table created');
     } else {
       console.log('⏭️  orderNotification table sudah ada, checking columns...');
-      const hasIsReadCol = await db.schema.hasColumn('orderNotification', 'isRead');
-      if (!hasIsReadCol) {
-        await db.schema.alterTable('orderNotification', t => {
-          t.boolean('isRead').defaultTo(false);
+      const hasRetryCount = await db.schema.hasColumn('orderNotification', 'retryCount');
+      if (!hasRetryCount) {
+        await db.schema.alterTable('orderNotification', (t) => {
+          t.integer('retryCount').defaultTo(0);
         });
-        console.log('✅ orderNotification table altered: added isRead');
+        console.log('   ➕ added retryCount to orderNotification');
       }
+    }
+
+    // Customer Notification table
+    const hasCustomerNotificationTable = await db.schema.hasTable('customerNotification');
+    if (!hasCustomerNotificationTable) {
+      console.log('📝 Creating customerNotification table...');
+      await db.schema.createTable('customerNotification', (t) => {
+        t.string('id').primary();
+        t.string('userId');
+        t.string('title');
+        t.text('message');
+        t.string('type').defaultTo('general');
+        t.boolean('isRead').defaultTo(false);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ customerNotification table created');
+    } else {
+      console.log('⏭️  customerNotification table sudah ada');
     }
 
     // Customer Profile table
