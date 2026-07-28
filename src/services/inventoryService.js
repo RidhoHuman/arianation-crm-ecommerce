@@ -222,16 +222,12 @@ class InventoryService {
       'price',
       'categoryId as category',
       'stockQuantity',
-      'readyStock',
-      'stockType',
-      'featured',
       'imageUrl',
       'businessType'
     );
 
     if (category) query = query.where('categoryId', category);
     if (search) query = query.where('productName', 'like', `%${search}%`);
-    if (featured !== undefined) query = query.where('featured', featured);
 
     const products = await query.orderBy('categoryId', 'asc').orderBy('productName', 'asc');
 
