@@ -583,6 +583,25 @@
     "emailRequired": "Email wajib diisi",
     "passwordRequired": "Password wajib diisi",
     "loginFailed": "Login gagal. Periksa kredensial Anda.",
-    "loginError": "Terjadi kesalahan saat login"
+    "loginError": "Terjadi kesalahan saat login",
+    "registerTitle": "Buat Akun Baru",
+    "fullName": "Nama Lengkap",
+    "fullNamePlaceholder": "Nama lengkap Anda",
+    "emailPlaceholder": "email@contoh.com",
+    "phone": "Nomor Telepon",
+    "phonePlaceholder": "08123456789",
+    "passwordPlaceholder": "Minimal 8 karakter",
+    "confirmPassword": "Konfirmasi Password",
+    "confirmPasswordPlaceholder": "Masukkan ulang password",
+    "registerSuccess": "Registrasi Berhasil!",
+    "redirecting": "Redirecting ke home...",
+    "registerFailed": "Registrasi gagal",
+    "registerError": "Terjadi kesalahan saat registrasi",
+    "orRegisterWith": "atau daftar dengan",
+    "alreadyHaveAccount": "Sudah punya akun?",
+    "nameMin3": "Nama minimal 3 karakter",
+    "emailInvalid": "Email tidak valid",
+    "passMin8": "Password minimal 8 karakter",
+    "passMismatch": "Password tidak cocok"
   }
 }

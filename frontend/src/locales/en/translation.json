@@ -581,6 +581,25 @@
     "emailRequired": "Email is required",
     "passwordRequired": "Password is required",
     "loginFailed": "Login failed. Check your credentials.",
-    "loginError": "An error occurred during login"
+    "loginError": "An error occurred during login",
+    "registerTitle": "Create New Account",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Your full name",
+    "emailPlaceholder": "email@example.com",
+    "phone": "Phone Number",
+    "phonePlaceholder": "08123456789",
+    "passwordPlaceholder": "Minimum 8 characters",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Re-enter password",
+    "registerSuccess": "Registration Successful!",
+    "redirecting": "Redirecting to home...",
+    "registerFailed": "Registration failed",
+    "registerError": "An error occurred during registration",
+    "orRegisterWith": "or register with",
+    "alreadyHaveAccount": "Already have an account?",
+    "nameMin3": "Name minimum 3 characters",
+    "emailInvalid": "Invalid email",
+    "passMin8": "Password minimum 8 characters",
+    "passMismatch": "Passwords do not match"
   }
 }
