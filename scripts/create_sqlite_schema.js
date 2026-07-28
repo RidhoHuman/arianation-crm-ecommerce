@@ -127,6 +127,7 @@ const knexLib = require('knex');
         t.string('shippingCourier').nullable();
         t.text('refundDetails').nullable();
         t.string('trackingNumber').nullable();
+        t.string('deliveryType').nullable();
         t.timestamp('createdAt').defaultTo(db.fn.now());
         t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
@@ -191,6 +192,23 @@ const knexLib = require('knex');
         t.text('payload').nullable();
         t.timestamp('createdAt').defaultTo(db.fn.now());
       });
+
+    if (!(await has('customerNotification')))
+      await db.schema.createTable('customerNotification', (t) => {
+        t.string('id').primary();
+        t.string('referenceId').nullable();
+        t.string('referenceType').defaultTo('SYSTEM');
+        t.string('userId').nullable();
+        t.string('recipientEmail').nullable();
+        t.string('type');
+        t.string('title');
+        t.text('message');
+        t.boolean('emailSent').defaultTo(false);
+        t.boolean('isRead').defaultTo(false);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+
 
     if (!(await has('customerProfile')))
       await db.schema.createTable('customerProfile', (t) => {

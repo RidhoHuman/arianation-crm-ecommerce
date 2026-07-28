@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
-const { PrismaClient } = require('@prisma/client');
+const knex = require('../../src/config/knex');
 const bcrypt = require('bcryptjs');
-
-const prisma = new PrismaClient();
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL || 'owner@arianation.com';
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || 'owner123';
@@ -12,26 +10,32 @@ const OWNER_FULL_NAME = process.env.OWNER_FULL_NAME || 'Owner Arianation';
 async function main() {
   const hashedPassword = await bcrypt.hash(OWNER_PASSWORD, 10);
 
-  const user = await prisma.user.upsert({
-    where: { email: OWNER_EMAIL },
-    update: {
+  const existing = await knex('user').where('email', OWNER_EMAIL).first();
+
+  if (existing) {
+    await knex('user').where('email', OWNER_EMAIL).update({
       password: hashedPassword,
       fullName: OWNER_FULL_NAME,
       role: 'OWNER',
       isActive: true,
       emailVerified: new Date(),
-    },
-    create: {
+      updatedAt: new Date()
+    });
+  } else {
+    await knex('user').insert({
+      id: require('cuid')(),
       email: OWNER_EMAIL,
       password: hashedPassword,
       fullName: OWNER_FULL_NAME,
       role: 'OWNER',
       isActive: true,
       emailVerified: new Date(),
-    },
-  });
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  }
 
-  console.log(`✅ Ensured OWNER user exists: ${user.email}`);
+  console.log(`✅ Ensured OWNER user exists: ${OWNER_EMAIL}`);
 }
 
 main()
@@ -40,5 +44,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await knex.destroy();
   });

@@ -364,7 +364,7 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
         type: config.type,
         title: config.title,
         message: config.message,
-      });
+      }, trx);
 
       // Also trigger the email sending process
       if (notif && notif.id) {

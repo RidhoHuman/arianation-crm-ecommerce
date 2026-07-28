@@ -41,12 +41,12 @@ const queueNotification = async ({
   type,
   title,
   message,
-}) => {
+}, trx = knex) => {
   if (!orderId) {
     throw new Error('orderId is required to queue a notification');
   }
 
-  const order = await knex('order')
+  const order = await trx('order')
     .select('id', 'orderNumber', 'userId')
     .where('id', orderId)
     .first();
@@ -55,7 +55,7 @@ const queueNotification = async ({
     throw new Error(`Order not found for orderId: ${orderId}`);
   }
 
-  const customer = await knex('user')
+  const customer = await trx('user')
     .select('id', 'email', 'fullName')
     .where('id', userId || order.userId)
     .first();
@@ -63,7 +63,7 @@ const queueNotification = async ({
   const cuid = require('cuid');
   const notificationId = cuid();
 
-  await knex('customerNotification').insert({
+  await trx('customerNotification').insert({
     id: notificationId,
     userId: userId || order.userId || null,
     recipientEmail: recipientEmail || customer?.email || null,
@@ -93,7 +93,7 @@ const queueNotification = async ({
   try {
     const targetUserId = userId || order.userId;
     if (targetUserId && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-      const subscriptions = await knex('pushSubscriptions').where({ userId: targetUserId });
+      const subscriptions = await trx('pushSubscriptions').where({ userId: targetUserId });
 
       const pushPayload = JSON.stringify({
         title: title || 'Notifikasi Baru',
@@ -117,7 +117,7 @@ const queueNotification = async ({
         } catch (err) {
           if (err.statusCode === 404 || err.statusCode === 410) {
             // Subscription has expired or is no longer valid
-            await knex('pushSubscriptions').where({ id: sub.id }).delete();
+            await trx('pushSubscriptions').where({ id: sub.id }).delete();
           } else {
             console.error('Error sending push notification to a subscription:', err);
           }
@@ -144,19 +144,19 @@ const queueCustomerNotification = async ({
   type,
   title,
   message,
-}) => {
+}, trx = knex) => {
   if (!userId && !recipientEmail) {
     throw new Error('userId or recipientEmail is required to queue a customer notification');
   }
 
   const customer = userId
-    ? await knex('user').select('id', 'email', 'fullName').where('id', userId).first()
+    ? await trx('user').select('id', 'email', 'fullName').where('id', userId).first()
     : null;
 
   const cuid = require('cuid');
   const notificationId = cuid();
 
-  await knex('customerNotification').insert({
+  await trx('customerNotification').insert({
     id: notificationId,
     userId: userId || null,
     recipientEmail: recipientEmail || customer?.email || null,
@@ -185,7 +185,7 @@ const queueCustomerNotification = async ({
   // Attempt to send web push
   try {
     if (userId && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-      const subscriptions = await knex('pushSubscriptions').where({ userId });
+      const subscriptions = await trx('pushSubscriptions').where({ userId });
 
       const urlMap = {
         ORDER: `/customer/orders/${referenceId}`,
@@ -214,7 +214,7 @@ const queueCustomerNotification = async ({
           );
         } catch (err) {
           if (err.statusCode === 404 || err.statusCode === 410) {
-            await knex('pushSubscriptions').where({ id: sub.id }).delete();
+            await trx('pushSubscriptions').where({ id: sub.id }).delete();
           } else {
             console.error('Error sending push notification to a subscription:', err);
           }
