@@ -384,6 +384,25 @@ async function setupSchema() {
       }
     }
 
+    // Sablon Portfolio table
+    const hasSablonPortfolioTable = await db.schema.hasTable('sablon_portfolio');
+    if (!hasSablonPortfolioTable) {
+      console.log('📝 Creating sablon_portfolio table...');
+      await db.schema.createTable('sablon_portfolio', (t) => {
+        t.increments('id').primary();
+        t.string('title').notNullable();
+        t.string('category').notNullable();
+        t.string('imageUrl').notNullable();
+        t.boolean('isActive').defaultTo(true);
+        t.integer('sortOrder').defaultTo(0);
+        t.timestamp('created_at').defaultTo(db.fn.now());
+        t.timestamp('updated_at').defaultTo(db.fn.now());
+      });
+      console.log('✅ sablon_portfolio table created');
+    } else {
+      console.log('⏭️  sablon_portfolio table sudah ada');
+    }
+
     // Print Techniques table
     const hasPrintTechniquesTable = await db.schema.hasTable('print_techniques');
     if (!hasPrintTechniquesTable) {
