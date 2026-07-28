@@ -25,10 +25,10 @@ const cookieOptions = {
 const oauthCallback = async (req, res, next) => {
   try {
     const user = req.user; // from passport
+    const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000');
+
     if (!user) {
-      return res.redirect(
-        `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`
-      );
+      return res.redirect(`${frontendUrl}/login?error=auth_failed`);
     }
 
     const token = generateToken({ id: user.id, email: user.email, role: user.role });
@@ -41,9 +41,7 @@ const oauthCallback = async (req, res, next) => {
     });
 
     // Redirect to frontend callback route with token in query params
-    res.redirect(
-      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/oauth-callback?token=${token}&refreshToken=${refreshTokenString}`
-    );
+    res.redirect(`${frontendUrl}/oauth-callback?token=${token}&refreshToken=${refreshTokenString}`);
   } catch (error) {
     next(error);
   }
