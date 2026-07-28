@@ -19,8 +19,8 @@ const getCart = async (req, res, next) => {
       .where('cartId', cart.id)
       .select(
         'cartItem.*',
-        knex.raw('p.productName, p.price as productPrice, p.imageUrl, p.isActive, p.businessType'),
-        knex.raw('v.variantName as size, v.color as color, v.imageUrl as variantImage')
+        knex.raw('??, ?? as ??, ??, ??, ??', ['p.productName', 'p.price', 'productPrice', 'p.imageUrl', 'p.isActive', 'p.businessType']),
+        knex.raw('?? as size, ?? as color, ?? as ??', ['v.variantName', 'v.color', 'v.imageUrl', 'variantImage'])
       )
       .leftJoin('product as p', 'cartItem.productId', 'p.id')
       .leftJoin('productVariant as v', 'cartItem.variantId', 'v.id')

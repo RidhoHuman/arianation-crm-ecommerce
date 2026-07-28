@@ -89,7 +89,7 @@ const getOrderById = async (req, res, next) => {
         'orderItem.*',
         'product.productName',
         'product.imageUrl as productImage',
-        knex.raw('v.variantName as size, v.color as color, v.imageUrl as variantImage')
+        knex.raw('?? as size, ?? as color, ?? as ??', ['v.variantName', 'v.color', 'v.imageUrl', 'variantImage'])
       )
       .where('orderId', id);
 

@@ -453,6 +453,53 @@ async function setupSchema() {
       console.log('⏭️  customerMetrics table sudah ada');
     }
 
+    // Purchase Orders (PO) table
+    const hasPoOrdersTable = await db.schema.hasTable('po_orders');
+    if (!hasPoOrdersTable) {
+      console.log('📝 Creating po_orders table...');
+      await db.schema.createTable('po_orders', (t) => {
+        t.increments('id').primary();
+        t.string('orderNumber').notNullable();
+        t.string('productId').references('id').inTable('product').onDelete('CASCADE');
+        t.integer('quantity').notNullable();
+        t.integer('quantityReceived').defaultTo(0);
+        t.string('supplierName').notNullable();
+        t.string('status').defaultTo('pending');
+        t.string('paymentStatus').defaultTo('unpaid');
+        t.timestamp('estimatedDelivery').nullable();
+        t.timestamp('actualDelivery').nullable();
+        t.text('notes').nullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ po_orders table created');
+    } else {
+      console.log('⏭️  po_orders table sudah ada');
+    }
+
+    // Inventory Log table
+    const hasInventoryLogTable = await db.schema.hasTable('inventory_log');
+    if (!hasInventoryLogTable) {
+      console.log('📝 Creating inventory_log table...');
+      await db.schema.createTable('inventory_log', (t) => {
+        t.increments('id').primary();
+        t.string('productId').references('id').inTable('product').onDelete('CASCADE');
+        t.integer('change').notNullable();
+        t.string('type').notNullable();
+        t.string('reason').nullable();
+        t.string('referenceId').nullable();
+        t.string('referenceType').nullable();
+        t.string('changedBy').nullable();
+        t.integer('stockBefore').notNullable();
+        t.integer('stockAfter').notNullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ inventory_log table created');
+    } else {
+      console.log('⏭️  inventory_log table sudah ada');
+    }
+
     // Shopping Cart table
     const hasShoppingCartTable = await db.schema.hasTable('shoppingCart');
     if (!hasShoppingCartTable) {

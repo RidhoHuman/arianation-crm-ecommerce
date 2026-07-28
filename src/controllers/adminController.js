@@ -546,7 +546,7 @@ const getOrderDetail = async (req, res, next) => {
         'product.productName',
         'product.price',
         'product.imageUrl as productImage',
-        knex.raw('v.variantName, v.color, v.imageUrl as variantImage')
+        knex.raw('??, ??, ?? as ??', ['v.variantName', 'v.color', 'v.imageUrl', 'variantImage'])
       )
       .leftJoin('product', 'orderItem.productId', 'product.id')
       .leftJoin('productVariant as v', 'orderItem.variantId', 'v.id')
