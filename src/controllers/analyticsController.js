@@ -20,7 +20,7 @@ const getSalesAnalytics = async (req, res, next) => {
         'order.id',
         'order.createdAt',
         'order.totalAmount',
-        knex.raw('COUNT(orderItem.id) as itemCount')
+        knex.raw('COUNT(??) as itemCount', ['orderItem.id'])
       )
       .leftJoin('orderItem', 'order.id', 'orderItem.orderId')
       .where('order.createdAt', '>=', daysAgo)

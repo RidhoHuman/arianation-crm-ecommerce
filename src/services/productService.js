@@ -45,7 +45,7 @@ const productService = {
     }
 
     const products = await query
-      .leftJoin('category', 'product.categoryId', 'category.id')
+      .leftJoin('productCategory as category', 'product.categoryId', 'category.id')
       .select(
         'product.id',
         'product.categoryId',

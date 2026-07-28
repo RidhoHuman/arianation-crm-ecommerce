@@ -71,6 +71,15 @@ async function setupSchema() {
         });
         console.log('✅ user table updated with missing columns');
       }
+
+      const hasPhone = await db.schema.hasColumn('user', 'phone');
+      if (!hasPhone) {
+        await db.schema.alterTable('user', (t) => {
+          console.log('   ➕ adding phone column');
+          t.string('phone').nullable();
+        });
+        console.log('✅ user table updated with phone column');
+      }
     }
 
     // Product Category table
@@ -275,10 +284,19 @@ async function setupSchema() {
         t.text('designDescription').nullable();
         t.string('referenceImageUrl').nullable();
         t.string('designFileUrl').nullable();
+        t.string('mockupPreviewUrl').nullable();
         t.string('fileType').nullable();
         t.integer('quantity').defaultTo(1);
         t.string('productTypeForSablon').nullable();
+        t.string('printTechnique').nullable();
+        t.integer('numberOfColors').nullable();
+        t.decimal('estimatedPrice', 10, 2).nullable();
+        t.string('printSize').nullable();
+        t.string('printPosition').nullable();
         t.string('colorPreferences').nullable();
+        t.text('sizeBreakdown').nullable();
+        t.string('picName').nullable();
+        t.string('whatsappNumber').nullable();
         t.date('deadline').nullable();
         t.string('status').defaultTo('DRAFT');
         t.timestamp('submittedAt').nullable();
@@ -287,7 +305,22 @@ async function setupSchema() {
       });
       console.log('✅ designRequest table created');
     } else {
-      console.log('⏭️  designRequest table sudah ada');
+      console.log('⏭️  designRequest table sudah ada, checking columns...');
+      const hasMockupPreviewUrl = await db.schema.hasColumn('designRequest', 'mockupPreviewUrl');
+      if (!hasMockupPreviewUrl) {
+        await db.schema.alterTable('designRequest', (t) => {
+          t.string('mockupPreviewUrl').nullable();
+          t.string('printTechnique').nullable();
+          t.integer('numberOfColors').nullable();
+          t.decimal('estimatedPrice', 10, 2).nullable();
+          t.string('printSize').nullable();
+          t.string('printPosition').nullable();
+          t.text('sizeBreakdown').nullable();
+          t.string('picName').nullable();
+          t.string('whatsappNumber').nullable();
+        });
+        console.log('✅ designRequest table altered: added missing columns');
+      }
     }
 
     // Customer Metrics table
@@ -370,6 +403,39 @@ async function setupSchema() {
       console.log('✅ pushSubscriptions table created');
     } else {
       console.log('⏭️  pushSubscriptions table sudah ada');
+    }
+
+    // System Activity table
+    const hasSystemActivityTable = await db.schema.hasTable('system_activity');
+    if (!hasSystemActivityTable) {
+      console.log('📝 Creating system_activity table...');
+      await db.schema.createTable('system_activity', (t) => {
+        t.string('id').primary();
+        t.string('action');
+        t.string('entityType');
+        t.string('entityId');
+        t.text('details');
+        t.string('userId').nullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ system_activity table created');
+    }
+
+    // Audit Log table
+    const hasAuditLogTable = await db.schema.hasTable('auditLog');
+    if (!hasAuditLogTable) {
+      console.log('📝 Creating auditLog table...');
+      await db.schema.createTable('auditLog', (t) => {
+        t.string('id').primary();
+        t.string('action');
+        t.string('entity');
+        t.string('entityId');
+        t.string('userId');
+        t.text('details');
+        t.string('ipAddress').nullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ auditLog table created');
     }
 
     console.log('\n✅ Production schema setup complete!');
