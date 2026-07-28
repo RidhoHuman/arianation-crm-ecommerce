@@ -651,6 +651,53 @@ async function setupSchema() {
       console.log('⏭️  newsletter_subscribers table sudah ada');
     }
 
+    // Couriers table
+    const hasCouriersTable = await db.schema.hasTable('couriers');
+    if (!hasCouriersTable) {
+      console.log('📝 Creating couriers table...');
+      await db.schema.createTable('couriers', (t) => {
+        t.string('code').primary();
+        t.string('name').notNullable();
+        t.boolean('isActive').defaultTo(true);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ couriers table created');
+      
+      // Insert default couriers
+      await db('couriers').insert([
+        { code: 'jne', name: 'JNE', isActive: true },
+        { code: 'pos', name: 'POS Indonesia', isActive: true },
+        { code: 'tiki', name: 'TIKI', isActive: true },
+        { code: 'jnt', name: 'J&T Express', isActive: true },
+        { code: 'sicepat', name: 'SiCepat', isActive: true }
+      ]);
+      console.log('✅ Default couriers inserted');
+    } else {
+      console.log('⏭️  couriers table sudah ada');
+    }
+
+    // Product Review table
+    const hasProductReviewTable = await db.schema.hasTable('product_review');
+    if (!hasProductReviewTable) {
+      console.log('📝 Creating product_review table...');
+      await db.schema.createTable('product_review', (t) => {
+        t.increments('id').primary();
+        t.string('productId').notNullable();
+        t.string('userId').notNullable();
+        t.string('orderId').notNullable();
+        t.integer('rating').notNullable();
+        t.text('comment').notNullable();
+        t.string('imageUrl').nullable();
+        t.integer('pointsAwarded').defaultTo(0);
+        t.boolean('isVerified').defaultTo(true);
+        t.timestamp('created_at').defaultTo(db.fn.now());
+      });
+      console.log('✅ product_review table created');
+    } else {
+      console.log('⏭️  product_review table sudah ada');
+    }
+
     // Point History table
     const hasPointHistoryTable = await db.schema.hasTable('pointHistory');
     if (!hasPointHistoryTable) {
