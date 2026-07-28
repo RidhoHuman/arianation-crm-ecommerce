@@ -94,7 +94,10 @@ router.get(
   '/oauth/google',
   (req, res, next) => {
     if (!config.google.clientId || !config.google.clientSecret) {
-      return mockOAuthHandler('Google')(req, res, oauthCallback);
+      return mockOAuthHandler('Google')(req, res, (err) => {
+        if (err) return next(err);
+        return oauthCallback(req, res, next);
+      });
     }
     passport.authenticate('google', { scope: ['profile', 'email'], session: false })(req, res, next);
   }
@@ -116,7 +119,10 @@ router.get(
   '/oauth/facebook',
   (req, res, next) => {
     if (!config.facebook.appId || !config.facebook.appSecret) {
-      return mockOAuthHandler('Facebook')(req, res, oauthCallback);
+      return mockOAuthHandler('Facebook')(req, res, (err) => {
+        if (err) return next(err);
+        return oauthCallback(req, res, next);
+      });
     }
     passport.authenticate('facebook', { scope: ['public_profile', 'email'], session: false })(req, res, next);
   }
