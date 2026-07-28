@@ -149,7 +149,9 @@ describe('orderFulfillmentService - integration', () => {
     const histories = await knex('orderStatusHistory').select('id').where('orderId', order.id);
     expect(histories.length).toBeGreaterThanOrEqual(1);
 
-    const notifications = await knex('customerNotification').select('type').where('referenceId', order.id);
+    const notifications = await knex('customerNotification')
+      .select('type')
+      .where('referenceId', order.id);
     expect(notifications.some((n) => n.type === 'CONFIRMED')).toBe(true);
   });
 });

@@ -357,14 +357,17 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
   if (config) {
     try {
       const notificationService = require('./notificationService');
-      const notif = await notificationService.queueCustomerNotification({
-        referenceId: orderId,
-        referenceType: 'ORDER',
-        userId: order.userId || null,
-        type: config.type,
-        title: config.title,
-        message: config.message,
-      }, trx);
+      const notif = await notificationService.queueCustomerNotification(
+        {
+          referenceId: orderId,
+          referenceType: 'ORDER',
+          userId: order.userId || null,
+          type: config.type,
+          title: config.title,
+          message: config.message,
+        },
+        trx
+      );
 
       // Also trigger the email sending process
       if (notif && notif.id) {

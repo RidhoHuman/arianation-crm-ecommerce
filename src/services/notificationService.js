@@ -34,14 +34,10 @@ function createTransporter() {
  * @param {Object} params { orderId, userId, recipientEmail, type, title, message }
  * @returns {Promise<Object>} created notification
  */
-const queueNotification = async ({
-  orderId,
-  userId = null,
-  recipientEmail = null,
-  type,
-  title,
-  message,
-}, trx = knex) => {
+const queueNotification = async (
+  { orderId, userId = null, recipientEmail = null, type, title, message },
+  trx = knex
+) => {
   if (!orderId) {
     throw new Error('orderId is required to queue a notification');
   }
@@ -136,15 +132,18 @@ const queueNotification = async ({
  * @param {Object} params { referenceId, referenceType, userId, recipientEmail, type, title, message }
  * @returns {Promise<Object>} created notification
  */
-const queueCustomerNotification = async ({
-  referenceId = null,
-  referenceType = 'SYSTEM',
-  userId,
-  recipientEmail = null,
-  type,
-  title,
-  message,
-}, trx = knex) => {
+const queueCustomerNotification = async (
+  {
+    referenceId = null,
+    referenceType = 'SYSTEM',
+    userId,
+    recipientEmail = null,
+    type,
+    title,
+    message,
+  },
+  trx = knex
+) => {
   if (!userId && !recipientEmail) {
     throw new Error('userId or recipientEmail is required to queue a customer notification');
   }
