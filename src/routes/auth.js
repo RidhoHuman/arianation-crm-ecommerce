@@ -46,7 +46,7 @@ const mockOAuthHandler = (provider) => async (req, res, next) => {
         fullName: `Mock ${provider} User`,
         role: 'CUSTOMER',
         isActive: true,
-        emailVerified: new Date(),
+        emailVerified: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       };

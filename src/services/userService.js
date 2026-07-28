@@ -157,7 +157,7 @@ const userService = {
   // Verify email
   async verifyEmail(id) {
     await knex('user').where('id', id).update({
-      emailVerified: new Date(),
+      emailVerified: true,
       updatedAt: new Date(),
     });
 
