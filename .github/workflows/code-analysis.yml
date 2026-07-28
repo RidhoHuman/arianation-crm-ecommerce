@@ -50,11 +50,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
-      - name: Apply Prisma schema (analysis-friendly)
-        run: npx prisma db push
+      - name: Setup Database Schema
+        run: npm run setup:prod
 
       - name: Run tests with coverage
         run: npm test -- --coverage

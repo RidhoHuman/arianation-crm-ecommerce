@@ -47,11 +47,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Apply Prisma schema (CI smoke-friendly)
-        run: npx prisma db push
+      - name: Setup Database Schema
+        run: npm run setup:prod
 
       - name: Ensure OWNER smoke user exists
         run: node scripts/e2e/ensure-owner-user.js
