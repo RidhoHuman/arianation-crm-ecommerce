@@ -663,27 +663,34 @@ async function setupSchema() {
         t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
       console.log('✅ couriers table created');
-      
-      // Insert default couriers
-      await db('couriers').insert([
-        { code: 'jne', name: 'JNE', isActive: true },
-        { code: 'pos', name: 'POS Indonesia', isActive: true },
-        { code: 'tiki', name: 'TIKI', isActive: true },
-        { code: 'jnt', name: 'J&T Express', isActive: true },
-        { code: 'sicepat', name: 'SiCepat', isActive: true },
-        { code: 'anteraja', name: 'AnterAja', isActive: true },
-        { code: 'ninja', name: 'Ninja Xpress', isActive: true },
-        { code: 'gojek', name: 'Gojek / GoSend', isActive: true },
-        { code: 'grab', name: 'GrabExpress', isActive: true },
-        { code: 'idexpress', name: 'ID Express', isActive: true },
-        { code: 'lion', name: 'Lion Parcel', isActive: true },
-        { code: 'paxel', name: 'Paxel', isActive: true },
-        { code: 'sap', name: 'SAP Express', isActive: true },
-        { code: 'wahana', name: 'Wahana', isActive: true }
-      ]);
-      console.log('✅ Default couriers inserted');
     } else {
       console.log('⏭️  couriers table sudah ada');
+    }
+
+    // Sync default couriers
+    const defaultCouriers = [
+      { code: 'jne', name: 'JNE', isActive: true },
+      { code: 'pos', name: 'POS Indonesia', isActive: true },
+      { code: 'tiki', name: 'TIKI', isActive: true },
+      { code: 'jnt', name: 'J&T Express', isActive: true },
+      { code: 'sicepat', name: 'SiCepat', isActive: true },
+      { code: 'anteraja', name: 'AnterAja', isActive: true },
+      { code: 'ninja', name: 'Ninja Xpress', isActive: true },
+      { code: 'gojek', name: 'Gojek / GoSend', isActive: true },
+      { code: 'grab', name: 'GrabExpress', isActive: true },
+      { code: 'idexpress', name: 'ID Express', isActive: true },
+      { code: 'lion', name: 'Lion Parcel', isActive: true },
+      { code: 'paxel', name: 'Paxel', isActive: true },
+      { code: 'sap', name: 'SAP Express', isActive: true },
+      { code: 'wahana', name: 'Wahana', isActive: true }
+    ];
+
+    for (const courier of defaultCouriers) {
+      const exists = await db('couriers').where('code', courier.code).first();
+      if (!exists) {
+        await db('couriers').insert(courier);
+        console.log(`✅ Courier ${courier.name} inserted`);
+      }
     }
 
     // Product Review table
