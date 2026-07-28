@@ -145,7 +145,52 @@ async function setupSchema() {
       });
       console.log('✅ product table created');
     } else {
-      console.log('⏭️  product table sudah ada');
+      console.log('⏭️  product table sudah ada, checking columns...');
+      const columnsToCheck = ['tags', 'isSale', 'salePrice', 'imageUrls', 'trackStock', 'allowedPrintAreas', 'weight_gram', 'descriptionEn'];
+      
+      const missingColumns = [];
+      for (const col of columnsToCheck) {
+        const hasCol = await db.schema.hasColumn('product', col);
+        if (!hasCol) missingColumns.push(col);
+      }
+
+      if (missingColumns.length > 0) {
+        await db.schema.alterTable('product', (t) => {
+          if (missingColumns.includes('tags')) {
+            console.log('   ➕ adding tags column');
+            t.string('tags').nullable();
+          }
+          if (missingColumns.includes('isSale')) {
+            console.log('   ➕ adding isSale column');
+            t.boolean('isSale').defaultTo(false);
+          }
+          if (missingColumns.includes('salePrice')) {
+            console.log('   ➕ adding salePrice column');
+            t.decimal('salePrice', 10, 2).nullable();
+          }
+          if (missingColumns.includes('imageUrls')) {
+            console.log('   ➕ adding imageUrls column');
+            t.text('imageUrls').nullable();
+          }
+          if (missingColumns.includes('trackStock')) {
+            console.log('   ➕ adding trackStock column');
+            t.boolean('trackStock').defaultTo(true);
+          }
+          if (missingColumns.includes('allowedPrintAreas')) {
+            console.log('   ➕ adding allowedPrintAreas column');
+            t.text('allowedPrintAreas').nullable();
+          }
+          if (missingColumns.includes('weight_gram')) {
+            console.log('   ➕ adding weight_gram column');
+            t.integer('weight_gram').nullable();
+          }
+          if (missingColumns.includes('descriptionEn')) {
+            console.log('   ➕ adding descriptionEn column');
+            t.text('descriptionEn').nullable();
+          }
+        });
+        console.log('✅ product table updated with missing columns');
+      }
     }
 
     // Product Variant table
