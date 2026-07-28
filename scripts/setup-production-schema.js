@@ -635,6 +635,22 @@ async function setupSchema() {
       console.log('⏭️  voucher table sudah ada');
     }
 
+    // Newsletter Subscribers table
+    const hasNewsletterSubscribersTable = await db.schema.hasTable('newsletter_subscribers');
+    if (!hasNewsletterSubscribersTable) {
+      console.log('📝 Creating newsletter_subscribers table...');
+      await db.schema.createTable('newsletter_subscribers', (t) => {
+        t.increments('id').primary();
+        t.string('email').unique().notNullable();
+        t.boolean('isActive').defaultTo(true);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ newsletter_subscribers table created');
+    } else {
+      console.log('⏭️  newsletter_subscribers table sudah ada');
+    }
+
     // Point History table
     const hasPointHistoryTable = await db.schema.hasTable('pointHistory');
     if (!hasPointHistoryTable) {
