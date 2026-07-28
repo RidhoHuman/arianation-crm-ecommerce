@@ -17,7 +17,7 @@ const DB_PORT = process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306;
 const DB_USER = process.env.DB_USER || 'arianation_user';
 const DB_PASSWORD = process.env.DB_PASSWORD || 'AriaNation@2024';
 const DB_NAME = process.env.DB_NAME || 'arianation_db';
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 const isPostgresUrl = typeof DATABASE_URL === 'string' && /^postgres(ql)?:\/\//i.test(DATABASE_URL);
 
 const db = knex({
@@ -35,7 +35,9 @@ const db = knex({
           filename: process.env.SQLITE_FILE || './db/test.sqlite3',
         }
       : DATABASE_URL
-        ? DATABASE_URL
+        ? isPostgresUrl
+          ? { connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } }
+          : DATABASE_URL
         : {
             host: DB_HOST,
             port: DB_PORT,
