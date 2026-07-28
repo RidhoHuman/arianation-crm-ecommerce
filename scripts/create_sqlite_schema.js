@@ -59,6 +59,17 @@ const knexLib = require('knex');
         t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
 
+    if (!(await has('product_type_master')))
+      await db.schema.createTable('product_type_master', (t) => {
+        t.string('id').primary();
+        t.string('typeName');
+        t.string('slug').unique();
+        t.string('imageUrl').nullable();
+        t.boolean('isActive').defaultTo(true);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+
     if (!(await has('category'))) // Add category alias for older code
       await db.schema.createTable('category', (t) => {
         t.string('id').primary();
@@ -309,6 +320,63 @@ const knexLib = require('knex');
         t.text('details');
         t.string('userId').nullable();
         t.timestamp('createdAt').defaultTo(db.fn.now());
+      });
+
+    if (!(await has('auditLog')))
+      await db.schema.createTable('auditLog', (t) => {
+        t.string('id').primary();
+        t.string('action');
+        t.string('entity');
+        t.string('entityId');
+        t.string('userId');
+        t.text('details');
+        t.string('ipAddress').nullable();
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+      });
+
+    if (!(await has('store_settings')))
+      await db.schema.createTable('store_settings', (t) => {
+        t.string('settingKey').primary();
+        t.text('settingValue');
+      });
+
+    if (!(await has('hero_banners')))
+      await db.schema.createTable('hero_banners', (t) => {
+        t.string('id').primary();
+        t.string('page_location').defaultTo('home');
+        t.string('imageUrl');
+        t.string('title').nullable();
+        t.string('subtitle').nullable();
+        t.string('buttonText').nullable();
+        t.string('buttonLink').nullable();
+        t.boolean('isActive').defaultTo(true);
+        t.integer('orderIndex').defaultTo(0);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+
+    if (!(await has('collection')))
+      await db.schema.createTable('collection', (t) => {
+        t.string('id').primary();
+        t.string('name');
+        t.string('slug').unique();
+        t.text('description').nullable();
+        t.string('imageUrl').nullable();
+        t.text('longDescription').nullable();
+        t.string('purpose').nullable();
+        t.text('highlights').nullable();
+        t.text('useCases').nullable();
+        t.boolean('isActive').defaultTo(true);
+        t.boolean('is_featured').defaultTo(false);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+
+    if (!(await has('product_collection')))
+      await db.schema.createTable('product_collection', (t) => {
+        t.string('collectionId');
+        t.string('productId');
+        t.primary(['collectionId', 'productId']);
       });
 
     console.log('✅ create_sqlite_schema: done', dbFile);

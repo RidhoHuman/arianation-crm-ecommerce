@@ -102,8 +102,8 @@ const getAllProducts = async (req, res, next) => {
     if (productType) query = query.where('product.productType', productType);
     if (excludeType) query = query.whereNot('product.productType', excludeType);
     if (isActive !== undefined)
-      query = query.where('product.isActive', isActive === 'true' ? 1 : 0);
-    if (isSale !== undefined) query = query.where('product.isSale', isSale === 'true' ? 1 : 0);
+      query = query.where('product.isActive', isActive === 'true');
+    if (isSale !== undefined) query = query.where('product.isSale', isSale === 'true');
     if (tag) query = query.where('product.tags', 'like', `%${tag}%`);
     if (search) {
       const terms = search.trim().split(/\s+/).filter(Boolean);

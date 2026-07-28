@@ -9,7 +9,7 @@ const getProductTypes = async (req, res, next) => {
     let query = knex('product_type_master').orderBy('createdAt', 'asc');
 
     if (isActive !== undefined) {
-      query = query.where('isActive', isActive === 'true' ? 1 : 0);
+      query = query.where('isActive', isActive === 'true');
     }
 
     const types = await query;

@@ -98,6 +98,24 @@ async function setupSchema() {
       console.log('⏭️  productCategory table sudah ada');
     }
 
+    // Product Type Master table
+    const hasProductTypeTable = await db.schema.hasTable('product_type_master');
+    if (!hasProductTypeTable) {
+      console.log('📝 Creating product_type_master table...');
+      await db.schema.createTable('product_type_master', (t) => {
+        t.string('id').primary();
+        t.string('typeName');
+        t.string('slug').unique();
+        t.string('imageUrl').nullable();
+        t.boolean('isActive').defaultTo(true);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ product_type_master table created');
+    } else {
+      console.log('⏭️  product_type_master table sudah ada');
+    }
+
     // Product table
     const hasProductTable = await db.schema.hasTable('product');
     if (!hasProductTable) {
@@ -436,6 +454,71 @@ async function setupSchema() {
         t.timestamp('createdAt').defaultTo(db.fn.now());
       });
       console.log('✅ auditLog table created');
+    }
+
+    // Store Settings table
+    const hasStoreSettingsTable = await db.schema.hasTable('store_settings');
+    if (!hasStoreSettingsTable) {
+      console.log('📝 Creating store_settings table...');
+      await db.schema.createTable('store_settings', (t) => {
+        t.string('settingKey').primary();
+        t.text('settingValue');
+      });
+      console.log('✅ store_settings table created');
+    }
+
+    // Hero Banners table
+    const hasHeroBannersTable = await db.schema.hasTable('hero_banners');
+    if (!hasHeroBannersTable) {
+      console.log('📝 Creating hero_banners table...');
+      await db.schema.createTable('hero_banners', (t) => {
+        t.string('id').primary();
+        t.string('page_location').defaultTo('home');
+        t.string('imageUrl');
+        t.string('title').nullable();
+        t.string('subtitle').nullable();
+        t.string('buttonText').nullable();
+        t.string('buttonLink').nullable();
+        t.boolean('isActive').defaultTo(true);
+        t.integer('orderIndex').defaultTo(0);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ hero_banners table created');
+    }
+
+    // Collection table
+    const hasCollectionTable = await db.schema.hasTable('collection');
+    if (!hasCollectionTable) {
+      console.log('📝 Creating collection table...');
+      await db.schema.createTable('collection', (t) => {
+        t.string('id').primary();
+        t.string('name');
+        t.string('slug').unique();
+        t.text('description').nullable();
+        t.string('imageUrl').nullable();
+        t.text('longDescription').nullable();
+        t.string('purpose').nullable();
+        t.text('highlights').nullable();
+        t.text('useCases').nullable();
+        t.boolean('isActive').defaultTo(true);
+        t.boolean('is_featured').defaultTo(false);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ collection table created');
+    }
+
+    // Product Collection table
+    const hasProductCollectionTable = await db.schema.hasTable('product_collection');
+    if (!hasProductCollectionTable) {
+      console.log('📝 Creating product_collection table...');
+      await db.schema.createTable('product_collection', (t) => {
+        t.string('collectionId').references('id').inTable('collection').onDelete('CASCADE');
+        t.string('productId').references('id').inTable('product').onDelete('CASCADE');
+        t.primary(['collectionId', 'productId']);
+      });
+      console.log('✅ product_collection table created');
     }
 
     console.log('\n✅ Production schema setup complete!');
