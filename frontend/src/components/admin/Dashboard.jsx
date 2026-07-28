@@ -51,17 +51,17 @@ export default function Dashboard() {
       };
 
       // Fetch parallel
-      const [fulfillmentRes, revenueRes, usersRes, inventoryRes, activitiesRes] = await Promise.all([
+      const [fulfillmentRes, revenueRes, customersRes, inventoryRes, activitiesRes] = await Promise.all([
         api.get('/analytics/fulfillment', { params: dateParams }).catch(() => ({ data: { data: {} } })),
         api.get('/analytics/revenue', { params: dateParams }).catch(() => ({ data: { data: { data: [] } } })),
-        api.get('/users').catch(() => ({ data: { data: [] } })),
+        api.get('/admin/customers').catch(() => ({ data: { data: [] } })),
         api.get('/admin/inventory/analytics').catch(() => ({ data: { data: {} } })),
         api.get('/analytics/activities', { params: { limit: 10 } }).catch(() => ({ data: { data: [] } }))
       ]);
 
       const fulfillment = fulfillmentRes?.data?.data || {};
       const revenue = revenueRes?.data?.data || {};
-      const users = usersRes?.data?.data || [];
+      const customersList = customersRes?.data?.data || [];
       const inventoryAnalytics = inventoryRes?.data?.data || {};
       const recentActivities = activitiesRes?.data?.data || [];
 
@@ -86,7 +86,7 @@ export default function Dashboard() {
           totalRevenue: fulfillment.summary?.totalRevenue || 0,
           revenueChange: 0, // Pending backend support for comparative data
           newOrders: pendingOrders,
-          newCustomers: users.length,
+          newCustomers: customersList.filter(c => new Date(c.createdAt) >= startDate).length,
           crmPerformance: 0, // Pending backend support for explicit CRM metrics
           lowStockProducts: inventoryAnalytics?.inventory?.lowStockProducts || 0
         },
