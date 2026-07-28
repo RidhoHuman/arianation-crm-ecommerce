@@ -1,13 +1,17 @@
 // Set admin user role
-const prisma = require('./src/config/database');
+const knex = require('./src/config/knex');
 
 async function setAdminRole() {
   try {
-    const user = await prisma.user.update({
-      where: { email: 'owner@arianation.com' },
-      data: { role: 'OWNER' },
-    });
-    console.log('✅ User promoted to OWNER role:', user.email);
+    const updatedRows = await knex('user')
+      .where({ email: 'owner@arianation.com' })
+      .update({ role: 'OWNER' });
+      
+    if (updatedRows > 0) {
+      console.log('✅ User promoted to OWNER role: owner@arianation.com');
+    } else {
+      console.log('⚠️ User not found or already owner');
+    }
     process.exit(0);
   } catch (error) {
     console.error('❌ Error:', error.message);

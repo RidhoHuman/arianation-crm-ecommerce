@@ -24,16 +24,13 @@ const errorHandler = (err, req, res, next) => {
     );
   } catch (e) {}
 
-  // Prisma error handling
-  if (err.code === 'P2002') {
+  // Database error handling (MySQL / SQLite)
+  if (err.code === 'ER_DUP_ENTRY' || err.code === 'SQLITE_CONSTRAINT') {
     statusCode = 409;
-    message = 'A record with this value already exists';
-  } else if (err.code === 'P2025') {
-    statusCode = 404;
-    message = 'Record not found';
-  } else if (err.code === 'P2003') {
+    message = 'A record with this value already exists or violates constraint';
+  } else if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_NO_REFERENCED_ROW_2') {
     statusCode = 400;
-    message = 'Related record not found';
+    message = 'Related record not found or is in use';
   }
 
   // JWT error handling
