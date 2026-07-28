@@ -218,7 +218,6 @@ class InventoryService {
 
     let query = knex('product').select(
       'id',
-      'sku',
       'productName',
       'price',
       'category',
