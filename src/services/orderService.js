@@ -97,7 +97,11 @@ const orderService = {
         'order.shippingCost',
         'order.shippingCourier',
         'order.refundDetails',
-        knex.raw('COALESCE(??, ??) as ??', ['orderTracking.trackingNumber', 'order.trackingNumber', 'trackingNumber']),
+        knex.raw('COALESCE(??, ??) as ??', [
+          'orderTracking.trackingNumber',
+          'order.trackingNumber',
+          'trackingNumber',
+        ]),
         'order.createdAt',
         'order.updatedAt'
       )
