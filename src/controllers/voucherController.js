@@ -20,14 +20,14 @@ const getActiveVouchers = async (req, res, next) => {
     const vouchers = await knex('voucher')
       .where('isActive', true)
       .andWhere('isPublic', true)
-      .andWhere(function() {
+      .andWhere(function () {
         this.whereNull('expiresAt').orWhere('expiresAt', '>', now);
       })
       .orderBy('createdAt', 'desc');
-    
+
     // Filter out fully used vouchers
-    const available = vouchers.filter(v => v.usageLimit === null || v.usedCount < v.usageLimit);
-    
+    const available = vouchers.filter((v) => v.usageLimit === null || v.usedCount < v.usageLimit);
+
     return sendSuccess(res, available, 'Active vouchers retrieved successfully');
   } catch (error) {
     next(error);
@@ -37,8 +37,19 @@ const getActiveVouchers = async (req, res, next) => {
 // Admin: Create voucher
 const createVoucher = async (req, res, next) => {
   try {
-    const { code, type, value, minPurchase, maxDiscount, usageLimit, isActive, expiresAt, targetTier, isPublic } = req.body;
-    
+    const {
+      code,
+      type,
+      value,
+      minPurchase,
+      maxDiscount,
+      usageLimit,
+      isActive,
+      expiresAt,
+      targetTier,
+      isPublic,
+    } = req.body;
+
     if (!code || !type || value === undefined) {
       throw new BadRequestError('Code, type, and value are required');
     }
@@ -63,7 +74,7 @@ const createVoucher = async (req, res, next) => {
       targetTier: targetTier || 'ALL',
       isPublic: isPublic !== undefined ? isPublic : true,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     await knex('voucher').insert(newVoucher);
@@ -77,15 +88,25 @@ const createVoucher = async (req, res, next) => {
 const updateVoucher = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { isActive, type, value, minPurchase, maxDiscount, usageLimit, expiresAt, targetTier, isPublic } = req.body;
+    const {
+      isActive,
+      type,
+      value,
+      minPurchase,
+      maxDiscount,
+      usageLimit,
+      expiresAt,
+      targetTier,
+      isPublic,
+    } = req.body;
 
     const voucher = await knex('voucher').where('id', id).first();
     if (!voucher) throw new NotFoundError('Voucher not found');
 
     const updateData = {
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     if (isActive !== undefined) updateData.isActive = isActive;
     if (type !== undefined) updateData.type = type;
     if (value !== undefined) updateData.value = value;
@@ -121,17 +142,17 @@ const deleteVoucher = async (req, res, next) => {
 const validateVoucher = async (req, res, next) => {
   try {
     const { code, subtotal, userId } = req.body;
-    
+
     if (!code || subtotal === undefined) {
       throw new BadRequestError('Code and subtotal are required');
     }
 
     const voucher = await knex('voucher').where('code', code.toUpperCase()).first();
-    
+
     if (!voucher) {
       throw new BadRequestError('Kode voucher tidak ditemukan');
     }
-    
+
     if (!voucher.isActive) {
       throw new BadRequestError('Kode voucher sudah tidak aktif');
     }
@@ -145,16 +166,22 @@ const validateVoucher = async (req, res, next) => {
     }
 
     if (subtotal < voucher.minPurchase) {
-      throw new BadRequestError(`Minimal belanja Rp ${Number(voucher.minPurchase).toLocaleString('id-ID')} untuk menggunakan voucher ini`);
+      throw new BadRequestError(
+        `Minimal belanja Rp ${Number(voucher.minPurchase).toLocaleString('id-ID')} untuk menggunakan voucher ini`
+      );
     }
 
     if (voucher.targetTier && voucher.targetTier !== 'ALL') {
       if (!userId) {
-        throw new BadRequestError(`Voucher eksklusif ini hanya untuk pelanggan tier ${voucher.targetTier}`);
+        throw new BadRequestError(
+          `Voucher eksklusif ini hanya untuk pelanggan tier ${voucher.targetTier}`
+        );
       }
       const user = await knex('user').where('id', userId).first();
       if (!user || user.currentTier !== voucher.targetTier) {
-        throw new BadRequestError(`Voucher eksklusif ini hanya berlaku untuk kustomer tingkat ${voucher.targetTier}`);
+        throw new BadRequestError(
+          `Voucher eksklusif ini hanya berlaku untuk kustomer tingkat ${voucher.targetTier}`
+        );
       }
     }
 
@@ -174,12 +201,16 @@ const validateVoucher = async (req, res, next) => {
       discountAmount = subtotal;
     }
 
-    return sendSuccess(res, {
-      code: voucher.code,
-      type: voucher.type,
-      value: voucher.value,
-      discountAmount
-    }, 'Voucher berhasil digunakan');
+    return sendSuccess(
+      res,
+      {
+        code: voucher.code,
+        type: voucher.type,
+        value: voucher.value,
+        discountAmount,
+      },
+      'Voucher berhasil digunakan'
+    );
   } catch (error) {
     next(error);
   }
@@ -191,5 +222,5 @@ module.exports = {
   createVoucher,
   updateVoucher,
   deleteVoucher,
-  validateVoucher
+  validateVoucher,
 };

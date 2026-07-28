@@ -24,21 +24,23 @@ const handleXenditWebhook = async (req, res, next) => {
     if (status === 'PAID' || status === 'SETTLED') {
       // Find payment by xenditId (id) or fallback to external_id (paymentId)
       let existingPayment = await knex('payment').where('xenditId', id).first();
-      
+
       if (!existingPayment) {
-        existingPayment = await paymentService.findById(paymentId) || await knex('payment').where('id', paymentId).first();
+        existingPayment =
+          (await paymentService.findById(paymentId)) ||
+          (await knex('payment').where('id', paymentId).first());
       }
-      
+
       if (!existingPayment) {
         return res.status(404).json({ success: false, message: 'Payment not found' });
       }
-      
+
       const orderId = existingPayment.orderId;
 
       if (existingPayment.status !== 'COMPLETED') {
         const order = await knex('order').where('id', orderId).first();
         if (!order) {
-           return res.status(404).json({ success: false, message: 'Order not found' });
+          return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
         let newOrderStatus = order.status;
@@ -52,7 +54,7 @@ const handleXenditWebhook = async (req, res, next) => {
               newOrderStatus = 'IN_PRODUCTION';
               updateProductPaymentStatus = 'HALF_PAID';
             } else if (existingPayment.paymentType === 'FULL') {
-              newOrderStatus = 'IN_PRODUCTION'; 
+              newOrderStatus = 'IN_PRODUCTION';
               updateProductPaymentStatus = 'FULLY_PAID';
             }
           } else {
@@ -62,8 +64,15 @@ const handleXenditWebhook = async (req, res, next) => {
               updateProductPaymentStatus = 'FULLY_PAID';
             }
           }
-        } else if (order.status === 'WAITING_FINAL_PAYMENT' || order.status === 'ON_HOLD' || order.status === 'IN_PRODUCTION') {
-          if (existingPayment.paymentType === 'FULL' || existingPayment.paymentType === 'REMAINING') {
+        } else if (
+          order.status === 'WAITING_FINAL_PAYMENT' ||
+          order.status === 'ON_HOLD' ||
+          order.status === 'IN_PRODUCTION'
+        ) {
+          if (
+            existingPayment.paymentType === 'FULL' ||
+            existingPayment.paymentType === 'REMAINING'
+          ) {
             newOrderStatus = 'READY_TO_SHIP';
             updateProductPaymentStatus = 'FULLY_PAID';
           }
@@ -71,7 +80,10 @@ const handleXenditWebhook = async (req, res, next) => {
 
         // Update productPaymentStatus in order if needed
         if (updateProductPaymentStatus) {
-          await knex('order').where('id', orderId).update({ productPaymentStatus: updateProductPaymentStatus, shippingPaymentStatus: 'PAID' });
+          await knex('order').where('id', orderId).update({
+            productPaymentStatus: updateProductPaymentStatus,
+            shippingPaymentStatus: 'PAID',
+          });
         }
 
         // 1. Simpan atau update record pembayaran DULU agar validasi State Machine lolos
@@ -94,7 +106,8 @@ const handleXenditWebhook = async (req, res, next) => {
             userId: order.userId || null,
             type: newOrderStatus,
             title: 'Pembayaran Berhasil 💸',
-            message: 'Terima kasih, pembayaran Anda telah kami terima dan pesanan Anda sedang kami proses.',
+            message:
+              'Terima kasih, pembayaran Anda telah kami terima dan pesanan Anda sedang kami proses.',
           });
           await notificationService.sendOrderNotification(notif.id);
         } catch (err) {
@@ -105,7 +118,7 @@ const handleXenditWebhook = async (req, res, next) => {
         try {
           let adminTitle = 'Pesanan Retail Baru Lunas!';
           let adminMsg = `Pesanan Retail #${order.orderNumber} baru saja dilunasi senilai Rp ${amount}.`;
-          
+
           if (order.orderNumber && order.orderNumber.startsWith('SAB-')) {
             if (existingPayment.paymentType === 'DP') {
               adminTitle = 'DP Pesanan Sablon Dibayar!';
@@ -126,20 +139,26 @@ const handleXenditWebhook = async (req, res, next) => {
             title: adminTitle,
             message: adminMsg,
             type: 'NEW_ORDER',
-            isRead: false
+            isRead: false,
           });
         } catch (err) {
           console.error('[Xendit Webhook] Error sending admin notification:', err.message);
         }
       } else {
-        console.log(`[Xendit Webhook] Payment ${paymentId} is already PAID. Skipping duplicate processing.`);
+        console.log(
+          `[Xendit Webhook] Payment ${paymentId} is already PAID. Skipping duplicate processing.`
+        );
       }
     } else if (status === 'EXPIRED') {
       let existingPayment = await knex('payment').where('xenditId', id).first();
       if (!existingPayment) {
         existingPayment = await knex('payment').where('id', paymentId).first();
       }
-      if (existingPayment && existingPayment.status !== 'FAILED' && existingPayment.status !== 'COMPLETED') {
+      if (
+        existingPayment &&
+        existingPayment.status !== 'FAILED' &&
+        existingPayment.status !== 'COMPLETED'
+      ) {
         await orderFulfillmentService.updateOrderStatus(
           existingPayment.orderId,
           'CANCELLED',
@@ -163,7 +182,7 @@ const handleMidtransWebhook = async (req, res, next) => {
   try {
     const notificationJson = req.body;
     const statusResponse = await coreApi.transaction.notification(notificationJson);
-    
+
     const transactionId = statusResponse.order_id; // transactionId is used as order_id in snap parameter
     const transactionStatus = statusResponse.transaction_status;
     const fraudStatus = statusResponse.fraud_status;
@@ -172,7 +191,7 @@ const handleMidtransWebhook = async (req, res, next) => {
 
     // Find the payment
     const payment = await knex('payment').where('transactionId', transactionId).first();
-    
+
     if (!payment) {
       console.warn(`[Midtrans Webhook] Payment not found for transaction: ${transactionId}`);
       return res.status(404).json({ success: false, message: 'Payment not found' });
@@ -182,7 +201,7 @@ const handleMidtransWebhook = async (req, res, next) => {
 
     if (transactionStatus == 'capture') {
       if (fraudStatus == 'challenge') {
-        paymentStatus = 'PENDING'; 
+        paymentStatus = 'PENDING';
       } else if (fraudStatus == 'accept') {
         paymentStatus = 'COMPLETED';
       }
@@ -201,9 +220,11 @@ const handleMidtransWebhook = async (req, res, next) => {
     // Update payment status
     if (paymentStatus !== payment.status) {
       if (paymentStatus === 'COMPLETED' && payment.status === 'COMPLETED') {
-         // Prevent duplicate
-         console.log(`[Midtrans Webhook] Transaction ${transactionId} already COMPLETED. Idempotency check passed.`);
-         return res.status(200).json({ success: true, message: 'Webhook received' });
+        // Prevent duplicate
+        console.log(
+          `[Midtrans Webhook] Transaction ${transactionId} already COMPLETED. Idempotency check passed.`
+        );
+        return res.status(200).json({ success: true, message: 'Webhook received' });
       }
 
       const order = await knex('order').where('id', payment.orderId).first();
@@ -212,7 +233,7 @@ const handleMidtransWebhook = async (req, res, next) => {
       }
 
       await paymentService.updateStatus(payment.id, paymentStatus);
-      
+
       // Update order status based on payment
       if (paymentStatus === 'COMPLETED') {
         let newOrderStatus = 'PAID_WAITING_APPROVAL';
@@ -227,7 +248,7 @@ const handleMidtransWebhook = async (req, res, next) => {
           'Payment successful via Midtrans',
           `Midtrans Transaction ID: ${statusResponse.transaction_id}`
         );
-        
+
         // Trigger Notification
         try {
           const notif = await notificationService.queueNotification({
@@ -235,7 +256,8 @@ const handleMidtransWebhook = async (req, res, next) => {
             userId: order.userId || null,
             type: newOrderStatus,
             title: 'Pembayaran Berhasil 💸',
-            message: 'Terima kasih, pembayaran Anda telah kami terima dan pesanan Anda sedang kami proses.',
+            message:
+              'Terima kasih, pembayaran Anda telah kami terima dan pesanan Anda sedang kami proses.',
           });
           await notificationService.sendOrderNotification(notif.id);
         } catch (err) {
@@ -251,7 +273,9 @@ const handleMidtransWebhook = async (req, res, next) => {
         );
       }
     } else {
-      console.log(`[Midtrans Webhook] Transaction ${transactionId} status unchanged (${payment.status}). Idempotency check passed.`);
+      console.log(
+        `[Midtrans Webhook] Transaction ${transactionId} status unchanged (${payment.status}). Idempotency check passed.`
+      );
     }
 
     return res.status(200).json({ success: true, message: 'Webhook received' });
@@ -263,5 +287,5 @@ const handleMidtransWebhook = async (req, res, next) => {
 
 module.exports = {
   handleXenditWebhook,
-  handleMidtransWebhook
+  handleMidtransWebhook,
 };

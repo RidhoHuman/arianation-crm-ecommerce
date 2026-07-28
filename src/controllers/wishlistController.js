@@ -40,9 +40,7 @@ const addToWishlist = async (req, res, next) => {
     }
 
     // Check if already in wishlist
-    const existing = await knex('wishlist')
-      .where({ userId, productId })
-      .first();
+    const existing = await knex('wishlist').where({ userId, productId }).first();
 
     if (existing) {
       throw new BadRequestError('Product is already in your wishlist');
@@ -67,9 +65,7 @@ const removeFromWishlist = async (req, res, next) => {
     const userId = req.user.id;
     const { productId } = req.params;
 
-    const deleted = await knex('wishlist')
-      .where({ userId, productId })
-      .delete();
+    const deleted = await knex('wishlist').where({ userId, productId }).delete();
 
     if (!deleted) {
       throw new NotFoundError('Product not found in wishlist');

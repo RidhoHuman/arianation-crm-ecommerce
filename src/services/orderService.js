@@ -38,15 +38,17 @@ const orderService = {
       .offset(skip);
 
     if (orders.length > 0) {
-      const orderIds = orders.map(o => o.id);
+      const orderIds = orders.map((o) => o.id);
       const payments = await knex('payment').whereIn('orderId', orderIds);
       const trackings = await knex('orderTracking').whereIn('orderId', orderIds);
-      
+
       for (const order of orders) {
-        const orderPayments = payments.filter(p => p.orderId === order.id).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const orderPayments = payments
+          .filter((p) => p.orderId === order.id)
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         order.paymentStatus = orderPayments.length > 0 ? orderPayments[0].status : null;
-        
-        const orderTracking = trackings.find(t => t.orderId === order.id);
+
+        const orderTracking = trackings.find((t) => t.orderId === order.id);
         order.trackingNumber = orderTracking ? orderTracking.trackingNumber : null;
       }
     }
@@ -198,33 +200,28 @@ const orderService = {
     if (data.totalPrice !== undefined) updateData.totalAmount = data.totalPrice;
     if (data.deliveryAddress !== undefined) updateData.deliveryAddress = data.deliveryAddress;
     if (data.orderNumber !== undefined) updateData.orderNumber = data.orderNumber;
-    
+
     updateData.updatedAt = new Date();
 
     await knex.transaction(async (trx) => {
-      if (Object.keys(updateData).length > 1) { // includes updatedAt
-        await trx('order')
-          .where('id', id)
-          .update(updateData);
+      if (Object.keys(updateData).length > 1) {
+        // includes updatedAt
+        await trx('order').where('id', id).update(updateData);
       }
 
       if (data.paymentStatus) {
-        await trx('payment')
-          .where('orderId', id)
-          .update({
-            status: data.paymentStatus,
-            updatedAt: new Date(),
-          });
+        await trx('payment').where('orderId', id).update({
+          status: data.paymentStatus,
+          updatedAt: new Date(),
+        });
       }
 
       if (data.trackingNumber !== undefined) {
         const hasTracking = await trx('orderTracking').where('orderId', id).first();
         if (hasTracking) {
-          await trx('orderTracking')
-            .where('orderId', id)
-            .update({
-              trackingNumber: data.trackingNumber,
-            });
+          await trx('orderTracking').where('orderId', id).update({
+            trackingNumber: data.trackingNumber,
+          });
         } else if (data.trackingNumber) {
           await trx('orderTracking').insert({
             id: require('cuid')(),
@@ -242,21 +239,19 @@ const orderService = {
   // Update status order
   async updateStatus(id, status, updatedBy = null) {
     const oldOrder = await knex('order').where('id', id).select('orderNumber', 'status').first();
-    
-    await knex('order')
-      .where('id', id)
-      .update({
-        status,
-        updatedAt: new Date(),
-      });
-      
+
+    await knex('order').where('id', id).update({
+      status,
+      updatedAt: new Date(),
+    });
+
     if (oldOrder && oldOrder.status !== status) {
       await activityService.logActivity({
         userId: updatedBy,
         action: 'Update Status Pesanan',
         details: `Pesanan ${oldOrder.orderNumber || id} berubah status dari ${oldOrder.status} menjadi ${status}`,
         entityType: 'ORDER',
-        entityId: id
+        entityId: id,
       });
     }
 
@@ -266,20 +261,18 @@ const orderService = {
   // Update payment status
   async updatePaymentStatus(id, paymentStatus, updatedBy = null) {
     const oldOrder = await knex('order').where('id', id).select('orderNumber').first();
-    
-    await knex('payment')
-      .where('orderId', id)
-      .update({
-        status: paymentStatus,
-        updatedAt: new Date(),
-      });
-      
+
+    await knex('payment').where('orderId', id).update({
+      status: paymentStatus,
+      updatedAt: new Date(),
+    });
+
     await activityService.logActivity({
       userId: updatedBy,
       action: 'Update Status Pembayaran',
       details: `Pembayaran pesanan ${oldOrder?.orderNumber || id} diubah menjadi ${paymentStatus}`,
       entityType: 'PAYMENT',
-      entityId: id
+      entityId: id,
     });
 
     return this.findById(id);
@@ -289,11 +282,9 @@ const orderService = {
   async updateTracking(id, trackingNumber) {
     const hasTracking = await knex('orderTracking').where('orderId', id).first();
     if (hasTracking) {
-      await knex('orderTracking')
-        .where('orderId', id)
-        .update({
-          trackingNumber,
-        });
+      await knex('orderTracking').where('orderId', id).update({
+        trackingNumber,
+      });
     } else {
       await knex('orderTracking').insert({
         id: require('cuid')(),
@@ -320,8 +311,7 @@ const orderService = {
 
   // Ambil order untuk user tertentu dengan status tertentu
   async findUserOrders(userId, status = null) {
-    let query = knex('order')
-      .where('order.userId', userId);
+    let query = knex('order').where('order.userId', userId);
 
     if (status) {
       query = query.where('order.status', status);

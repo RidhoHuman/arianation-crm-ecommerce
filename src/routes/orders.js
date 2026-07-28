@@ -19,14 +19,14 @@ const {
   requestRefund,
   completeOrder,
 } = require('../controllers/orderController');
-const { 
-  createCustomOrder, 
-  generateSablonPayment, 
-  createDraftCustomOrder, 
-  getDraftCustomOrders, 
+const {
+  createCustomOrder,
+  generateSablonPayment,
+  createDraftCustomOrder,
+  getDraftCustomOrders,
   checkoutDraftCustomOrders,
   deleteDraftCustomOrder,
-  createSablonPelunasanInvoice
+  createSablonPelunasanInvoice,
 } = require('../controllers/customOrderController');
 const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
@@ -148,7 +148,11 @@ router.post('/custom-sablon/checkout-drafts', checkoutDraftCustomOrders);
 
 router.post('/custom-sablon', uploadCustomOrderFiles, createCustomOrder);
 router.post('/custom-sablon/:orderId/pay', generateSablonPayment);
-router.post('/custom-sablon/:orderId/pelunasan', authorize('ADMIN', 'OWNER'), createSablonPelunasanInvoice);
+router.post(
+  '/custom-sablon/:orderId/pelunasan',
+  authorize('ADMIN', 'OWNER'),
+  createSablonPelunasanInvoice
+);
 router.put('/:id/status', authorize('ADMIN', 'OWNER', 'DESIGN_STAFF'), updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);
 

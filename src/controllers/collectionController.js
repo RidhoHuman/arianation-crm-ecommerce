@@ -44,7 +44,18 @@ const getCollectionBySlug = async (req, res, next) => {
 
 const createCollection = async (req, res, next) => {
   try {
-    const { name, slug, description, imageUrl, isActive, longDescription, purpose, highlights, useCases, is_featured } = req.body;
+    const {
+      name,
+      slug,
+      description,
+      imageUrl,
+      isActive,
+      longDescription,
+      purpose,
+      highlights,
+      useCases,
+      is_featured,
+    } = req.body;
     const id = cuid();
     const collection = {
       id,
@@ -59,7 +70,7 @@ const createCollection = async (req, res, next) => {
       isActive: isActive !== undefined ? isActive : true,
       is_featured: is_featured !== undefined ? is_featured : false,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
     await knex('collection').insert(collection);
     return sendCreated(res, collection, 'Collection created successfully');
@@ -71,7 +82,18 @@ const createCollection = async (req, res, next) => {
 const updateCollection = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, slug, description, imageUrl, isActive, longDescription, purpose, highlights, useCases, is_featured } = req.body;
+    const {
+      name,
+      slug,
+      description,
+      imageUrl,
+      isActive,
+      longDescription,
+      purpose,
+      highlights,
+      useCases,
+      is_featured,
+    } = req.body;
 
     const existing = await knex('collection').where('id', id).first();
     if (!existing) throw new NotFoundError('Collection not found');
@@ -83,7 +105,8 @@ const updateCollection = async (req, res, next) => {
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
     if (longDescription !== undefined) updateData.longDescription = longDescription;
     if (purpose !== undefined) updateData.purpose = purpose;
-    if (highlights !== undefined) updateData.highlights = highlights ? JSON.stringify(highlights) : null;
+    if (highlights !== undefined)
+      updateData.highlights = highlights ? JSON.stringify(highlights) : null;
     if (useCases !== undefined) updateData.useCases = useCases ? JSON.stringify(useCases) : null;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (is_featured !== undefined) updateData.is_featured = is_featured;
@@ -131,12 +154,12 @@ const addProductToCollection = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { productId } = req.body;
-    
+
     // Check if association exists
     const existing = await knex('product_collection')
       .where({ collectionId: id, productId })
       .first();
-      
+
     if (!existing) {
       await knex('product_collection').insert({ collectionId: id, productId });
     }
@@ -149,9 +172,7 @@ const addProductToCollection = async (req, res, next) => {
 const removeProductFromCollection = async (req, res, next) => {
   try {
     const { id, productId } = req.params;
-    await knex('product_collection')
-      .where({ collectionId: id, productId })
-      .delete();
+    await knex('product_collection').where({ collectionId: id, productId }).delete();
     return sendSuccess(res, null, 'Product removed from collection');
   } catch (error) {
     next(error);
@@ -167,5 +188,5 @@ module.exports = {
   deleteCollection,
   getProductsInCollection,
   addProductToCollection,
-  removeProductFromCollection
+  removeProductFromCollection,
 };

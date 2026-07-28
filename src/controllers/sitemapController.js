@@ -24,7 +24,9 @@ const getProductsSitemap = async (req, res, next) => {
     xml += '        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n';
 
     products.forEach((product) => {
-      const lastmod = product.updatedAt ? product.updatedAt.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      const lastmod = product.updatedAt
+        ? product.updatedAt.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
       const productUrl = `${baseUrl}/products/${product.id}`;
       const productName = product.productName
         .replace(/&/g, '&amp;')
@@ -68,7 +70,9 @@ const getCategoriesSitemap = async (req, res, next) => {
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     categories.forEach((category) => {
-      const lastmod = category.updatedAt ? category.updatedAt.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      const lastmod = category.updatedAt
+        ? category.updatedAt.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
       const categoryUrl = `${baseUrl}/products?category=${category.id}`;
 
       xml += '  <url>\n';

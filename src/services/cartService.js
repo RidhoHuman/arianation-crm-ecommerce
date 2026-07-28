@@ -4,9 +4,7 @@ const knex = require('../config/knex');
 const cartService = {
   // Cari shopping cart berdasarkan user ID
   async findByUserId(userId) {
-    const cart = await knex('shoppingCart')
-      .where('userId', userId)
-      .first();
+    const cart = await knex('shoppingCart').where('userId', userId).first();
 
     return cart || null;
   },
@@ -14,12 +12,7 @@ const cartService = {
   // Cari shopping cart berdasarkan ID
   async findById(id) {
     const cart = await knex('shoppingCart')
-      .select(
-        'id',
-        'userId',
-        'createdAt',
-        'updatedAt'
-      )
+      .select('id', 'userId', 'createdAt', 'updatedAt')
       .where('id', id)
       .first();
 
@@ -55,29 +48,23 @@ const cartService = {
       updatedAt: new Date(),
     };
 
-    await knex('shoppingCart')
-      .where('id', id)
-      .update(updateData);
+    await knex('shoppingCart').where('id', id).update(updateData);
 
     return this.findById(id);
   },
 
   // Clear cart
   async clear(id) {
-    await knex('shoppingCart')
-      .where('id', id)
-      .update({
-        updatedAt: new Date(),
-      });
+    await knex('shoppingCart').where('id', id).update({
+      updatedAt: new Date(),
+    });
 
     return this.findById(id);
   },
 
   // Hapus shopping cart
   async delete(id) {
-    await knex('shoppingCart')
-      .where('id', id)
-      .delete();
+    await knex('shoppingCart').where('id', id).delete();
 
     return true;
   },

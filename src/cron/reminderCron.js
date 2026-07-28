@@ -25,7 +25,7 @@ const checkDesignRequestDPReminders = async () => {
   // Note: when checkout DP/Full is completed, status remains APPROVED until admin finishes or it might stay APPROVED?
   // Actually, wait, if order is created, the designRequest might stay APPROVED but order is created.
   // We should check if an order exists for this design request that is PAID. But `orderId` is in designRequest.
-  
+
   const requests = await knex('designRequest')
     .where('status', 'APPROVED')
     .where('updatedAt', '<', sevenDaysAgo);
@@ -49,7 +49,7 @@ const checkDesignRequestDPReminders = async () => {
         userId: req.userId,
         type: 'SYSTEM',
         title: 'Pengingat Pembayaran Custom Sablon',
-        message: `Pesanan sablon "${req.designTitle}" Anda telah disetujui lebih dari 7 hari. Silakan lanjutkan pembayaran DP atau Pelunasan agar pesanan dapat segera diproses.`
+        message: `Pesanan sablon "${req.designTitle}" Anda telah disetujui lebih dari 7 hari. Silakan lanjutkan pembayaran DP atau Pelunasan agar pesanan dapat segera diproses.`,
       });
     }
   }
@@ -83,7 +83,7 @@ const checkPelunasanSLA = async () => {
       if (!pelunasanPayment) {
         // Freeze order (ON_HOLD)
         console.log(`[CRON] Setting order ${order.orderNumber} to ON_HOLD due to SLA pelunasan.`);
-        
+
         await knex.transaction(async (trx) => {
           await trx('order').where('id', order.id).update({
             status: 'ON_HOLD',
@@ -108,7 +108,7 @@ const checkPelunasanSLA = async () => {
           userId: order.userId,
           type: 'SYSTEM',
           title: 'Pesanan Dibekukan (ON HOLD)',
-          message: `Pesanan ${order.orderNumber} telah dibekukan karena melewati batas waktu pelunasan 30 hari.`
+          message: `Pesanan ${order.orderNumber} telah dibekukan karena melewati batas waktu pelunasan 30 hari.`,
         });
       }
     }

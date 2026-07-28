@@ -43,7 +43,7 @@ const authorize = (...roles) => {
       return next(new AuthenticationError('Authentication required'));
     }
 
-    if (!roles.some(role => role.toUpperCase() === (req.user.role || '').toUpperCase())) {
+    if (!roles.some((role) => role.toUpperCase() === (req.user.role || '').toUpperCase())) {
       return next(new AuthorizationError('You do not have permission to perform this action'));
     }
 

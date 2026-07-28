@@ -169,7 +169,10 @@ describe('productService', () => {
     });
 
     test('update should modify product details', async () => {
-      const updated = await productService.update(id, { productName: 'Updated Product Name', price: 105000 });
+      const updated = await productService.update(id, {
+        productName: 'Updated Product Name',
+        price: 105000,
+      });
       expect(updated.productName).toBe('Updated Product Name');
       expect(updated.price).toBe(105000);
     });

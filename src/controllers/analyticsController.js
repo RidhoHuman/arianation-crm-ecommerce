@@ -104,7 +104,10 @@ const getRevenueAnalytics = async (req, res, next) => {
       .orderBy('revenue', 'desc');
 
     // Total revenue
-    const totalRevenue = revenueByCategory.reduce((sum, item) => sum + parseFloat(item.revenue || 0), 0);
+    const totalRevenue = revenueByCategory.reduce(
+      (sum, item) => sum + parseFloat(item.revenue || 0),
+      0
+    );
 
     // Revenue by payment method
     const paymentMethodRevenue = await knex('payment')
@@ -367,12 +370,8 @@ const getSystemActivities = async (req, res, next) => {
   try {
     const { limit = 10 } = req.query;
     const activities = await activityService.getRecentActivities(parseInt(limit));
-    
-    return sendSuccess(
-      res,
-      activities,
-      'System activities retrieved successfully'
-    );
+
+    return sendSuccess(res, activities, 'System activities retrieved successfully');
   } catch (error) {
     next(error);
   }

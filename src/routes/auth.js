@@ -3,7 +3,16 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
-const { register, login, logout, refreshToken, getMe, oauthCallback, forgotPassword, resetPassword } = require('../controllers/authController');
+const {
+  register,
+  login,
+  logout,
+  refreshToken,
+  getMe,
+  oauthCallback,
+  forgotPassword,
+  resetPassword,
+} = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
 const { validateBody, schemas } = require('../middleware/validation');
 const passport = require('passport');
@@ -24,7 +33,10 @@ router.get('/me', authLimiter, authenticate, getMe);
 router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password', authLimiter, resetPassword);
 // Google OAuth routes
-router.get('/oauth/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false }));
+router.get(
+  '/oauth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'], session: false })
+);
 
 router.get(
   '/google/callback',
@@ -33,11 +45,17 @@ router.get(
 );
 
 // Facebook OAuth routes
-router.get('/oauth/facebook', passport.authenticate('facebook', { scope: ['public_profile', 'email'], session: false }));
+router.get(
+  '/oauth/facebook',
+  passport.authenticate('facebook', { scope: ['public_profile', 'email'], session: false })
+);
 
 router.get(
   '/facebook/callback',
-  passport.authenticate('facebook', { session: false, failureRedirect: '/login?error=oauth_failed' }),
+  passport.authenticate('facebook', {
+    session: false,
+    failureRedirect: '/login?error=oauth_failed',
+  }),
   oauthCallback
 );
 

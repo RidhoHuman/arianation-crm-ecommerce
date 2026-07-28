@@ -15,8 +15,7 @@ const getCustomers = async (req, res, next) => {
 
     if (search) {
       query = query.where((builder) => {
-        builder.where('fullName', 'like', `%${search}%`)
-          .orWhere('email', 'like', `%${search}%`);
+        builder.where('fullName', 'like', `%${search}%`).orWhere('email', 'like', `%${search}%`);
       });
     }
 
@@ -31,7 +30,7 @@ const getCustomers = async (req, res, next) => {
           totalOrders: metrics?.totalTransactions || 0,
           totalSpent: metrics?.totalSpent || 0,
           currentTier: metrics?.currentTier || 'BRONZE',
-          loyaltyPoints: metrics?.loyaltyPoints || 0
+          loyaltyPoints: metrics?.loyaltyPoints || 0,
         };
       })
     );
@@ -61,13 +60,13 @@ const sendPromoEmail = async (req, res, next) => {
         .whereIn('id', customerIds)
         .where('isActive', true)
         .select('email');
-      targetEmails = users.map(u => u.email);
+      targetEmails = users.map((u) => u.email);
     } else {
       const users = await knex('user')
         .where('role', 'CUSTOMER')
         .where('isActive', true)
         .select('email');
-      targetEmails = users.map(u => u.email);
+      targetEmails = users.map((u) => u.email);
     }
 
     if (targetEmails.length === 0) {
@@ -82,8 +81,8 @@ const sendPromoEmail = async (req, res, next) => {
         secure: process.env.SMTP_SECURE === 'true',
         auth: {
           user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
+          pass: process.env.SMTP_PASS,
+        },
       });
     } else {
       // Fallback to auto-generated Ethereal account for development
@@ -95,8 +94,8 @@ const sendPromoEmail = async (req, res, next) => {
         secure: false,
         auth: {
           user: testAccount.user,
-          pass: testAccount.pass
-        }
+          pass: testAccount.pass,
+        },
       });
     }
 
@@ -117,9 +116,9 @@ const sendPromoEmail = async (req, res, next) => {
                 Anda menerima email ini karena Anda adalah pelanggan setia Arianation.
               </div>
             </div>
-          `
+          `,
         });
-        
+
         // Cek jika menggunakan Ethereal, tampilkan URL untuk melihat email
         if (info.messageId && nodemailer.getTestMessageUrl(info)) {
           console.log(`📧 Preview Email (${email}): ${nodemailer.getTestMessageUrl(info)}`);
@@ -149,13 +148,17 @@ const updateCustomer = async (req, res, next) => {
     }
 
     if (isActive !== undefined) {
-      await knex('user').where('id', id).update({ isActive: isActive ? 1 : 0, updatedAt: new Date() });
+      await knex('user')
+        .where('id', id)
+        .update({ isActive: isActive ? 1 : 0, updatedAt: new Date() });
     }
 
     if (currentTier) {
       const metrics = await knex('customerMetrics').where('userId', id).first();
       if (metrics) {
-        await knex('customerMetrics').where('userId', id).update({ currentTier, isTierManuallySet: true, updatedAt: new Date() });
+        await knex('customerMetrics')
+          .where('userId', id)
+          .update({ currentTier, isTierManuallySet: true, updatedAt: new Date() });
       } else {
         await knex('customerMetrics').insert({
           id: require('cuid')(),
@@ -163,7 +166,7 @@ const updateCustomer = async (req, res, next) => {
           currentTier,
           isTierManuallySet: true,
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         });
       }
     }
@@ -172,15 +175,17 @@ const updateCustomer = async (req, res, next) => {
       const adjustNum = Number(pointsAdjustment);
       if (adjustNum !== 0) {
         const newPoints = Math.max(0, (user.rewardPoints || 0) + adjustNum);
-        await knex('user').where('id', id).update({ rewardPoints: newPoints, updatedAt: new Date() });
-        
+        await knex('user')
+          .where('id', id)
+          .update({ rewardPoints: newPoints, updatedAt: new Date() });
+
         await knex('pointHistory').insert({
           id: require('cuid')(),
           userId: id,
           points: Math.abs(adjustNum),
           type: adjustNum > 0 ? 'EARNED' : 'SPENT',
           description: 'Penyesuaian manual oleh Admin CRM',
-          createdAt: new Date()
+          createdAt: new Date(),
         });
       }
     }
@@ -194,5 +199,5 @@ const updateCustomer = async (req, res, next) => {
 module.exports = {
   getCustomers,
   sendPromoEmail,
-  updateCustomer
+  updateCustomer,
 };

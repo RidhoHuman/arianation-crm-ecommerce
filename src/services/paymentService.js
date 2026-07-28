@@ -70,25 +70,28 @@ const paymentService = {
 
   // Cari payment berdasarkan orderId
   async findByOrderId(orderId) {
-    const payment = await knex('payment')
-      .where('orderId', orderId)
-      .first();
+    const payment = await knex('payment').where('orderId', orderId).first();
 
     return payment || null;
   },
 
   // Cari payment berdasarkan transactionId
   async findByTransactionId(transactionId) {
-    const payment = await knex('payment')
-      .where('transactionId', transactionId)
-      .first();
+    const payment = await knex('payment').where('transactionId', transactionId).first();
 
     return payment || null;
   },
 
   // Buat payment baru
   async create(data) {
-    const { orderId, paymentMethod, amount, status = 'PENDING', transactionId = null, ...rest } = data;
+    const {
+      orderId,
+      paymentMethod,
+      amount,
+      status = 'PENDING',
+      transactionId = null,
+      ...rest
+    } = data;
     const id = data.id || require('cuid')();
 
     const payment = {
@@ -119,9 +122,7 @@ const paymentService = {
       updateData.transactionId = transactionId;
     }
 
-    await knex('payment')
-      .where('id', id)
-      .update(updateData);
+    await knex('payment').where('id', id).update(updateData);
 
     return this.findById(id);
   },
@@ -133,18 +134,14 @@ const paymentService = {
       updatedAt: new Date(),
     };
 
-    await knex('payment')
-      .where('id', id)
-      .update(updateData);
+    await knex('payment').where('id', id).update(updateData);
 
     return this.findById(id);
   },
 
   // Hapus payment
   async delete(id) {
-    await knex('payment')
-      .where('id', id)
-      .delete();
+    await knex('payment').where('id', id).delete();
 
     return true;
   },

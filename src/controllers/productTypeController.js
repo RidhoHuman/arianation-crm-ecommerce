@@ -43,7 +43,7 @@ const createProductType = async (req, res, next) => {
     }
 
     const slug = slugify(typeName, { lower: true, strict: true });
-    
+
     // Check if slug exists
     const existingType = await knex('product_type_master').where({ slug }).first();
     if (existingType) {
@@ -58,7 +58,7 @@ const createProductType = async (req, res, next) => {
       imageUrl: req.body.imageUrl || null,
       isActive: isActive !== undefined ? isActive : true,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     await knex('product_type_master').insert(newType);
@@ -80,17 +80,17 @@ const updateProductType = async (req, res, next) => {
     }
 
     const updateData = { updatedAt: new Date() };
-    
+
     if (typeName) {
       updateData.typeName = typeName;
       updateData.slug = slugify(typeName, { lower: true, strict: true });
-      
+
       // Check if new slug conflicts with another type
       const conflict = await knex('product_type_master')
         .where({ slug: updateData.slug })
         .whereNot({ id })
         .first();
-        
+
       if (conflict) {
         return sendError(res, 400, 'Product type with this name already exists');
       }
@@ -111,7 +111,7 @@ const updateProductType = async (req, res, next) => {
 const deleteProductType = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const existingType = await knex('product_type_master').where({ id }).first();
     if (!existingType) {
       return sendError(res, 404, 'Product type not found');
@@ -132,5 +132,5 @@ module.exports = {
   getProductTypeById,
   createProductType,
   updateProductType,
-  deleteProductType
+  deleteProductType,
 };

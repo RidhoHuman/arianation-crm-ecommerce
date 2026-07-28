@@ -9,7 +9,7 @@ const {
   deleteCollection,
   getProductsInCollection,
   addProductToCollection,
-  removeProductFromCollection
+  removeProductFromCollection,
 } = require('../controllers/collectionController');
 const { authenticate, authorize } = require('../middleware/auth');
 
@@ -24,6 +24,11 @@ router.post('/', authenticate, authorize('ADMIN', 'OWNER'), createCollection);
 router.put('/:id', authenticate, authorize('ADMIN', 'OWNER'), updateCollection);
 router.delete('/:id', authenticate, authorize('ADMIN', 'OWNER'), deleteCollection);
 router.post('/:id/products', authenticate, authorize('ADMIN', 'OWNER'), addProductToCollection);
-router.delete('/:id/products/:productId', authenticate, authorize('ADMIN', 'OWNER'), removeProductFromCollection);
+router.delete(
+  '/:id/products/:productId',
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  removeProductFromCollection
+);
 
 module.exports = router;

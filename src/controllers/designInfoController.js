@@ -2,9 +2,7 @@ const knex = require('../config/knex');
 
 exports.getPortfolio = async (req, res) => {
   try {
-    const data = await knex('portfolio_items')
-      .where({ isActive: true })
-      .orderBy('id', 'desc');
+    const data = await knex('portfolio_items').where({ isActive: true }).orderBy('id', 'desc');
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching portfolio:', error);
@@ -14,9 +12,7 @@ exports.getPortfolio = async (req, res) => {
 
 exports.getFaqs = async (req, res) => {
   try {
-    const data = await knex('faq_items')
-      .where({ isActive: true })
-      .orderBy('orderIndex', 'asc');
+    const data = await knex('faq_items').where({ isActive: true }).orderBy('orderIndex', 'asc');
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching faqs:', error);
@@ -26,9 +22,7 @@ exports.getFaqs = async (req, res) => {
 
 exports.getPrintTechniques = async (req, res) => {
   try {
-    const data = await knex('print_techniques')
-      .where({ isActive: true })
-      .orderBy('id', 'asc');
+    const data = await knex('print_techniques').where({ isActive: true }).orderBy('id', 'asc');
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching print techniques:', error);

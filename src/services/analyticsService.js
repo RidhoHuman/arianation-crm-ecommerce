@@ -17,7 +17,11 @@ const getFulfillmentAnalytics = async (filters = {}) => {
   // Fetch all required data in parallel
   const [totalOrders, ordersByStatus, averageFulfillmentTime, orderMetrics, recentOrders] =
     await Promise.all([
-      query.clone().count('* as count').first().then(r => r?.count || 0),
+      query
+        .clone()
+        .count('* as count')
+        .first()
+        .then((r) => r?.count || 0),
       getOrdersByStatus(query.clone()),
       calculateAverageFulfillmentTime(query.clone()),
       getOrderMetrics(query.clone()),
@@ -105,7 +109,9 @@ const calculateAverageFulfillmentTime = async (query) => {
   if (deliveredOrders.length === 0) return 0;
 
   const totalDays = deliveredOrders.reduce((sum, order) => {
-    const days = Math.ceil((new Date(order.updatedAt) - new Date(order.createdAt)) / (1000 * 60 * 60 * 24));
+    const days = Math.ceil(
+      (new Date(order.updatedAt) - new Date(order.createdAt)) / (1000 * 60 * 60 * 24)
+    );
     return sum + days;
   }, 0);
 
@@ -121,8 +127,12 @@ const getOrderMetrics = async (query) => {
     .select(
       knex.raw('SUM(totalAmount) as totalRevenue'),
       knex.raw('AVG(totalAmount) as avgAmount'),
-      knex.raw("SUM(CASE WHEN orderNumber LIKE 'SAB-%' THEN totalAmount ELSE 0 END) as sablonRevenue"),
-      knex.raw("SUM(CASE WHEN orderNumber LIKE 'ORD-%' THEN totalAmount ELSE 0 END) as retailRevenue"),
+      knex.raw(
+        "SUM(CASE WHEN orderNumber LIKE 'SAB-%' THEN totalAmount ELSE 0 END) as sablonRevenue"
+      ),
+      knex.raw(
+        "SUM(CASE WHEN orderNumber LIKE 'ORD-%' THEN totalAmount ELSE 0 END) as retailRevenue"
+      ),
       knex.raw('COUNT(*) as count')
     )
     .first();

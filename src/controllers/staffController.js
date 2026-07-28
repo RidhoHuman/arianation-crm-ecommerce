@@ -32,7 +32,7 @@ const staffController = {
       }
 
       const hashedPassword = await hashPassword(password);
-      
+
       const admin = await knex.transaction(async (trx) => {
         const createdAdmin = await userService.create({
           email,
@@ -41,13 +41,23 @@ const staffController = {
           phone: phone || null,
           role: 'ADMIN',
         });
-        
+
         // Admins don't need customer profile/metrics strictly, but to maintain integrity:
         const cuid = require('cuid');
         const now = new Date();
-        await trx('customerProfile').insert({ id: cuid(), userId: createdAdmin.id, createdAt: now, updatedAt: now });
-        await trx('customerMetrics').insert({ id: cuid(), userId: createdAdmin.id, createdAt: now, updatedAt: now });
-        
+        await trx('customerProfile').insert({
+          id: cuid(),
+          userId: createdAdmin.id,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await trx('customerMetrics').insert({
+          id: cuid(),
+          userId: createdAdmin.id,
+          createdAt: now,
+          updatedAt: now,
+        });
+
         return createdAdmin;
       });
 
@@ -98,7 +108,7 @@ const staffController = {
     } catch (error) {
       next(error);
     }
-  }
+  },
 };
 
 module.exports = staffController;

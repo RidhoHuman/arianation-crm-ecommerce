@@ -8,12 +8,16 @@ const printTechniqueController = {
       const techniques = await knex('print_techniques')
         .where('isActive', true)
         .orderBy('name', 'asc');
-      
+
       // parse JSON allowedCategories and priceMatrix
-      const formatted = techniques.map(t => ({
+      const formatted = techniques.map((t) => ({
         ...t,
-        allowedCategories: typeof t.allowedCategories === 'string' ? JSON.parse(t.allowedCategories) : (t.allowedCategories || []),
-        priceMatrix: typeof t.priceMatrix === 'string' ? JSON.parse(t.priceMatrix) : (t.priceMatrix || {})
+        allowedCategories:
+          typeof t.allowedCategories === 'string'
+            ? JSON.parse(t.allowedCategories)
+            : t.allowedCategories || [],
+        priceMatrix:
+          typeof t.priceMatrix === 'string' ? JSON.parse(t.priceMatrix) : t.priceMatrix || {},
       }));
 
       res.status(200).json(formatted);
@@ -27,11 +31,15 @@ const printTechniqueController = {
   getAllAdmin: async (req, res) => {
     try {
       const techniques = await knex('print_techniques').orderBy('createdAt', 'desc');
-      
-      const formatted = techniques.map(t => ({
+
+      const formatted = techniques.map((t) => ({
         ...t,
-        allowedCategories: typeof t.allowedCategories === 'string' ? JSON.parse(t.allowedCategories) : (t.allowedCategories || []),
-        priceMatrix: typeof t.priceMatrix === 'string' ? JSON.parse(t.priceMatrix) : (t.priceMatrix || {})
+        allowedCategories:
+          typeof t.allowedCategories === 'string'
+            ? JSON.parse(t.allowedCategories)
+            : t.allowedCategories || [],
+        priceMatrix:
+          typeof t.priceMatrix === 'string' ? JSON.parse(t.priceMatrix) : t.priceMatrix || {},
       }));
 
       res.status(200).json(formatted);
@@ -44,10 +52,17 @@ const printTechniqueController = {
   // Admin Endpoint: Create new technique
   create: async (req, res) => {
     try {
-      const { 
-        name, description, allowedCategories, 
-        minOrder, pricingType, basePrice, priceMatrix,
-        maxColors, imageUrl, isActive 
+      const {
+        name,
+        description,
+        allowedCategories,
+        minOrder,
+        pricingType,
+        basePrice,
+        priceMatrix,
+        maxColors,
+        imageUrl,
+        isActive,
       } = req.body;
 
       if (!name) {
@@ -67,14 +82,14 @@ const printTechniqueController = {
         priceMatrix: priceMatrix ? JSON.stringify(priceMatrix) : null,
         maxColors: maxColors || null,
         imageUrl: imageUrl || null,
-        isActive: isActive !== undefined ? isActive : true
+        isActive: isActive !== undefined ? isActive : true,
       };
 
       await knex('print_techniques').insert(newTechnique);
 
-      res.status(201).json({ 
-        message: 'Teknik sablon berhasil ditambahkan', 
-        technique: { ...newTechnique, allowedCategories: allowedCategories || [] } 
+      res.status(201).json({
+        message: 'Teknik sablon berhasil ditambahkan',
+        technique: { ...newTechnique, allowedCategories: allowedCategories || [] },
       });
     } catch (error) {
       console.error('Error creating print technique:', error);
@@ -86,10 +101,17 @@ const printTechniqueController = {
   update: async (req, res) => {
     try {
       const { id } = req.params;
-      const { 
-        name, description, allowedCategories, 
-        minOrder, pricingType, basePrice, priceMatrix,
-        maxColors, imageUrl, isActive 
+      const {
+        name,
+        description,
+        allowedCategories,
+        minOrder,
+        pricingType,
+        basePrice,
+        priceMatrix,
+        maxColors,
+        imageUrl,
+        isActive,
       } = req.body;
 
       const existing = await knex('print_techniques').where({ id }).first();
@@ -108,7 +130,7 @@ const printTechniqueController = {
         maxColors: maxColors || null,
         imageUrl,
         isActive,
-        updatedAt: knex.fn.now()
+        updatedAt: knex.fn.now(),
       };
 
       await knex('print_techniques').where({ id }).update(updatedData);
@@ -124,20 +146,20 @@ const printTechniqueController = {
   delete: async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       const existing = await knex('print_techniques').where({ id }).first();
       if (!existing) {
         return res.status(404).json({ message: 'Teknik sablon tidak ditemukan' });
       }
 
       await knex('print_techniques').where({ id }).del();
-      
+
       res.status(200).json({ message: 'Teknik sablon berhasil dihapus' });
     } catch (error) {
       console.error('Error deleting print technique:', error);
       res.status(500).json({ message: 'Gagal menghapus teknik sablon' });
     }
-  }
+  },
 };
 
 module.exports = printTechniqueController;

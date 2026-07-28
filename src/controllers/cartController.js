@@ -17,7 +17,8 @@ const getCart = async (req, res, next) => {
     // Get items dengan product info dan variant info
     const items = await knex('cartItem')
       .where('cartId', cart.id)
-      .select('cartItem.*', 
+      .select(
+        'cartItem.*',
         knex.raw('p.productName, p.price as productPrice, p.imageUrl, p.isActive, p.businessType'),
         knex.raw('v.variantName as size, v.color as color, v.imageUrl as variantImage')
       )
@@ -27,16 +28,16 @@ const getCart = async (req, res, next) => {
 
     // Calculate total
     const totalAmount = items.reduce((sum, item) => {
-      return sum + (item.unitPrice * item.quantity);
+      return sum + item.unitPrice * item.quantity;
     }, 0);
 
     return sendSuccess(
-      res, 
-      { 
-        ...cart, 
-        items, 
-        totalAmount 
-      }, 
+      res,
+      {
+        ...cart,
+        items,
+        totalAmount,
+      },
       MESSAGES.CART_FOUND
     );
   } catch (error) {
@@ -107,8 +108,6 @@ const updateCartItem = async (req, res, next) => {
     next(error);
   }
 };
-
-
 
 const removeFromCart = async (req, res, next) => {
   try {

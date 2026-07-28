@@ -18,8 +18,11 @@ const errorHandler = (err, req, res, next) => {
 
   try {
     const fs = require('fs');
-    fs.appendFileSync('debug-error.log', new Date().toISOString() + ' ' + (err.stack || err.message) + '\n');
-  } catch(e) {}
+    fs.appendFileSync(
+      'debug-error.log',
+      new Date().toISOString() + ' ' + (err.stack || err.message) + '\n'
+    );
+  } catch (e) {}
 
   // Prisma error handling
   if (err.code === 'P2002') {

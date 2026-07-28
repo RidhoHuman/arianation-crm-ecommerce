@@ -7,10 +7,10 @@ const getSettings = async (req, res, next) => {
     const settings = await knex('store_settings').select('settingKey', 'settingValue');
     // Convert array of {settingKey, settingValue} to object { key: value }
     const settingsObj = {};
-    settings.forEach(s => {
+    settings.forEach((s) => {
       settingsObj[s.settingKey] = s.settingValue;
     });
-    
+
     // Fallback if not found
     if (!settingsObj.best_seller_threshold) {
       settingsObj.best_seller_threshold = '5';
@@ -43,12 +43,14 @@ const getSettings = async (req, res, next) => {
 const updateSettings = async (req, res, next) => {
   try {
     const settingsUpdates = req.body; // e.g. { best_seller_threshold: "10" }
-    
+
     // Update or insert each setting
     for (const [key, value] of Object.entries(settingsUpdates)) {
       const existing = await knex('store_settings').where('settingKey', key).first();
       if (existing) {
-        await knex('store_settings').where('settingKey', key).update({ settingValue: String(value) });
+        await knex('store_settings')
+          .where('settingKey', key)
+          .update({ settingValue: String(value) });
       } else {
         await knex('store_settings').insert({ settingKey: key, settingValue: String(value) });
       }
@@ -62,5 +64,5 @@ const updateSettings = async (req, res, next) => {
 
 module.exports = {
   getSettings,
-  updateSettings
+  updateSettings,
 };

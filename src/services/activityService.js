@@ -4,7 +4,7 @@ const cuid = require('cuid');
 class ActivityService {
   /**
    * Log a new system activity
-   * @param {Object} data 
+   * @param {Object} data
    * @param {string} data.userId - Optional ID of the user performing the action
    * @param {string} data.action - Brief description of action (e.g., 'Update Stock')
    * @param {string} data.details - Detailed context (e.g., 'Restocked Basic T-Shirt by 50')
@@ -20,7 +20,7 @@ class ActivityService {
         details: details || null,
         entityType: entityType || null,
         entityId: entityId || null,
-        createdAt: new Date()
+        createdAt: new Date(),
       });
       return true;
     } catch (error) {
@@ -32,7 +32,7 @@ class ActivityService {
 
   /**
    * Fetch recent activities for dashboard
-   * @param {number} limit 
+   * @param {number} limit
    */
   async getRecentActivities(limit = 10) {
     try {

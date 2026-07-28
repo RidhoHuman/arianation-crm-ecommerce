@@ -49,8 +49,20 @@ router.put('/:id', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), up
 router.delete('/:id', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), deleteProduct);
 
 // Bulk actions
-router.post('/bulk-delete', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), bulkDeleteProducts);
-router.patch('/bulk-status', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), bulkUpdateStatus);
+router.post(
+  '/bulk-delete',
+  generalLimiter,
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  bulkDeleteProducts
+);
+router.patch(
+  '/bulk-status',
+  generalLimiter,
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  bulkUpdateStatus
+);
 router.post(
   '/:id/variants',
   generalLimiter,
@@ -59,9 +71,27 @@ router.post(
   createVariant
 );
 
-router.post('/:id/colors', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), addProductColor);
-router.put('/:id/colors/:colorId', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), updateProductColor);
-router.delete('/:id/colors/:colorId', generalLimiter, authenticate, authorize('ADMIN', 'OWNER'), deleteProductColor);
+router.post(
+  '/:id/colors',
+  generalLimiter,
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  addProductColor
+);
+router.put(
+  '/:id/colors/:colorId',
+  generalLimiter,
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  updateProductColor
+);
+router.delete(
+  '/:id/colors/:colorId',
+  generalLimiter,
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  deleteProductColor
+);
 
 // Upload routes
 router.post(

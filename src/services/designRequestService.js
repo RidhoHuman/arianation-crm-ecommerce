@@ -70,9 +70,7 @@ const designRequestService = {
 
   // Cari design request berdasarkan ID
   async findById(id) {
-    const request = await knex('designRequest')
-      .where('id', id)
-      .first();
+    const request = await knex('designRequest').where('id', id).first();
 
     return request || null;
   },
@@ -100,42 +98,34 @@ const designRequestService = {
       updatedAt: new Date(),
     };
 
-    await knex('designRequest')
-      .where('id', id)
-      .update(updateData);
+    await knex('designRequest').where('id', id).update(updateData);
 
     return this.findById(id);
   },
 
   // Update status design request
   async updateStatus(id, status) {
-    await knex('designRequest')
-      .where('id', id)
-      .update({
-        status,
-        updatedAt: new Date(),
-      });
+    await knex('designRequest').where('id', id).update({
+      status,
+      updatedAt: new Date(),
+    });
 
     return this.findById(id);
   },
 
   // Update design file
   async updateDesignFile(id, designFileUrl) {
-    await knex('designRequest')
-      .where('id', id)
-      .update({
-        designFileUrl,
-        updatedAt: new Date(),
-      });
+    await knex('designRequest').where('id', id).update({
+      designFileUrl,
+      updatedAt: new Date(),
+    });
 
     return this.findById(id);
   },
 
   // Hapus design request
   async delete(id) {
-    await knex('designRequest')
-      .where('id', id)
-      .delete();
+    await knex('designRequest').where('id', id).delete();
 
     return true;
   },
@@ -144,13 +134,7 @@ const designRequestService = {
   async findUserDesignRequests(userId) {
     const requests = await knex('designRequest')
       .where('userId', userId)
-      .select(
-        'id',
-        'designTitle',
-        'designDescription',
-        'status',
-        'createdAt'
-      )
+      .select('id', 'designTitle', 'designDescription', 'status', 'createdAt')
       .orderBy('createdAt', 'desc');
 
     return requests;

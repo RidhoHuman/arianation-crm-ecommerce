@@ -63,10 +63,8 @@ const cartItemService = {
 
   // Cari cart item berdasarkan cartId, productId, dan variantId
   async findByCartProductAndVariant(cartId, productId, variantId = null) {
-    let query = knex('cartItem')
-      .where('cartId', cartId)
-      .where('productId', productId);
-      
+    let query = knex('cartItem').where('cartId', cartId).where('productId', productId);
+
     if (variantId) {
       query = query.where('variantId', variantId);
     } else {
@@ -83,9 +81,9 @@ const cartItemService = {
 
     if (existing) {
       const newQuantity = existing.quantity + quantity;
-      return this.update(existing.id, { 
+      return this.update(existing.id, {
         quantity: newQuantity,
-        subtotal: newQuantity * existing.unitPrice
+        subtotal: newQuantity * existing.unitPrice,
       });
     }
 
@@ -115,9 +113,7 @@ const cartItemService = {
       updatedAt: new Date(),
     };
 
-    await knex('cartItem')
-      .where('id', id)
-      .update(updateData);
+    await knex('cartItem').where('id', id).update(updateData);
 
     return this.findById(id);
   },
@@ -140,28 +136,21 @@ const cartItemService = {
 
   // Hapus cart item
   async delete(id) {
-    await knex('cartItem')
-      .where('id', id)
-      .delete();
+    await knex('cartItem').where('id', id).delete();
 
     return true;
   },
 
   // Hapus semua item dari cart
   async deleteAll(cartId) {
-    await knex('cartItem')
-      .where('cartId', cartId)
-      .delete();
+    await knex('cartItem').where('cartId', cartId).delete();
 
     return true;
   },
 
   // Ambil total harga cart
   async getCartTotal(cartId) {
-    const result = await knex('cartItem')
-      .where('cartId', cartId)
-      .sum('subtotal as total')
-      .first();
+    const result = await knex('cartItem').where('cartId', cartId).sum('subtotal as total').first();
 
     return result.total || 0;
   },

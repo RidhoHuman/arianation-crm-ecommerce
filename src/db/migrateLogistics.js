@@ -43,7 +43,7 @@ async function migrate() {
       await knex('couriers').insert([
         { id: require('cuid')(), code: 'jnt', name: 'J&T Express', isActive: true },
         { id: require('cuid')(), code: 'sicepat', name: 'SiCepat Ekspres', isActive: true },
-        { id: require('cuid')(), code: 'jne', name: 'JNE', isActive: true }
+        { id: require('cuid')(), code: 'jne', name: 'JNE', isActive: true },
       ]);
       console.log('Couriers seeded.');
     } else {

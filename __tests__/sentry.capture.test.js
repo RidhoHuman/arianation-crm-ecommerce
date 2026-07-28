@@ -34,7 +34,13 @@ describe('sentryCapture helper', () => {
     const err = new Error('boom');
     const req = {
       user: { id: 'u123', email: 'u@example.com', role: 'CUSTOMER' },
-      file: { filename: 'design_1.png', originalname: 'orig.png', mimetype: 'image/png', size: 12345, buffer: Buffer.alloc(10) },
+      file: {
+        filename: 'design_1.png',
+        originalname: 'orig.png',
+        mimetype: 'image/png',
+        size: 12345,
+        buffer: Buffer.alloc(10),
+      },
       originalUrl: '/api/design-requests/req123/upload-file',
       method: 'POST',
       params: { id: 'req123' },
@@ -59,7 +65,10 @@ describe('sentryCapture helper', () => {
     expect(mockScope.setExtra).toHaveBeenCalledWith('fileSize', 12345);
 
     // route/method
-    expect(mockScope.setTag).toHaveBeenCalledWith('route', '/api/design-requests/req123/upload-file');
+    expect(mockScope.setTag).toHaveBeenCalledWith(
+      'route',
+      '/api/design-requests/req123/upload-file'
+    );
     expect(mockScope.setExtra).toHaveBeenCalledWith('method', 'POST');
 
     // id tagged as designRequestId

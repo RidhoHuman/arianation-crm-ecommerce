@@ -91,7 +91,11 @@ const schemas = {
     quantity: { required: true, type: 'number', min: 1 },
   },
   createOrder: {
-    paymentMethod: { required: true, type: 'string', enum: ['QRIS', 'BANK_TRANSFER', 'COD', 'MIDTRANS', 'XENDIT'] },
+    paymentMethod: {
+      required: true,
+      type: 'string',
+      enum: ['QRIS', 'BANK_TRANSFER', 'COD', 'MIDTRANS', 'XENDIT'],
+    },
   },
   createDesignRequest: {
     designTitle: { required: true, type: 'string', minLength: 2, maxLength: 200 },
@@ -111,7 +115,7 @@ const schemas = {
     colorPreferences: { type: 'string' },
     designDescription: { type: 'string' },
     referenceImageUrl: { type: 'string' },
-    deadline: { type: 'string' }
+    deadline: { type: 'string' },
   },
 };
 

@@ -40,9 +40,7 @@ const getSignedUrl = async (req, res, next) => {
         throw new AuthorizationError('Only admin/owner can request product image URLs');
       }
 
-      const product = await knex('product')
-        .where('imageUrl', 'like', `%${filename}%`)
-        .first();
+      const product = await knex('product').where('imageUrl', 'like', `%${filename}%`).first();
       if (!product) {
         throw new NotFoundError('Product image not found');
       }

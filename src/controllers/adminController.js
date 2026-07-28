@@ -32,16 +32,35 @@ const getDashboard = async (req, res, next) => {
       topProducts,
       recentOrders,
     ] = await Promise.all([
-      knex('order').where('createdAt', '>=', todayStart).count('* as count').first().then(r => r?.count || 0),
-      knex('order').where('createdAt', '>=', monthStart).count('* as count').first().then(r => r?.count || 0),
-      knex('order').count('* as count').first().then(r => r?.count || 0),
-      knex('user').where('role', 'CUSTOMER').count('* as count').first().then(r => r?.count || 0),
-      knex('designRequest').where('status', 'SUBMITTED').count('* as count').first().then(r => r?.count || 0),
+      knex('order')
+        .where('createdAt', '>=', todayStart)
+        .count('* as count')
+        .first()
+        .then((r) => r?.count || 0),
+      knex('order')
+        .where('createdAt', '>=', monthStart)
+        .count('* as count')
+        .first()
+        .then((r) => r?.count || 0),
+      knex('order')
+        .count('* as count')
+        .first()
+        .then((r) => r?.count || 0),
+      knex('user')
+        .where('role', 'CUSTOMER')
+        .count('* as count')
+        .first()
+        .then((r) => r?.count || 0),
+      knex('designRequest')
+        .where('status', 'SUBMITTED')
+        .count('* as count')
+        .first()
+        .then((r) => r?.count || 0),
       knex('order')
         .where('status', 'in', ['CONFIRMED', 'DELIVERED'])
         .sum('totalAmount as totalAmount')
         .first()
-        .then(r => r?.totalAmount || 0),
+        .then((r) => r?.totalAmount || 0),
       knex('orderItem')
         .select('productId')
         .count('id as count')
@@ -78,7 +97,7 @@ const getDashboard = async (req, res, next) => {
           .where('orderId', order.id)
           .count('* as count')
           .first()
-          .then(r => r?.count || 0);
+          .then((r) => r?.count || 0);
         return {
           id: order.id,
           orderNumber: order.orderNumber,
@@ -97,35 +116,37 @@ const getDashboard = async (req, res, next) => {
       .where('createdAt', '>=', daysAgo)
       .andWhereNot('status', 'in', ['CANCELLED', 'RETURNED']);
 
-    const revenueChart = Array(daysParam).fill(0).map((_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((daysParam - 1) - i));
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      const dateStr = `${yyyy}-${mm}-${dd}`;
+    const revenueChart = Array(daysParam)
+      .fill(0)
+      .map((_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (daysParam - 1 - i));
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
 
-      const sum = chartOrders.reduce((acc, order) => {
-        const od = new Date(order.createdAt);
-        const o_yyyy = od.getFullYear();
-        const o_mm = String(od.getMonth() + 1).padStart(2, '0');
-        const o_dd = String(od.getDate()).padStart(2, '0');
-        const o_dateStr = `${o_yyyy}-${o_mm}-${o_dd}`;
+        const sum = chartOrders.reduce((acc, order) => {
+          const od = new Date(order.createdAt);
+          const o_yyyy = od.getFullYear();
+          const o_mm = String(od.getMonth() + 1).padStart(2, '0');
+          const o_dd = String(od.getDate()).padStart(2, '0');
+          const o_dateStr = `${o_yyyy}-${o_mm}-${o_dd}`;
 
-        if (o_dateStr === dateStr) {
-          return acc + Number(order.totalAmount || 0);
+          if (o_dateStr === dateStr) {
+            return acc + Number(order.totalAmount || 0);
+          }
+          return acc;
+        }, 0);
+
+        let label = `H-${daysParam - 1 - i}`;
+        if (i === daysParam - 1) label = 'H-0';
+        if (daysParam > 14) {
+          // Just show date for long ranges
+          label = `${dd}/${mm}`;
         }
-        return acc;
-      }, 0);
-      
-      let label = `H-${(daysParam - 1) - i}`;
-      if (i === (daysParam - 1)) label = 'H-0';
-      if (daysParam > 14) {
-        // Just show date for long ranges
-        label = `${dd}/${mm}`;
-      }
-      
-      return { date: dateStr, total: sum, label };
-    });
+
+        return { date: dateStr, total: sum, label };
+      });
 
     const dashboard = {
       orders: {
@@ -231,22 +252,41 @@ const createProduct = async (req, res, next) => {
       stockQuantity: parseInt(stockQuantity, 10) || 0,
       productType,
       imageUrl: finalImageUrl,
-      imageUrls: imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null,
+      imageUrls: imageUrls
+        ? typeof imageUrls === 'string'
+          ? JSON.parse(imageUrls)
+          : imageUrls
+        : null,
       businessType,
       productTypeId: productTypeId === '' ? null : productTypeId,
       tags: req.body.tags || null,
-      isSale: req.body.isSale === 'true' || req.body.isSale === true || req.body.isSale === '1' || req.body.isSale === 1,
-      isActive: req.body.isActive === undefined ? true : (req.body.isActive === 'true' || req.body.isActive === true || req.body.isActive === '1' || req.body.isActive === 1),
+      isSale:
+        req.body.isSale === 'true' ||
+        req.body.isSale === true ||
+        req.body.isSale === '1' ||
+        req.body.isSale === 1,
+      isActive:
+        req.body.isActive === undefined
+          ? true
+          : req.body.isActive === 'true' ||
+            req.body.isActive === true ||
+            req.body.isActive === '1' ||
+            req.body.isActive === 1,
       variants: variants ? (typeof variants === 'string' ? JSON.parse(variants) : variants) : [],
-      allowedPrintAreas: allowedPrintAreas ? (typeof allowedPrintAreas === 'string' ? JSON.parse(allowedPrintAreas) : allowedPrintAreas) : null,
-      weight_gram: weight_gram === '' || weight_gram === undefined ? null : parseInt(weight_gram, 10),
+      allowedPrintAreas: allowedPrintAreas
+        ? typeof allowedPrintAreas === 'string'
+          ? JSON.parse(allowedPrintAreas)
+          : allowedPrintAreas
+        : null,
+      weight_gram:
+        weight_gram === '' || weight_gram === undefined ? null : parseInt(weight_gram, 10),
     });
 
     let colIds = req.body.collectionIds;
     if (colIds !== undefined) {
       if (!Array.isArray(colIds)) colIds = [colIds];
       if (colIds.length > 0) {
-        const colRecords = colIds.map(cId => ({ productId: product.id, collectionId: cId }));
+        const colRecords = colIds.map((cId) => ({ productId: product.id, collectionId: cId }));
         await knex('product_collection').insert(colRecords);
       }
     }
@@ -266,7 +306,7 @@ const createProduct = async (req, res, next) => {
 
     return sendCreated(res, product, 'Product created successfully');
   } catch (error) {
-    console.error("CREATE PRODUCT ERROR:", error);
+    console.error('CREATE PRODUCT ERROR:', error);
     next(error);
   }
 };
@@ -274,8 +314,22 @@ const createProduct = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { productName, description, descriptionEn, price, stockQuantity, productType, imageUrl, imageUrls, isActive, variants, categoryId, productTypeId, allowedPrintAreas, weight_gram } =
-      req.body;
+    const {
+      productName,
+      description,
+      descriptionEn,
+      price,
+      stockQuantity,
+      productType,
+      imageUrl,
+      imageUrls,
+      isActive,
+      variants,
+      categoryId,
+      productTypeId,
+      allowedPrintAreas,
+      weight_gram,
+    } = req.body;
 
     const product = await productService.findById(id);
     if (!product) throw new NotFoundError('Product not found');
@@ -293,16 +347,39 @@ const updateProduct = async (req, res, next) => {
       ...(stockQuantity !== undefined && { stockQuantity: parseInt(stockQuantity, 10) }),
       ...(productType && { productType }),
       ...(finalImageUrl !== undefined && { imageUrl: finalImageUrl }),
-      ...(imageUrls !== undefined && { imageUrls: imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null }),
-      ...(isActive !== undefined && { isActive: isActive === 'true' || isActive === true || isActive === '1' || isActive === 1 }),
-      ...(req.body.isSale !== undefined && { isSale: req.body.isSale === 'true' || req.body.isSale === true || req.body.isSale === '1' || req.body.isSale === 1 }),
+      ...(imageUrls !== undefined && {
+        imageUrls: imageUrls
+          ? typeof imageUrls === 'string'
+            ? JSON.parse(imageUrls)
+            : imageUrls
+          : null,
+      }),
+      ...(isActive !== undefined && {
+        isActive: isActive === 'true' || isActive === true || isActive === '1' || isActive === 1,
+      }),
+      ...(req.body.isSale !== undefined && {
+        isSale:
+          req.body.isSale === 'true' ||
+          req.body.isSale === true ||
+          req.body.isSale === '1' ||
+          req.body.isSale === 1,
+      }),
       ...(req.body.businessType && { businessType: req.body.businessType }),
       ...(req.body.tags !== undefined && { tags: req.body.tags }),
-      ...(variants !== undefined && { variants: typeof variants === 'string' ? JSON.parse(variants) : variants }),
+      ...(variants !== undefined && {
+        variants: typeof variants === 'string' ? JSON.parse(variants) : variants,
+      }),
       ...(categoryId !== undefined && { categoryId }),
-      ...(productTypeId !== undefined && { productTypeId: productTypeId === '' ? null : productTypeId }),
-      ...(allowedPrintAreas !== undefined && { allowedPrintAreas: typeof allowedPrintAreas === 'string' ? JSON.parse(allowedPrintAreas) : allowedPrintAreas }),
-      ...(weight_gram !== undefined && { weight_gram: weight_gram === '' ? null : parseInt(weight_gram, 10) }),
+      ...(productTypeId !== undefined && {
+        productTypeId: productTypeId === '' ? null : productTypeId,
+      }),
+      ...(allowedPrintAreas !== undefined && {
+        allowedPrintAreas:
+          typeof allowedPrintAreas === 'string' ? JSON.parse(allowedPrintAreas) : allowedPrintAreas,
+      }),
+      ...(weight_gram !== undefined && {
+        weight_gram: weight_gram === '' ? null : parseInt(weight_gram, 10),
+      }),
     });
 
     // Save collectionIds jika ada
@@ -311,7 +388,7 @@ const updateProduct = async (req, res, next) => {
       if (!Array.isArray(colIds)) colIds = [colIds];
       await knex('product_collection').where('productId', id).del();
       if (colIds.length > 0) {
-        const colRecords = colIds.map(cId => ({ productId: id, collectionId: cId }));
+        const colRecords = colIds.map((cId) => ({ productId: id, collectionId: cId }));
         await knex('product_collection').insert(colRecords);
       }
     }
@@ -373,7 +450,7 @@ const getOrders = async (req, res, next) => {
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
     let query = knex('order');
-    
+
     if (status) {
       query = query.where('status', status);
     }
@@ -388,10 +465,10 @@ const getOrders = async (req, res, next) => {
     const [orders, countResult] = await Promise.all([
       query
         .select(
-          'order.id', 
-          'order.orderNumber', 
-          'order.totalAmount', 
-          'order.status', 
+          'order.id',
+          'order.orderNumber',
+          'order.totalAmount',
+          'order.status',
           'order.createdAt',
           'order.userId',
           'user.fullName as customerName',
@@ -423,11 +500,11 @@ const getOrders = async (req, res, next) => {
           .select('orderItem.id', 'orderItem.quantity', 'product.productName')
           .leftJoin('product', 'orderItem.productId', 'product.id')
           .where('orderItem.orderId', order.id);
-        
+
         const designRequests = await knex('designRequest')
           .select('id', 'deadline', 'quantity', 'designTitle')
           .where('orderId', order.id);
-            
+
         return { ...order, items, designRequests };
       })
     );
@@ -452,10 +529,7 @@ const getOrderDetail = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const order = await knex('order')
-      .select('*')
-      .where('id', id)
-      .first();
+    const order = await knex('order').select('*').where('id', id).first();
 
     if (!order) throw new NotFoundError('Order not found');
 
@@ -478,32 +552,45 @@ const getOrderDetail = async (req, res, next) => {
       .leftJoin('productVariant as v', 'orderItem.variantId', 'v.id')
       .where('orderItem.orderId', id);
 
-    const items = rawItems.map(item => ({
+    const items = rawItems.map((item) => ({
       ...item,
-      product: item.productId ? {
-        productName: item.productName,
-        price: item.price,
-        imageUrl: item.productImage
-      } : null,
-      variant: item.variantId ? {
-        variantName: item.variantName + (item.color ? ` - ${item.color}` : ''),
-        imageUrl: item.variantImage
-      } : null
+      product: item.productId
+        ? {
+            productName: item.productName,
+            price: item.price,
+            imageUrl: item.productImage,
+          }
+        : null,
+      variant: item.variantId
+        ? {
+            variantName: item.variantName + (item.color ? ` - ${item.color}` : ''),
+            imageUrl: item.variantImage,
+          }
+        : null,
     }));
 
     // Get payment info
-    const payment = await knex('payment')
-      .where('orderId', id)
-      .first();
+    const payment = await knex('payment').where('orderId', id).first();
 
     // Get tracking info
-    const tracking = await knex('orderTracking')
-      .where('orderId', id)
-      .first();
+    const tracking = await knex('orderTracking').where('orderId', id).first();
 
     // Get design requests
     const designRequests = await knex('designRequest')
-      .select('id', 'designTitle', 'mockupPreviewUrl', 'designFileUrl', 'status', 'createdAt', 'updatedAt', 'printTechnique', 'printPosition', 'printSize', 'colorPreferences', 'sizeBreakdown')
+      .select(
+        'id',
+        'designTitle',
+        'mockupPreviewUrl',
+        'designFileUrl',
+        'status',
+        'createdAt',
+        'updatedAt',
+        'printTechnique',
+        'printPosition',
+        'printSize',
+        'colorPreferences',
+        'sizeBreakdown'
+      )
       .where('orderId', id);
 
     // Get order status history for cancellation reasons
@@ -512,7 +599,7 @@ const getOrderDetail = async (req, res, next) => {
       .where('orderId', id)
       .orderBy('createdAt', 'desc');
 
-    const refundRequestHistory = statusHistory.find(h => h.newStatus === 'REFUND_REQUESTED');
+    const refundRequestHistory = statusHistory.find((h) => h.newStatus === 'REFUND_REQUESTED');
     const cancelReason = refundRequestHistory ? refundRequestHistory.reason : null;
 
     return sendSuccess(
@@ -540,10 +627,7 @@ const updateOrderStatus = async (req, res, next) => {
 
     if (!status) throw new ValidationError('Status is required');
 
-    const order = await knex('order')
-      .select('id')
-      .where('id', id)
-      .first();
+    const order = await knex('order').select('id').where('id', id).first();
     if (!order) throw new NotFoundError('Order not found');
 
     const updateData = {
@@ -591,10 +675,7 @@ const updateOrderTracking = async (req, res, next) => {
     const { carrier, trackingNumber, currentLocation, estimatedDeliveryDate, status, notes } =
       req.body;
 
-    const order = await knex('order')
-      .select('id')
-      .where('id', id)
-      .first();
+    const order = await knex('order').select('id').where('id', id).first();
     if (!order) throw new NotFoundError('Order not found');
 
     const updatedTracking = await orderFulfillmentService.updateOrderTracking(id, {
@@ -629,10 +710,7 @@ const cancelOrder = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const order = await knex('order')
-      .select('id', 'status')
-      .where('id', id)
-      .first();
+    const order = await knex('order').select('id', 'status').where('id', id).first();
     if (!order) throw new NotFoundError('Order not found');
 
     if (['DELIVERED', 'SHIPPED'].includes(order.status)) {
@@ -680,7 +758,7 @@ const exportOrders = async (req, res, next) => {
           .where('orderId', order.id)
           .count('* as count')
           .first()
-          .then(r => r?.count || 0);
+          .then((r) => r?.count || 0);
         return { ...order, itemCount };
       })
     );
@@ -771,15 +849,16 @@ const getDesignRequestDetail = async (req, res, next) => {
       .orderBy('createdAt', 'desc');
 
     // Get order info
-    const order = request.orderId ? await knex('order')
-      .select('id', 'orderNumber')
-      .where('id', request.orderId)
-      .first() : null;
+    const order = request.orderId
+      ? await knex('order').select('id', 'orderNumber').where('id', request.orderId).first()
+      : null;
 
     // Get order items
-    const orderItems = request.orderId ? await knex('orderItem')
-      .select('id', 'productId', 'quantity')
-      .where('orderId', request.orderId) : [];
+    const orderItems = request.orderId
+      ? await knex('orderItem')
+          .select('id', 'productId', 'quantity')
+          .where('orderId', request.orderId)
+      : [];
 
     return sendSuccess(
       res,
@@ -807,10 +886,12 @@ const updateDesignRequestStatus = async (req, res, next) => {
     if (!request) throw new NotFoundError('Design request not found');
 
     const updated = await designRequestService.updateStatus(id, status);
-    
+
     // Save reject reason or revision notes to request table
     if ((status === 'REJECTED' || status === 'REVISION_REQUESTED') && comments) {
-      await require('../config/knex')('designRequest').where({ id }).update({ rejectReason: comments });
+      await require('../config/knex')('designRequest')
+        .where({ id })
+        .update({ rejectReason: comments });
     }
 
     // Update mockup if admin provides a final override
@@ -823,12 +904,15 @@ const updateDesignRequestStatus = async (req, res, next) => {
     if (estimatedPrice) {
       fullComment += `\n\nEstimasi Biaya: Rp ${parseInt(estimatedPrice).toLocaleString('id-ID')}`;
     }
-    
+
     if (hppPrice && estimatedPrice) {
       // Save to DB but DO NOT append to fullComment to avoid leaking sensitive data to the customer
-      await require('../config/knex')('designRequest').where({ id }).update({ 
-        estimatedPrice: parseInt(estimatedPrice)
-      }).catch(() => {});
+      await require('../config/knex')('designRequest')
+        .where({ id })
+        .update({
+          estimatedPrice: parseInt(estimatedPrice),
+        })
+        .catch(() => {});
     }
 
     if (fullComment) {
@@ -846,28 +930,26 @@ const updateDesignRequestStatus = async (req, res, next) => {
     if (['APPROVED', 'REJECTED', 'CANCELLED'].includes(status)) {
       const knex = require('../config/knex');
       const siblings = await knex('designRequest').where('orderId', request.orderId);
-      
-      const allProcessed = siblings.every(req => 
+
+      const allProcessed = siblings.every((req) =>
         ['APPROVED', 'REJECTED', 'CANCELLED'].includes(req.status)
       );
 
       if (allProcessed) {
         // Calculate new total amount for the order based ONLY on APPROVED designs
         const newTotalAmount = siblings
-          .filter(req => req.status === 'APPROVED')
+          .filter((req) => req.status === 'APPROVED')
           .reduce((sum, req) => {
             const estPrice = parseFloat(req.estimatedPrice) || 0;
             return sum + estPrice;
           }, 0);
 
         // Update the parent order
-        await knex('order')
-          .where('id', request.orderId)
-          .update({
-            totalAmount: newTotalAmount,
-            status: 'CONFIRMED',
-            updatedAt: new Date()
-          });
+        await knex('order').where('id', request.orderId).update({
+          totalAmount: newTotalAmount,
+          status: 'CONFIRMED',
+          updatedAt: new Date(),
+        });
       }
     }
 
@@ -882,11 +964,16 @@ const updateDesignRequestStatus = async (req, res, next) => {
           secure: process.env.SMTP_SECURE === 'true',
           auth: {
             user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
-          }
+            pass: process.env.SMTP_PASS,
+          },
         });
-        
-        const subjectStatus = status === 'APPROVED' ? 'Desain Disetujui' : (status === 'REVISION_REQUESTED' ? 'Desain Perlu Direvisi' : 'Status Desain Diupdate');
+
+        const subjectStatus =
+          status === 'APPROVED'
+            ? 'Desain Disetujui'
+            : status === 'REVISION_REQUESTED'
+              ? 'Desain Perlu Direvisi'
+              : 'Status Desain Diupdate';
         await transporter.sendMail({
           from: `"Arianation CRM" <${process.env.SMTP_USER || 'no-reply@arianation.com'}>`,
           to: user.email,
@@ -895,21 +982,29 @@ const updateDesignRequestStatus = async (req, res, next) => {
             <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; color: #333;">
               <h2 style="color: #2563eb;">Halo ${user.fullName},</h2>
               <p>Status permintaan desain sablon Anda (<strong>${request.designTitle}</strong>) telah diubah menjadi <strong>${status}</strong>.</p>
-              ${fullComment ? `<div style="background-color: #f3f4f6; padding: 15px; border-left: 4px solid #3b82f6; margin-top: 15px; margin-bottom: 25px;">
+              ${
+                fullComment
+                  ? `<div style="background-color: #f3f4f6; padding: 15px; border-left: 4px solid #3b82f6; margin-top: 15px; margin-bottom: 25px;">
                 <strong>Catatan dari Admin:</strong><br/>
                 ${fullComment.replace(/\n/g, '<br/>')}
-              </div>` : ''}
-              ${status === 'APPROVED' ? `
+              </div>`
+                  : ''
+              }
+              ${
+                status === 'APPROVED'
+                  ? `
               <div style="text-align: center; margin: 30px 0;">
                   <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/account?tab=sablon" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                   Lanjutkan Pembayaran
                 </a>
               </div>
               <p>Silakan klik tombol di atas untuk melanjutkan pembayaran pesanan Anda.</p>
-              ` : `<p style="margin-top: 20px;">Silakan cek <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/account?tab=sablon" style="color: #2563eb; font-weight: bold;">Riwayat Sablon</a> Anda untuk melihat detailnya.</p>
-              `}
+              `
+                  : `<p style="margin-top: 20px;">Silakan cek <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/account?tab=sablon" style="color: #2563eb; font-weight: bold;">Riwayat Sablon</a> Anda untuk melihat detailnya.</p>
+              `
+              }
             </div>
-          `
+          `,
         });
       }
     } catch (emailErr) {
@@ -930,7 +1025,7 @@ const updateDesignRequestStatus = async (req, res, next) => {
         userId: request.userId,
         type: `DESIGN_REQUEST_${status}`,
         title: subjectStatus,
-        message: `Permintaan desain "${request.designTitle}" Anda sekarang berstatus ${status.replace('_', ' ')}. ${fullComment ? 'Ada catatan dari Admin.' : ''}${status === 'APPROVED' ? ' Silakan menuju halaman Riwayat Sablon untuk melanjutkan pembayaran.' : ''}`
+        message: `Permintaan desain "${request.designTitle}" Anda sekarang berstatus ${status.replace('_', ' ')}. ${fullComment ? 'Ada catatan dari Admin.' : ''}${status === 'APPROVED' ? ' Silakan menuju halaman Riwayat Sablon untuk melanjutkan pembayaran.' : ''}`,
       });
     } catch (err) {
       console.error('Failed to queue customer notification:', err);
@@ -1003,14 +1098,10 @@ const getUserDetail = async (req, res, next) => {
     if (!user) throw new NotFoundError('User not found');
 
     // Get customer profile if exists
-    const customerProfile = await knex('customerProfile')
-      .where('userId', id)
-      .first();
+    const customerProfile = await knex('customerProfile').where('userId', id).first();
 
     // Get design staff info if exists
-    const designStaffInfo = await knex('designStaffInfo')
-      .where('userId', id)
-      .first();
+    const designStaffInfo = await knex('designStaffInfo').where('userId', id).first();
 
     return sendSuccess(
       res,
@@ -1036,12 +1127,10 @@ const updateUserRole = async (req, res, next) => {
     const user = await userService.findById(id);
     if (!user) throw new NotFoundError('User not found');
 
-    const updated = await knex('user')
-      .where('id', id)
-      .update({
-        role,
-        updatedAt: new Date(),
-      });
+    const updated = await knex('user').where('id', id).update({
+      role,
+      updatedAt: new Date(),
+    });
 
     if (!updated) throw new NotFoundError('User not found');
 
@@ -1106,7 +1195,11 @@ const toggleUserStatus = async (req, res, next) => {
       })
       .catch(() => {});
 
-    return sendSuccess(res, updatedUser, `User status changed to ${isActive ? 'active' : 'inactive'}`);
+    return sendSuccess(
+      res,
+      updatedUser,
+      `User status changed to ${isActive ? 'active' : 'inactive'}`
+    );
   } catch (error) {
     next(error);
   }
@@ -1154,28 +1247,22 @@ const verifyPayment = async (req, res, next) => {
     const payment = await paymentService.findById(id);
     if (!payment) throw new NotFoundError('Payment not found');
 
-    const updated = await knex('payment')
-      .where('id', id)
-      .update({
-        status: 'COMPLETED',
-        verifiedBy: req.user.id,
-        verifiedAt: new Date(),
-        updatedAt: new Date(),
-      });
+    const updated = await knex('payment').where('id', id).update({
+      status: 'COMPLETED',
+      verifiedBy: req.user.id,
+      verifiedAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     if (!updated) throw new NotFoundError('Payment not found');
 
     // Update order status to CONFIRMED
-    await knex('order')
-      .where('id', payment.orderId)
-      .update({
-        status: 'CONFIRMED',
-        updatedAt: new Date(),
-      });
+    await knex('order').where('id', payment.orderId).update({
+      status: 'CONFIRMED',
+      updatedAt: new Date(),
+    });
 
-    const updatedPayment = await knex('payment')
-      .where('id', id)
-      .first();
+    const updatedPayment = await knex('payment').where('id', id).first();
 
     // Audit log
     await knex('auditLog')
@@ -1215,16 +1302,12 @@ const processRefund = async (req, res, next) => {
     if (!updated) throw new NotFoundError('Payment not found');
 
     // Update order status to CANCELLED
-    await knex('order')
-      .where('id', payment.orderId)
-      .update({
-        status: 'CANCELLED',
-        updatedAt: new Date(),
-      });
+    await knex('order').where('id', payment.orderId).update({
+      status: 'CANCELLED',
+      updatedAt: new Date(),
+    });
 
-    const updatedPayment = await knex('payment')
-      .where('id', id)
-      .first();
+    const updatedPayment = await knex('payment').where('id', id).first();
 
     // Audit log
     await knex('auditLog')
@@ -1255,7 +1338,7 @@ const getAuditLogs = async (req, res, next) => {
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
     let query = knex('auditLog');
-    
+
     if (action) {
       query = query.where('action', 'like', `%${action}%`);
     }
@@ -1332,7 +1415,7 @@ const toggleCourier = async (req, res, next) => {
 const requestPickup = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const order = await knex('order').where('id', id).first();
     if (!order) throw new NotFoundError('Pesanan tidak ditemukan');
 
@@ -1350,16 +1433,16 @@ const requestPickup = async (req, res, next) => {
       .where('orderId', id);
 
     let totalWeight = Number(req.body.actualWeight) || order.actualWeight || 0;
-    
-    let items = orderItems.map(item => {
+
+    let items = orderItems.map((item) => {
       const itemWeight = item.weight || 250;
       if (!order.actualWeight && !req.body.actualWeight) totalWeight += itemWeight * item.quantity;
       return {
-        name: item.productName || "Product",
+        name: item.productName || 'Product',
         description: `Variant: ${item.variantId || 'Default'}`,
         value: item.unitPrice || 100000,
         weight: itemWeight,
-        quantity: item.quantity || 1
+        quantity: item.quantity || 1,
       };
     });
 
@@ -1370,8 +1453,8 @@ const requestPickup = async (req, res, next) => {
           description: `Pesanan #${order.orderNumber || id}`,
           value: order.totalAmount || 100000,
           weight: totalWeight || 250,
-          quantity: 1
-        }
+          quantity: 1,
+        },
       ];
     }
 
@@ -1391,7 +1474,7 @@ const requestPickup = async (req, res, next) => {
         customerPhone = addr.phone || customerPhone;
         destinationAddress = `${addr.addressLine1}, ${addr.city}`;
         destinationPostalCode = addr.postalCode || destinationPostalCode;
-      } catch(e) {}
+      } catch (e) {}
     }
 
     // Map display courier name (e.g. "J&T - EZ") to Biteship courier codes
@@ -1399,7 +1482,7 @@ const requestPickup = async (req, res, next) => {
     let mappedType = 'reg';
     if (order.shippingCourier) {
       const lowerCourier = order.shippingCourier.toLowerCase();
-      
+
       if (lowerCourier.includes('j&t') || lowerCourier.includes('jnt')) mappedCourier = 'jnt';
       else if (lowerCourier.includes('sicepat')) mappedCourier = 'sicepat';
       else if (lowerCourier.includes('jne')) mappedCourier = 'jne';
@@ -1415,21 +1498,28 @@ const requestPickup = async (req, res, next) => {
       else if (lowerCourier.includes('tiki')) mappedCourier = 'tiki';
       else if (lowerCourier.includes('wahana')) mappedCourier = 'wahana';
       else mappedCourier = lowerCourier.split(' ')[0].trim();
-      
+
       let rawType = '';
       if (lowerCourier.includes('-')) {
         rawType = lowerCourier.split('-')[1].trim().replace(/\s+/g, '_');
       }
 
       if (lowerCourier.includes('ez')) mappedType = 'ez';
-      else if (lowerCourier.includes('reg') && !lowerCourier.includes('reg_pack') && !lowerCourier.includes('reg_half')) mappedType = 'reg';
-      else if (lowerCourier.includes('best') || lowerCourier.includes('besok sampai')) mappedType = 'best';
+      else if (
+        lowerCourier.includes('reg') &&
+        !lowerCourier.includes('reg_pack') &&
+        !lowerCourier.includes('reg_half')
+      )
+        mappedType = 'reg';
+      else if (lowerCourier.includes('best') || lowerCourier.includes('besok sampai'))
+        mappedType = 'best';
       else if (lowerCourier.includes('yes')) mappedType = 'yes';
       else if (lowerCourier.includes('oke')) mappedType = 'oke';
-      else if (lowerCourier.includes('sameday') || lowerCourier.includes('same day')) mappedType = 'same_day';
+      else if (lowerCourier.includes('sameday') || lowerCourier.includes('same day'))
+        mappedType = 'same_day';
       else if (lowerCourier.includes('instan')) mappedType = 'instant';
       else if (rawType) mappedType = rawType;
-      
+
       // Override for specific couriers that have strict Biteship service types
       if (mappedCourier === 'ninja') mappedType = 'standard';
       if (mappedCourier === 'pos' && mappedType === 'same_day') mappedType = 'sameday'; // POS uses sameday
@@ -1448,17 +1538,17 @@ const requestPickup = async (req, res, next) => {
       items,
       courierCode: mappedCourier,
       courierType: mappedType,
-      totalWeight
+      totalWeight,
     });
 
-    const trackingNumber = biteshipResponse.courier?.waybill_id || biteshipResponse.id; 
+    const trackingNumber = biteshipResponse.courier?.waybill_id || biteshipResponse.id;
     const biteshipOrderId = biteshipResponse.id;
 
     await knex('order').where('id', id).update({
       trackingNumber,
       biteshipOrderId,
-      status: 'SHIPPED', 
-      updatedAt: new Date()
+      status: 'SHIPPED',
+      updatedAt: new Date(),
     });
 
     let existingTracking = await knex('orderTracking').where('orderId', id).first();
@@ -1469,7 +1559,7 @@ const requestPickup = async (req, res, next) => {
         trackingNumber,
         carrier: order.shippingCourier,
         status: 'SHIPPED',
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
     } else {
       trackingId = require('cuid')();
@@ -1480,18 +1570,18 @@ const requestPickup = async (req, res, next) => {
         carrier: order.shippingCourier,
         status: 'SHIPPED',
         estimatedDeliveryDate: null,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
     }
-    
+
     await knex('trackingHistory').insert({
       id: require('cuid')(),
       trackingId,
       status: 'SHIPPED',
       notes: 'Kurir telah dipesan, menunggu penjemputan (pickup)',
-      timestamp: new Date()
+      timestamp: new Date(),
     });
-    
+
     try {
       const orderFulfillmentService = require('../services/orderFulfillmentService');
       await orderFulfillmentService.updateOrderStatus(
@@ -1501,7 +1591,9 @@ const requestPickup = async (req, res, next) => {
         'Kurir telah dipesan',
         `AWB: ${trackingNumber}`
       );
-    } catch(err) { console.error('Failed to update fulfillment timeline:', err.message); }
+    } catch (err) {
+      console.error('Failed to update fulfillment timeline:', err.message);
+    }
 
     try {
       const notificationService = require('../services/notificationService');
@@ -1528,14 +1620,14 @@ const completePickup = async (req, res, next) => {
     const { id } = req.params;
     const order = await knex('order').where({ id }).first();
     if (!order) throw new NotFoundError('Pesanan tidak ditemukan');
-    
+
     if (order.status !== 'READY_TO_SHIP' || order.deliveryType !== 'PICKUP') {
-        throw new BadRequestError('Pesanan ini belum siap diambil atau bukan pesanan Pickup.');
+      throw new BadRequestError('Pesanan ini belum siap diambil atau bukan pesanan Pickup.');
     }
 
     await knex('order').where('id', id).update({
-      status: 'DELIVERED', 
-      updatedAt: new Date()
+      status: 'DELIVERED',
+      updatedAt: new Date(),
     });
 
     try {
@@ -1547,7 +1639,9 @@ const completePickup = async (req, res, next) => {
         'Pesanan telah diambil oleh customer',
         'Self Pickup Selesai'
       );
-    } catch(err) { console.error('Failed to update fulfillment timeline:', err.message); }
+    } catch (err) {
+      console.error('Failed to update fulfillment timeline:', err.message);
+    }
 
     try {
       const notificationService = require('../services/notificationService');
@@ -1560,7 +1654,10 @@ const completePickup = async (req, res, next) => {
       });
       await notificationService.sendOrderNotification(notif.id);
     } catch (err) {
-      console.error('[Admin Controller] Error sending pickup completion notification:', err.message);
+      console.error(
+        '[Admin Controller] Error sending pickup completion notification:',
+        err.message
+      );
     }
 
     return sendSuccess(res, null, 'Pickup berhasil dikonfirmasi');
@@ -1596,5 +1693,5 @@ module.exports = {
   getCouriers,
   toggleCourier,
   requestPickup,
-  completePickup
+  completePickup,
 };

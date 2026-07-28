@@ -21,7 +21,7 @@ const createTransporter = () => {
 
 const sendPasswordResetEmail = async (toEmail, token, fullName) => {
   const transporter = createTransporter();
-  
+
   if (!transporter) {
     console.log(`[Email Mock] Would have sent reset email to ${toEmail} with token ${token}`);
     return;

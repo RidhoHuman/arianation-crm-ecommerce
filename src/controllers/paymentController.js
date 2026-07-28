@@ -112,15 +112,17 @@ const createPayment = async (req, res, next) => {
     const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
 
     // Fallback if customer details not fully provided by frontend
-    const customer = req.user ? {
-      givenNames: req.user.fullName,
-      email: req.user.email,
-      mobileNumber: req.user.phone || '081234567890'
-    } : {
-      givenNames: customerDetails?.first_name || 'Guest',
-      email: customerDetails?.email || 'guest@example.com',
-      mobileNumber: customerDetails?.phone || '081234567890'
-    };
+    const customer = req.user
+      ? {
+          givenNames: req.user.fullName,
+          email: req.user.email,
+          mobileNumber: req.user.phone || '081234567890',
+        }
+      : {
+          givenNames: customerDetails?.first_name || 'Guest',
+          email: customerDetails?.email || 'guest@example.com',
+          mobileNumber: customerDetails?.phone || '081234567890',
+        };
 
     let invoiceUrl = null;
     let paymentResponse = null;
@@ -133,16 +135,16 @@ const createPayment = async (req, res, next) => {
         description: `Pembayaran Pesanan #${orderId} di AriaNation`,
         customer: customer,
         successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${orderId}`,
-        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`
+        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`,
       };
 
       const response = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
       invoiceUrl = response.invoiceUrl;
       paymentResponse = response;
-      
+
       // Save the generated Invoice ID to xenditId for reference and invoiceUrl to qrisUrl
       paymentData.xenditId = response.id;
-      paymentData.qrisUrl = invoiceUrl; 
+      paymentData.qrisUrl = invoiceUrl;
     } catch (xenditError) {
       console.error('Xendit Error:', xenditError);
       throw new BadRequestError('Gagal memproses pembayaran melalui Xendit');
@@ -161,8 +163,8 @@ const createPayment = async (req, res, next) => {
       data: {
         ...payment,
         paymentUrl: invoiceUrl,
-        xenditResponse: paymentResponse
-      }
+        xenditResponse: paymentResponse,
+      },
     });
   } catch (error) {
     next(error);

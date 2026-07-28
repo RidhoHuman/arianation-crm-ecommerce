@@ -4,7 +4,8 @@ const path = require('path');
 
 // Load environment variables. Use .env.test when running tests.
 const dotenv = require('dotenv');
-const envFile = process.env.NODE_ENV === 'test' ? path.resolve(process.cwd(), '.env.test') : undefined;
+const envFile =
+  process.env.NODE_ENV === 'test' ? path.resolve(process.cwd(), '.env.test') : undefined;
 if (envFile) {
   dotenv.config({ path: envFile });
 } else {
@@ -18,8 +19,6 @@ const DB_PASSWORD = process.env.DB_PASSWORD || 'AriaNation@2024';
 const DB_NAME = process.env.DB_NAME || 'arianation_db';
 const DATABASE_URL = process.env.DATABASE_URL;
 const isPostgresUrl = typeof DATABASE_URL === 'string' && /^postgres(ql)?:\/\//i.test(DATABASE_URL);
-
-
 
 const db = knex({
   client:
@@ -37,13 +36,13 @@ const db = knex({
         }
       : DATABASE_URL
         ? DATABASE_URL
-      : {
-          host: DB_HOST,
-          port: DB_PORT,
-          user: DB_USER,
-          password: DB_PASSWORD,
-          database: DB_NAME,
-        },
+        : {
+            host: DB_HOST,
+            port: DB_PORT,
+            user: DB_USER,
+            password: DB_PASSWORD,
+            database: DB_NAME,
+          },
   useNullAsDefault: process.env.NODE_ENV === 'test',
   pool: {
     min: process.env.NODE_ENV === 'test' ? 0 : 2,

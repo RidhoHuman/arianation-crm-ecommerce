@@ -75,10 +75,7 @@ const batchCancelOrders = async (orderIds, cancelledBy, reason = 'Bulk cancellat
 
   for (const orderId of orderIds) {
     try {
-      const order = await knex('order')
-        .select('id', 'status')
-        .where('id', orderId)
-        .first();
+      const order = await knex('order').select('id', 'status').where('id', orderId).first();
 
       if (!order) {
         throw new BadRequestError('Order not found');

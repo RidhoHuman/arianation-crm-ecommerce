@@ -26,16 +26,16 @@ const shippingService = {
       couriers: couriersString,
       items: itemsData || [
         {
-          name: "Arianation Products",
-          description: "Clothing and Apparel",
+          name: 'Arianation Products',
+          description: 'Clothing and Apparel',
           value: 100000,
           length: 20,
           width: 20,
           height: 5,
           weight: weight || 250,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
     try {
@@ -43,32 +43,55 @@ const shippingService = {
       return response.data;
     } catch (error) {
       console.error('[Shipping Service] Get Rates Error:', error.response?.data || error.message);
-      
+
       const errorMessage = error.response?.data?.error || error.message || '';
-      
+
       // Fallback for insufficient balance or no courier available (useful for testing)
-      if (errorMessage.toLowerCase().includes('balance') || errorMessage.toLowerCase().includes('no courier available') || errorMessage.toLowerCase().includes('invalid') || errorMessage.toLowerCase().includes('authorization')) {
+      if (
+        errorMessage.toLowerCase().includes('balance') ||
+        errorMessage.toLowerCase().includes('no courier available') ||
+        errorMessage.toLowerCase().includes('invalid') ||
+        errorMessage.toLowerCase().includes('authorization')
+      ) {
         console.log('[Shipping Service] Using fallback shipping rates due to API limitation');
-        
+
         // Calculate a dummy price based on weight
         const totalWeight = payload.items.reduce((sum, item) => sum + (item.weight || 1000), 0);
         const weightKg = Math.max(1, Math.ceil(totalWeight / 1000));
-        
+
         const fallbackPricing = [];
         if (activeCouriers.includes('jne')) {
-          fallbackPricing.push({ courier_name: "JNE", courier_service_name: "REG", courier_service_code: "reg", duration: "2-3 days", price: 15000 * weightKg });
+          fallbackPricing.push({
+            courier_name: 'JNE',
+            courier_service_name: 'REG',
+            courier_service_code: 'reg',
+            duration: '2-3 days',
+            price: 15000 * weightKg,
+          });
         }
         if (activeCouriers.includes('sicepat')) {
-          fallbackPricing.push({ courier_name: "Sicepat", courier_service_name: "HALU", courier_service_code: "halu", duration: "1-2 days", price: 12000 * weightKg });
+          fallbackPricing.push({
+            courier_name: 'Sicepat',
+            courier_service_name: 'HALU',
+            courier_service_code: 'halu',
+            duration: '1-2 days',
+            price: 12000 * weightKg,
+          });
         }
         if (activeCouriers.includes('jnt')) {
-          fallbackPricing.push({ courier_name: "J&T", courier_service_name: "EZ", courier_service_code: "ez", duration: "2 days", price: 14000 * weightKg });
+          fallbackPricing.push({
+            courier_name: 'J&T',
+            courier_service_name: 'EZ',
+            courier_service_code: 'ez',
+            duration: '2 days',
+            price: 14000 * weightKg,
+          });
         }
-        
+
         return {
           success: true,
-          object: "pricing",
-          pricing: fallbackPricing
+          object: 'pricing',
+          pricing: fallbackPricing,
         };
       }
 
@@ -91,7 +114,7 @@ const shippingService = {
     items,
     courierCode,
     courierType,
-    totalWeight
+    totalWeight,
   }) {
     // Prepare payload
     const dbSetting = await knex('store_settings').where('settingKey', 'store_postal_code').first();
@@ -99,10 +122,11 @@ const shippingService = {
     const originPostalCode = postalCodeStr ? parseInt(postalCodeStr, 10) : 12110;
 
     const payload = {
-      origin_contact_name: process.env.STORE_NAME || "Arianation",
-      origin_contact_phone: process.env.STORE_PHONE || "081234567890",
-      origin_contact_email: process.env.EMAIL_USER || process.env.SMTP_USER || "admin@arianation.com",
-      origin_address: process.env.STORE_ADDRESS || "Gudang Arianation",
+      origin_contact_name: process.env.STORE_NAME || 'Arianation',
+      origin_contact_phone: process.env.STORE_PHONE || '081234567890',
+      origin_contact_email:
+        process.env.EMAIL_USER || process.env.SMTP_USER || 'admin@arianation.com',
+      origin_address: process.env.STORE_ADDRESS || 'Gudang Arianation',
       origin_postal_code: originPostalCode,
       destination_contact_name: customerName,
       destination_contact_phone: customerPhone,
@@ -110,20 +134,20 @@ const shippingService = {
       destination_address: destinationAddress,
       destination_postal_code: parseInt(destinationPostalCode, 10),
       courier_company: courierCode,
-      courier_type: courierType || "reg",
-      delivery_type: "now",
+      courier_type: courierType || 'reg',
+      delivery_type: 'now',
       items: items || [
         {
-          name: "Arianation Products",
+          name: 'Arianation Products',
           description: `Pesanan #${orderId}`,
           value: 100000,
           length: 20,
           width: 20,
           height: 5,
           weight: totalWeight || 250,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
     // If we have destinationAreaId, use it instead of postal code
@@ -136,31 +160,40 @@ const shippingService = {
       const response = await biteshipApi.post('/orders', payload);
       return response.data;
     } catch (error) {
-      console.error('[Shipping Service] Create Order Error:', error.response?.data || error.message);
-      
+      console.error(
+        '[Shipping Service] Create Order Error:',
+        error.response?.data || error.message
+      );
+
       const errorMessage = error.response?.data?.error || error.message || '';
-      
+
       // Fallback for insufficient balance, unauthorized, or no courier available (useful for testing)
-      if (errorMessage.toLowerCase().includes('balance') || errorMessage.toLowerCase().includes('no courier available') || errorMessage.toLowerCase().includes('invalid') || errorMessage.toLowerCase().includes('authorization') || errorMessage.toLowerCase().includes('not exist')) {
+      if (
+        errorMessage.toLowerCase().includes('balance') ||
+        errorMessage.toLowerCase().includes('no courier available') ||
+        errorMessage.toLowerCase().includes('invalid') ||
+        errorMessage.toLowerCase().includes('authorization') ||
+        errorMessage.toLowerCase().includes('not exist')
+      ) {
         console.log('[Shipping Service] Using fallback create order due to API limitation');
         return {
           success: true,
-          message: "Order successfully created (Fallback)",
-          object: "order",
+          message: 'Order successfully created (Fallback)',
+          object: 'order',
           id: `biteship_dummy_order_${Date.now()}`,
-          status: "placed",
+          status: 'placed',
           courier: {
             tracking_id: `TRK${Date.now()}`,
             waybill_id: `AWB${Date.now()}SIMULASI`,
             company: courierCode,
-            name: "Dummy Courier"
-          }
+            name: 'Dummy Courier',
+          },
         };
       }
-      
+
       throw new Error(error.response?.data?.error || 'Gagal memesan kurir pengiriman');
     }
-  }
+  },
 };
 
 module.exports = shippingService;

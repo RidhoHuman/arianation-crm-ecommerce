@@ -43,12 +43,14 @@ const checkSLAAbandonment = async () => {
             'SLA Abandonment: Pembatalan otomatis karena melewati 7 hari.',
             'Sistem otomatis membatalkan pesanan karena tidak ada pelunasan dalam 7 hari sejak DP dibayarkan. DP hangus.'
           );
-          
+
           console.log(`[Cron] Order ${order.id} automatically abandoned due to 7 days SLA.`);
         } catch (updateErr) {
           // It might be a race condition (updatedRows === 0), which is handled safely
           if (updateErr.message && updateErr.message.includes('Race condition')) {
-            console.log(`[Cron] Race condition prevented for order ${order.id}. Status was already changed.`);
+            console.log(
+              `[Cron] Race condition prevented for order ${order.id}. Status was already changed.`
+            );
           } else {
             console.error(`[Cron] Failed to abandon order ${order.id}:`, updateErr);
           }
@@ -67,7 +69,15 @@ const checkSLAAbandonment = async () => {
 const processDesignRequestReminders = async () => {
   try {
     const pendingRequests = await knex('designRequest')
-      .select('id', 'userId', 'designTitle', 'estimatedPrice', 'reminderCount', 'lastRemindedAt', 'updatedAt')
+      .select(
+        'id',
+        'userId',
+        'designTitle',
+        'estimatedPrice',
+        'reminderCount',
+        'lastRemindedAt',
+        'updatedAt'
+      )
       .where('status', 'APPROVED');
 
     if (pendingRequests.length === 0) return;
@@ -88,7 +98,7 @@ const processDesignRequestReminders = async () => {
             userId: req.userId,
             type: 'DESIGN_REQUEST_REMINDER',
             title: 'Pengingat Penawaran Custom Sablon 🕒',
-            message: `Halo! Penawaran harga untuk desain "${req.designTitle}" (Rp ${Number(req.estimatedPrice).toLocaleString('id-ID')}) masih menunggu. Apakah ada kendala atau ingin melanjutkan?`
+            message: `Halo! Penawaran harga untuk desain "${req.designTitle}" (Rp ${Number(req.estimatedPrice).toLocaleString('id-ID')}) masih menunggu. Apakah ada kendala atau ingin melanjutkan?`,
           });
 
           // Update tracking columns
@@ -97,12 +107,17 @@ const processDesignRequestReminders = async () => {
             .update({
               reminderCount: req.reminderCount + 1,
               lastRemindedAt: now,
-              updatedAt: now // since we're modifying the row
+              updatedAt: now, // since we're modifying the row
             });
 
-          console.log(`[Cron] Sent reminder #${req.reminderCount + 1} for Design Request ${req.id}`);
+          console.log(
+            `[Cron] Sent reminder #${req.reminderCount + 1} for Design Request ${req.id}`
+          );
         } catch (updateErr) {
-          console.error(`[Cron] Failed to process reminder for Design Request ${req.id}:`, updateErr);
+          console.error(
+            `[Cron] Failed to process reminder for Design Request ${req.id}:`,
+            updateErr
+          );
         }
       }
     }
@@ -113,7 +128,7 @@ const processDesignRequestReminders = async () => {
 
 const initCronJobs = () => {
   console.log('[Cron] Initializing Scheduled Jobs...');
-  
+
   // Run every hour at minute 0
   cron.schedule('0 * * * *', async () => {
     console.log('[Cron] Running hourly checks...');
@@ -127,5 +142,5 @@ const initCronJobs = () => {
 module.exports = {
   initCronJobs,
   checkSLAAbandonment,
-  processDesignRequestReminders // Exported for testing purposes
+  processDesignRequestReminders, // Exported for testing purposes
 };

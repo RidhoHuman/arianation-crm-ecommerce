@@ -134,10 +134,7 @@ describe('orderFulfillmentService - integration', () => {
 
   test('PENDING -> CONFIRMED creates status history and notification', async () => {
     // verify initial
-    const before = await knex('order')
-      .select('status')
-      .where('id', order.id)
-      .first();
+    const before = await knex('order').select('status').where('id', order.id).first();
     expect(before.status).toBe('PENDING');
 
     const updated = await orderFulfillmentService.updateOrderStatus(
@@ -149,14 +146,10 @@ describe('orderFulfillmentService - integration', () => {
     );
     expect(updated.status).toBe('CONFIRMED');
 
-    const histories = await knex('orderStatusHistory')
-      .select('id')
-      .where('orderId', order.id);
+    const histories = await knex('orderStatusHistory').select('id').where('orderId', order.id);
     expect(histories.length).toBeGreaterThanOrEqual(1);
 
-    const notifications = await knex('orderNotification')
-      .select('type')
-      .where('orderId', order.id);
+    const notifications = await knex('orderNotification').select('type').where('orderId', order.id);
     expect(notifications.some((n) => n.type === 'CONFIRMED')).toBe(true);
   });
 });

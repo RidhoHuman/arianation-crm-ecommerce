@@ -3,7 +3,15 @@ const knex = require('../config/knex');
 
 const productService = {
   // Ambil semua produk dengan filter dan pagination
-  async findMany({ page = 1, limit = 10, category, search, isActive, businessType, productType } = {}) {
+  async findMany({
+    page = 1,
+    limit = 10,
+    category,
+    search,
+    isActive,
+    businessType,
+    productType,
+  } = {}) {
     const skip = (page - 1) * limit;
     let query = knex('product');
 
@@ -16,12 +24,12 @@ const productService = {
     if (isActive !== undefined) {
       query = query.where('isActive', isActive === 'true' || isActive === true ? 1 : 0);
     }
-    
+
     // Filter berdasarkan businessType
     if (businessType) {
       query = query.where('businessType', businessType);
     }
-    
+
     // Filter berdasarkan productType
     if (productType) {
       query = query.where('productType', productType);
@@ -30,7 +38,8 @@ const productService = {
     // Filter berdasarkan search
     if (search) {
       query = query.where((builder) => {
-        builder.where('productName', 'like', `%${search}%`)
+        builder
+          .where('productName', 'like', `%${search}%`)
           .orWhere('description', 'like', `%${search}%`);
       });
     }
@@ -63,9 +72,9 @@ const productService = {
       .limit(limit)
       .offset(skip);
 
-    return products.map(p => ({
+    return products.map((p) => ({
       ...p,
-      category: p.categoryName ? { categoryName: p.categoryName } : null
+      category: p.categoryName ? { categoryName: p.categoryName } : null,
     }));
   },
 
@@ -91,7 +100,8 @@ const productService = {
 
     if (search) {
       query = query.where((builder) => {
-        builder.where('productName', 'like', `%${search}%`)
+        builder
+          .where('productName', 'like', `%${search}%`)
           .orWhere('description', 'like', `%${search}%`);
       });
     }
@@ -184,9 +194,9 @@ const productService = {
 
     await knex.transaction(async (trx) => {
       await trx('product').insert(product);
-      
+
       if (variants && variants.length > 0) {
-        const variantRecords = variants.map(v => ({
+        const variantRecords = variants.map((v) => ({
           id: require('cuid')(),
           productId: id,
           variantName: v.variantName || '',
@@ -215,13 +225,15 @@ const productService = {
       ...data,
       updatedAt: new Date(),
     };
-    
+
     if (updateData.imageUrls !== undefined) {
       updateData.imageUrls = updateData.imageUrls ? JSON.stringify(updateData.imageUrls) : null;
     }
-    
+
     if (updateData.allowedPrintAreas !== undefined) {
-      updateData.allowedPrintAreas = updateData.allowedPrintAreas ? JSON.stringify(updateData.allowedPrintAreas) : null;
+      updateData.allowedPrintAreas = updateData.allowedPrintAreas
+        ? JSON.stringify(updateData.allowedPrintAreas)
+        : null;
     }
 
     // Extract variants so it doesn't get updated in the main product table
@@ -229,17 +241,15 @@ const productService = {
 
     await knex.transaction(async (trx) => {
       if (Object.keys(productFields).length > 0) {
-        await trx('product')
-          .where('id', id)
-          .update(productFields);
+        await trx('product').where('id', id).update(productFields);
       }
-      
+
       if (variants !== undefined) {
         // Simple strategy: delete existing and re-insert
         await trx('productVariant').where('productId', id).delete();
-        
+
         if (variants && variants.length > 0) {
-          const variantRecords = variants.map(v => ({
+          const variantRecords = variants.map((v) => ({
             id: require('cuid')(),
             productId: id,
             variantName: v.variantName || '',
@@ -265,45 +275,37 @@ const productService = {
 
   // Hapus produk
   async delete(id) {
-    await knex('product')
-      .where('id', id)
-      .delete();
+    await knex('product').where('id', id).delete();
 
     return true;
   },
 
   // Update stok produk
   async updateStock(id, quantity) {
-    await knex('product')
-      .where('id', id)
-      .update({
-        stockQuantity: quantity,
-        updatedAt: new Date(),
-      });
+    await knex('product').where('id', id).update({
+      stockQuantity: quantity,
+      updatedAt: new Date(),
+    });
 
     return this.findById(id);
   },
 
   // Deactivate produk
   async deactivate(id) {
-    await knex('product')
-      .where('id', id)
-      .update({
-        isActive: false,
-        updatedAt: new Date(),
-      });
+    await knex('product').where('id', id).update({
+      isActive: false,
+      updatedAt: new Date(),
+    });
 
     return true;
   },
 
   // Activate produk
   async activate(id) {
-    await knex('product')
-      .where('id', id)
-      .update({
-        isActive: true,
-        updatedAt: new Date(),
-      });
+    await knex('product').where('id', id).update({
+      isActive: true,
+      updatedAt: new Date(),
+    });
 
     return true;
   },

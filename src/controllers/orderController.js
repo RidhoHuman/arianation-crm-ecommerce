@@ -3,7 +3,12 @@
 const orderService = require('../services/orderService');
 const knex = require('../config/knex');
 const { sendSuccess, sendCreated, sendPaginated } = require('../utils/response');
-const { NotFoundError, BadRequestError, AuthorizationError, AuthenticationError } = require('../utils/errors');
+const {
+  NotFoundError,
+  BadRequestError,
+  AuthorizationError,
+  AuthenticationError,
+} = require('../utils/errors');
 const { MESSAGES } = require('../utils/constants');
 const orderFulfillmentService = require('../services/orderFulfillmentService');
 const paymentService = require('../services/paymentService');
@@ -72,7 +77,7 @@ const getOrderById = async (req, res, next) => {
         order.user = {
           fullName: user.fullName,
           email: user.email,
-          phone: user.phone
+          phone: user.phone,
         };
       }
     }
@@ -81,18 +86,18 @@ const getOrderById = async (req, res, next) => {
       .leftJoin('product', 'orderItem.productId', 'product.id')
       .leftJoin('productVariant as v', 'orderItem.variantId', 'v.id')
       .select(
-        'orderItem.*', 
+        'orderItem.*',
         'product.productName',
         'product.imageUrl as productImage',
         knex.raw('v.variantName as size, v.color as color, v.imageUrl as variantImage')
       )
       .where('orderId', id);
 
-    order.items = items.map(item => ({
+    order.items = items.map((item) => ({
       ...item,
-      product: { productName: item.productName }
+      product: { productName: item.productName },
     }));
-    
+
     // Attach designRequests if this is a Sablon order
     const designRequests = await knex('designRequest').where('orderId', id);
     if (designRequests && designRequests.length > 0) {
@@ -102,7 +107,9 @@ const getOrderById = async (req, res, next) => {
     // Attach payments and totalPaid
     const payments = await knex('payment').where('orderId', id).orderBy('createdAt', 'desc');
     order.payments = payments;
-    order.totalPaid = payments.filter(p => p.status === 'COMPLETED').reduce((sum, p) => sum + p.amount, 0);
+    order.totalPaid = payments
+      .filter((p) => p.status === 'COMPLETED')
+      .reduce((sum, p) => sum + p.amount, 0);
 
     return sendSuccess(res, order, MESSAGES.ORDER_FOUND);
   } catch (error) {
@@ -113,7 +120,17 @@ const getOrderById = async (req, res, next) => {
 const createOrder = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { paymentMethod, deliveryAddress, notes, items, usePoints, voucherCode, shippingCourier, shippingCost, deliveryType } = req.body;
+    const {
+      paymentMethod,
+      deliveryAddress,
+      notes,
+      items,
+      usePoints,
+      voucherCode,
+      shippingCourier,
+      shippingCost,
+      deliveryType,
+    } = req.body;
 
     let finalShippingCost = shippingCost;
     let finalCourier = shippingCourier;
@@ -133,7 +150,9 @@ const createOrder = async (req, res, next) => {
 
     if (items && Array.isArray(items) && items.length > 0) {
       const productIds = [...new Set(items.map((item) => item.productId))];
-      const variantIds = [...new Set(items.filter((item) => item.variantId).map((i) => i.variantId))];
+      const variantIds = [
+        ...new Set(items.filter((item) => item.variantId).map((i) => i.variantId)),
+      ];
 
       const [products, variants] = await Promise.all([
         knex('product').whereIn('id', productIds),
@@ -144,11 +163,13 @@ const createOrder = async (req, res, next) => {
       const variantsById = new Map(variants.map((v) => [v.id, v]));
 
       // 1. Guardrail: Block Mixed Cart
-      hasRetail = products.some(p => p.businessType === 'FASHION_RETAIL');
-      hasSablon = products.some(p => p.businessType === 'SABLON_SERVICE');
-      
+      hasRetail = products.some((p) => p.businessType === 'FASHION_RETAIL');
+      hasSablon = products.some((p) => p.businessType === 'SABLON_SERVICE');
+
       if (hasRetail && hasSablon) {
-        throw new BadRequestError('Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah');
+        throw new BadRequestError(
+          'Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah'
+        );
       }
 
       orderItems = items.map((item) => {
@@ -174,21 +195,25 @@ const createOrder = async (req, res, next) => {
       });
     } else {
       const cart = await knex('shoppingCart').where('userId', userId).first();
-      const cartItems = cart ? await knex('cartItem')
-        .join('product', 'cartItem.productId', '=', 'product.id')
-        .select('cartItem.*', 'product.businessType')
-        .where('cartId', cart.id) : [];
+      const cartItems = cart
+        ? await knex('cartItem')
+            .join('product', 'cartItem.productId', '=', 'product.id')
+            .select('cartItem.*', 'product.businessType')
+            .where('cartId', cart.id)
+        : [];
 
       if (!cartItems || cartItems.length === 0) {
         throw new BadRequestError(MESSAGES.CART_EMPTY);
       }
 
       // 1. Guardrail: Block Mixed Cart (Retail & Sablon together)
-      hasRetail = cartItems.some(item => item.businessType === 'FASHION_RETAIL');
-      hasSablon = cartItems.some(item => item.businessType === 'SABLON_SERVICE');
-      
+      hasRetail = cartItems.some((item) => item.businessType === 'FASHION_RETAIL');
+      hasSablon = cartItems.some((item) => item.businessType === 'SABLON_SERVICE');
+
       if (hasRetail && hasSablon) {
-        throw new BadRequestError('Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah');
+        throw new BadRequestError(
+          'Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah'
+        );
       }
 
       orderItems = cartItems.map((item) => ({
@@ -196,7 +221,7 @@ const createOrder = async (req, res, next) => {
         variantId: item.variantId || null,
         quantity: item.quantity,
         unitPrice: item.price || item.unitPrice,
-        subtotal: item.subtotal || (item.price * item.quantity),
+        subtotal: item.subtotal || item.price * item.quantity,
       }));
     }
 
@@ -215,18 +240,26 @@ const createOrder = async (req, res, next) => {
       if (userId) {
         const metrics = await trx('customerMetrics').where('userId', userId).first();
         const currentTier = metrics?.currentTier || 'BRONZE';
-        
-        const tierSettings = await trx('store_settings')
-          .whereIn('settingKey', ['tier_silver_discount', 'tier_gold_discount', 'tier_platinum_discount']);
-          
+
+        const tierSettings = await trx('store_settings').whereIn('settingKey', [
+          'tier_silver_discount',
+          'tier_gold_discount',
+          'tier_platinum_discount',
+        ]);
+
         const getTierDiscount = (key, defaultDisc) => {
-          const setting = tierSettings.find(s => s.settingKey === key);
-          return setting && !isNaN(Number(setting.settingValue)) ? Number(setting.settingValue) : defaultDisc;
+          const setting = tierSettings.find((s) => s.settingKey === key);
+          return setting && !isNaN(Number(setting.settingValue))
+            ? Number(setting.settingValue)
+            : defaultDisc;
         };
-        
-        if (currentTier === 'SILVER') tierDiscountPercentage = getTierDiscount('tier_silver_discount', 5);
-        else if (currentTier === 'GOLD') tierDiscountPercentage = getTierDiscount('tier_gold_discount', 10);
-        else if (currentTier === 'PLATINUM') tierDiscountPercentage = getTierDiscount('tier_platinum_discount', 15);
+
+        if (currentTier === 'SILVER')
+          tierDiscountPercentage = getTierDiscount('tier_silver_discount', 5);
+        else if (currentTier === 'GOLD')
+          tierDiscountPercentage = getTierDiscount('tier_gold_discount', 10);
+        else if (currentTier === 'PLATINUM')
+          tierDiscountPercentage = getTierDiscount('tier_platinum_discount', 15);
 
         if (tierDiscountPercentage > 0) {
           tierDiscountAmount = Math.floor(totalAmount * (tierDiscountPercentage / 100));
@@ -239,8 +272,17 @@ const createOrder = async (req, res, next) => {
       let validVoucherCode = null;
 
       if (voucherCode) {
-        const voucher = await trx('voucher').where('code', voucherCode.toUpperCase()).forUpdate().first();
-        if (voucher && voucher.isActive && (!voucher.expiresAt || new Date(voucher.expiresAt) > new Date()) && (!voucher.usageLimit || voucher.usedCount < voucher.usageLimit) && finalAmount >= voucher.minPurchase) {
+        const voucher = await trx('voucher')
+          .where('code', voucherCode.toUpperCase())
+          .forUpdate()
+          .first();
+        if (
+          voucher &&
+          voucher.isActive &&
+          (!voucher.expiresAt || new Date(voucher.expiresAt) > new Date()) &&
+          (!voucher.usageLimit || voucher.usedCount < voucher.usageLimit) &&
+          finalAmount >= voucher.minPurchase
+        ) {
           if (voucher.type === 'PERCENTAGE') {
             voucherDiscountAmount = Math.floor(finalAmount * (voucher.value / 100));
             if (voucher.maxDiscount > 0 && voucherDiscountAmount > voucher.maxDiscount) {
@@ -267,17 +309,27 @@ const createOrder = async (req, res, next) => {
         const lockedUser = await trx('user').where('id', userId).forUpdate().first();
         if (lockedUser && lockedUser.rewardPoints > 0) {
           // Fetch settings dynamically within transaction
-          const exchangeRateSetting = await trx('store_settings').where('settingKey', 'points_exchange_rate').first();
-          const maxDiscountSetting = await trx('store_settings').where('settingKey', 'max_points_discount_percentage').first();
-          
-          const exchangeRate = exchangeRateSetting && !isNaN(Number(exchangeRateSetting.settingValue)) ? Number(exchangeRateSetting.settingValue) : 10;
-          const maxPercent = maxDiscountSetting && !isNaN(Number(maxDiscountSetting.settingValue)) ? Number(maxDiscountSetting.settingValue) : 50;
+          const exchangeRateSetting = await trx('store_settings')
+            .where('settingKey', 'points_exchange_rate')
+            .first();
+          const maxDiscountSetting = await trx('store_settings')
+            .where('settingKey', 'max_points_discount_percentage')
+            .first();
+
+          const exchangeRate =
+            exchangeRateSetting && !isNaN(Number(exchangeRateSetting.settingValue))
+              ? Number(exchangeRateSetting.settingValue)
+              : 10;
+          const maxPercent =
+            maxDiscountSetting && !isNaN(Number(maxDiscountSetting.settingValue))
+              ? Number(maxDiscountSetting.settingValue)
+              : 50;
 
           const maxAllowedDiscount = (finalAmount * maxPercent) / 100;
-          
+
           // Total capacity of points to money
           const totalPointsValue = lockedUser.rewardPoints * exchangeRate;
-          
+
           let discountFromPoints = 0;
           if (totalPointsValue > maxAllowedDiscount) {
             // Point value exceeds max allowed limit
@@ -292,8 +344,8 @@ const createOrder = async (req, res, next) => {
             discountFromPoints = totalPointsValue;
             pointsToDeduct = lockedUser.rewardPoints;
           }
-          
-          finalAmount -= (pointsToDeduct * exchangeRate);
+
+          finalAmount -= pointsToDeduct * exchangeRate;
         }
       }
 
@@ -331,7 +383,7 @@ const createOrder = async (req, res, next) => {
 
       if (pointsToDeduct > 0) {
         await trx('user').where('id', userId).decrement('rewardPoints', pointsToDeduct);
-        
+
         // Log to pointHistory
         await trx('pointHistory').insert({
           id: require('cuid')(),
@@ -373,15 +425,17 @@ const createOrder = async (req, res, next) => {
     try {
       const paymentId = require('cuid')();
       const customerNameParts = user?.fullName ? user.fullName.split(' ') : [];
-      const customer = user ? {
-        givenNames: customerNameParts[0] || 'Customer',
-        ...(customerNameParts.length > 1 && { surname: customerNameParts.slice(1).join(' ') }),
-        email: user.email,
-        mobileNumber: user.phone || '081234567890'
-      } : {
-        givenNames: 'Customer',
-        email: deliveryAddress?.email || 'customer@example.com'
-      };
+      const customer = user
+        ? {
+            givenNames: customerNameParts[0] || 'Customer',
+            ...(customerNameParts.length > 1 && { surname: customerNameParts.slice(1).join(' ') }),
+            email: user.email,
+            mobileNumber: user.phone || '081234567890',
+          }
+        : {
+            givenNames: 'Customer',
+            email: deliveryAddress?.email || 'customer@example.com',
+          };
 
       const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
       invoiceRequest = {
@@ -391,12 +445,12 @@ const createOrder = async (req, res, next) => {
         description: `Pesanan AriaNation #${order.orderNumber || order.id}`,
         customer: customer,
         successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
-        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`
+        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`,
       };
 
       const xenditResponse = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
       paymentUrl = xenditResponse.invoiceUrl;
-      
+
       // Save payment locally
       await paymentService.create({
         id: paymentId,
@@ -406,7 +460,7 @@ const createOrder = async (req, res, next) => {
         status: 'PENDING',
         transactionId: order.id,
         qrisUrl: paymentUrl,
-        xenditId: xenditResponse.id
+        xenditId: xenditResponse.id,
       });
 
       // Always clear the checked-out items from the user's cart now that Xendit succeeded
@@ -422,7 +476,7 @@ const createOrder = async (req, res, next) => {
         await notificationService.queueNotification({
           orderId: order.id,
           userId: userId || null,
-          recipientEmail: user ? user.email : (deliveryAddress?.email || null),
+          recipientEmail: user ? user.email : deliveryAddress?.email || null,
           type: 'PENDING',
           title: 'Menunggu Pembayaran',
           message: `Pesanan ${order.orderNumber} berhasil dibuat. Segera lakukan pembayaran agar pesanan dapat diproses.`,
@@ -431,15 +485,18 @@ const createOrder = async (req, res, next) => {
         console.error('Failed to queue PENDING notification:', notifErr.message);
       }
     } catch (err) {
-      console.error('Xendit Invoice Error Details:', err.response ? JSON.stringify(err.response, null, 2) : err.message);
+      console.error(
+        'Xendit Invoice Error Details:',
+        err.response ? JSON.stringify(err.response, null, 2) : err.message
+      );
       console.error('Xendit Request Data:', JSON.stringify(invoiceRequest, null, 2));
 
       // 2. Guardrail: Manual Rollback for State Locking if Xendit fails
       await knex('order').where('id', order.id).update({ status: 'FAILED' });
-      
+
       if (pointsToDeduct > 0) {
         await knex('user').where('id', userId).increment('rewardPoints', pointsToDeduct);
-        
+
         await knex('pointHistory').insert({
           id: require('cuid')(),
           userId,
@@ -449,19 +506,19 @@ const createOrder = async (req, res, next) => {
           createdAt: new Date(),
         });
       }
-      
+
       if (usedVoucherId) {
         await knex('voucher').where('id', usedVoucherId).decrement('usedCount', 1);
       }
-      
-      const xenditErrorDetail = err.response && err.response.message ? err.response.message : err.message;
+
+      const xenditErrorDetail =
+        err.response && err.response.message ? err.response.message : err.message;
       let errorMsg = `Gagal membuat tagihan pembayaran dari pihak payment gateway (Xendit): ${xenditErrorDetail}`;
       if (pointsToDeduct > 0 || usedVoucherId) {
         errorMsg += ' Saldo poin dan voucher Anda telah dikembalikan otomatis.';
       }
       throw new BadRequestError(errorMsg);
     }
-
 
     return sendCreated(res, { ...order, paymentUrl, snapToken }, MESSAGES.ORDER_CREATED);
   } catch (error) {
@@ -616,11 +673,26 @@ const getOrderNotifications = async (req, res, next) => {
 
 const createGuestOrder = async (req, res, next) => {
   try {
-    const { guestEmail, firstName, lastName, address, city, postalCode, phone, items, paymentMethod, notes, shippingCourier, shippingCost } = req.body;
+    const {
+      guestEmail,
+      firstName,
+      lastName,
+      address,
+      city,
+      postalCode,
+      phone,
+      items,
+      paymentMethod,
+      notes,
+      shippingCourier,
+      shippingCost,
+    } = req.body;
 
     // Validation: required fields
     if (!guestEmail || !firstName || !lastName || !address || !city || !postalCode || !phone) {
-      throw new BadRequestError('All fields (guestEmail, firstName, lastName, address, city, postalCode, phone) are required');
+      throw new BadRequestError(
+        'All fields (guestEmail, firstName, lastName, address, city, postalCode, phone) are required'
+      );
     }
 
     // Validate email format
@@ -659,7 +731,9 @@ const createGuestOrder = async (req, res, next) => {
     // Process cart items if provided
     if (items && Array.isArray(items) && items.length > 0) {
       const productIds = [...new Set(items.map((item) => item.productId))];
-      const variantIds = [...new Set(items.filter((item) => item.variantId).map((i) => i.variantId))];
+      const variantIds = [
+        ...new Set(items.filter((item) => item.variantId).map((i) => i.variantId)),
+      ];
 
       const [products, variants] = await Promise.all([
         knex('product').whereIn('id', productIds),
@@ -670,15 +744,19 @@ const createGuestOrder = async (req, res, next) => {
       const variantsById = new Map(variants.map((v) => [v.id, v]));
 
       // 1. Guardrail: Block Mixed Cart
-      hasRetail = products.some(p => p.businessType === 'FASHION_RETAIL');
-      hasSablon = products.some(p => p.businessType === 'SABLON_SERVICE');
-      
+      hasRetail = products.some((p) => p.businessType === 'FASHION_RETAIL');
+      hasSablon = products.some((p) => p.businessType === 'SABLON_SERVICE');
+
       if (hasRetail && hasSablon) {
-        throw new BadRequestError('Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah');
+        throw new BadRequestError(
+          'Pesanan Ready Stock dan Custom Sablon harus dicheckout secara terpisah'
+        );
       }
 
       if (hasSablon) {
-        throw new BadRequestError('Mohon maaf, khusus pemesanan Custom Sablon Anda diwajibkan untuk mendaftar dan Login ke akun terlebih dahulu demi kemudahan pelacakan desain.');
+        throw new BadRequestError(
+          'Mohon maaf, khusus pemesanan Custom Sablon Anda diwajibkan untuk mendaftar dan Login ke akun terlebih dahulu demi kemudahan pelacakan desain.'
+        );
       }
 
       orderItems = items.map((item) => {
@@ -726,7 +804,7 @@ const createGuestOrder = async (req, res, next) => {
           phone: sanitizedData.phone,
           addressLine1: sanitizedData.address,
           city: sanitizedData.city,
-          postalCode: sanitizedData.postalCode
+          postalCode: sanitizedData.postalCode,
         }),
         totalAmount: finalAmount,
         paymentMethod: paymentMethod || 'PENDING',
@@ -777,7 +855,7 @@ const createGuestOrder = async (req, res, next) => {
         givenNames: sanitizedData.firstName,
         surname: sanitizedData.lastName,
         email: sanitizedData.guestEmail,
-        mobileNumber: sanitizedData.phone
+        mobileNumber: sanitizedData.phone,
       };
 
       const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
@@ -788,12 +866,12 @@ const createGuestOrder = async (req, res, next) => {
         description: `Pesanan Guest AriaNation #${order.orderNumber || order.id}`,
         customer: customer,
         successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
-        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`
+        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout`,
       };
 
       const xenditResponse = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
       paymentUrl = xenditResponse.invoiceUrl;
-      
+
       // Save payment locally
       await paymentService.create({
         id: paymentId,
@@ -803,19 +881,22 @@ const createGuestOrder = async (req, res, next) => {
         status: 'PENDING',
         transactionId: order.id,
         qrisUrl: paymentUrl,
-        xenditId: xenditResponse.id
+        xenditId: xenditResponse.id,
       });
     } catch (err) {
       console.error('Xendit Invoice Error:', err.message);
-      
+
       // 2. Guardrail: Manual Rollback for State Locking if Xendit fails
       await knex('order').where('id', order.id).update({ status: 'FAILED' });
-      
+
       throw new BadRequestError('Gagal membuat tagihan pembayaran. Silakan coba lagi.');
     }
 
-
-    return sendCreated(res, { orderId: order.id, email: sanitizedData.guestEmail, paymentUrl, snapToken }, 'Guest order created successfully');
+    return sendCreated(
+      res,
+      { orderId: order.id, email: sanitizedData.guestEmail, paymentUrl, snapToken },
+      'Guest order created successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -824,23 +905,28 @@ const createGuestOrder = async (req, res, next) => {
 const getShippingRates = async (req, res, next) => {
   try {
     const { destinationPostalCode, items, weight } = req.body;
-    
+
     if (!destinationPostalCode) {
       throw new BadRequestError('Kode pos tujuan wajib diisi');
     }
 
     let totalWeight = weight ? Number(weight) : 0;
-    
+
     if (totalWeight === 0 && items && Array.isArray(items) && items.length > 0) {
-      const productIds = items.map(i => i.productId).filter(Boolean);
-      const productNames = items.map(i => i.productName).filter(Boolean);
-      
+      const productIds = items.map((i) => i.productId).filter(Boolean);
+      const productNames = items.map((i) => i.productName).filter(Boolean);
+
       let productsQuery = knex('product')
         .leftJoin('productCategory', 'product.categoryId', 'productCategory.id')
-        .select('product.id', 'product.productName', 'product.weight_gram', 'productCategory.categoryName');
-        
+        .select(
+          'product.id',
+          'product.productName',
+          'product.weight_gram',
+          'productCategory.categoryName'
+        );
+
       if (productIds.length > 0 && productNames.length > 0) {
-        productsQuery = productsQuery.where(function() {
+        productsQuery = productsQuery.where(function () {
           this.whereIn('product.id', productIds).orWhereIn('product.productName', productNames);
         });
       } else if (productIds.length > 0) {
@@ -850,16 +936,16 @@ const getShippingRates = async (req, res, next) => {
       } else {
         productsQuery = productsQuery.whereRaw('1=0'); // Don't query anything
       }
-      
+
       const products = await productsQuery;
-      
+
       const productsById = new Map();
       const productsByName = new Map();
-      products.forEach(p => {
+      products.forEach((p) => {
         if (p.id) productsById.set(p.id, p);
         if (p.productName) productsByName.set(p.productName, p);
       });
-      
+
       let totalQty = 0;
       for (const item of items) {
         totalQty += item.quantity || 1;
@@ -870,11 +956,20 @@ const getShippingRates = async (req, res, next) => {
             const catName = p.categoryName.toLowerCase();
             if (catName.includes('topi')) {
               fallbackWeight = 100;
-            } else if (catName.includes('tas') || catName.includes('spunbond') || catName.includes('tote') || catName.includes('goodie')) {
+            } else if (
+              catName.includes('tas') ||
+              catName.includes('spunbond') ||
+              catName.includes('tote') ||
+              catName.includes('goodie')
+            ) {
               fallbackWeight = 150;
             } else if (catName.includes('lanyard') || catName.includes('id card')) {
               fallbackWeight = 50;
-            } else if (catName.includes('jaket') || catName.includes('hoodie') || catName.includes('sweater')) {
+            } else if (
+              catName.includes('jaket') ||
+              catName.includes('hoodie') ||
+              catName.includes('sweater')
+            ) {
               fallbackWeight = 500;
             }
           }
@@ -883,28 +978,40 @@ const getShippingRates = async (req, res, next) => {
           // If productId not found (e.g., custom sablon manual), attempt to guess from productName string
           let fallbackWeight = 250;
           if (item.productName) {
-             const nameStr = item.productName.toLowerCase();
-             if (nameStr.includes('topi')) fallbackWeight = 100;
-             else if (nameStr.includes('tas') || nameStr.includes('spunbond') || nameStr.includes('tote') || nameStr.includes('goodie')) fallbackWeight = 150;
-             else if (nameStr.includes('lanyard') || nameStr.includes('id card')) fallbackWeight = 50;
-             else if (nameStr.includes('jaket') || nameStr.includes('hoodie') || nameStr.includes('sweater')) fallbackWeight = 500;
+            const nameStr = item.productName.toLowerCase();
+            if (nameStr.includes('topi')) fallbackWeight = 100;
+            else if (
+              nameStr.includes('tas') ||
+              nameStr.includes('spunbond') ||
+              nameStr.includes('tote') ||
+              nameStr.includes('goodie')
+            )
+              fallbackWeight = 150;
+            else if (nameStr.includes('lanyard') || nameStr.includes('id card'))
+              fallbackWeight = 50;
+            else if (
+              nameStr.includes('jaket') ||
+              nameStr.includes('hoodie') ||
+              nameStr.includes('sweater')
+            )
+              fallbackWeight = 500;
           }
           totalWeight += fallbackWeight * item.quantity;
         }
       }
-      
+
       // Logika Buffer Dinamis (Sprint 1)
       const packagingBuffer = totalQty < 3 ? 50 : 250; // Polymailer 50g, Kardus 250g
       totalWeight += packagingBuffer;
     }
-    
+
     // Fallback if no items and no weight provided
-    if (totalWeight === 0) totalWeight = 250; 
+    if (totalWeight === 0) totalWeight = 250;
 
     const shippingService = require('../services/shippingService');
     const rates = await shippingService.getRates({
       destinationPostalCode,
-      weight: totalWeight
+      weight: totalWeight,
     });
 
     return sendSuccess(res, rates, 'Tarif pengiriman berhasil diambil');
@@ -940,22 +1047,24 @@ const createPelunasanInvoice = async (req, res, next) => {
 
     const payments = await knex('payment').where('orderId', id).where('status', 'COMPLETED');
     const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-        let baseAmount = Number(order.totalPrice || order.totalAmount || 0);
-      const designRequest = await knex('designRequest').where('orderId', id).first();
-      if (designRequest && designRequest.estimatedPrice) {
-        // baseAmount = designRequest.estimatedPrice; // REMOVED: baseAmount should be the total order price, not a single design's price
-      }
-    
+    let baseAmount = Number(order.totalPrice || order.totalAmount || 0);
+    const designRequest = await knex('designRequest').where('orderId', id).first();
+    if (designRequest && designRequest.estimatedPrice) {
+      // baseAmount = designRequest.estimatedPrice; // REMOVED: baseAmount should be the total order price, not a single design's price
+    }
+
     const remainingToPay = baseAmount - totalPaid + Number(finalShippingCost);
 
-    await knex('order').where('id', id).update({
-      shippingCourier: finalCourier,
-      shippingCost: Number(finalShippingCost),
-      deliveryType: finalDeliveryType,
-      totalAmount: baseAmount,
-      ...(deliveryAddress && { deliveryAddress: JSON.stringify(deliveryAddress) }),
-      updatedAt: new Date()
-    });
+    await knex('order')
+      .where('id', id)
+      .update({
+        shippingCourier: finalCourier,
+        shippingCost: Number(finalShippingCost),
+        deliveryType: finalDeliveryType,
+        totalAmount: baseAmount,
+        ...(deliveryAddress && { deliveryAddress: JSON.stringify(deliveryAddress) }),
+        updatedAt: new Date(),
+      });
 
     if (remainingToPay <= 0) {
       await orderFulfillmentService.updateOrderStatus(
@@ -964,11 +1073,15 @@ const createPelunasanInvoice = async (req, res, next) => {
         req.user?.id || 'SYSTEM',
         'Pesanan lunas 100% dan metode pickup dipilih, loncat langsung ke siap diambil.'
       );
-      return sendSuccess(res, { paymentUrl: null, skipped: true }, 'Tidak ada biaya tambahan, pesanan siap diambil.');
+      return sendSuccess(
+        res,
+        { paymentUrl: null, skipped: true },
+        'Tidak ada biaya tambahan, pesanan siap diambil.'
+      );
     }
 
     const paymentId = require('cuid')();
-    
+
     let customer = { givenNames: 'Customer', email: 'customer@example.com' };
     if (order.userId) {
       const user = await knex('user').where('id', order.userId).first();
@@ -976,7 +1089,7 @@ const createPelunasanInvoice = async (req, res, next) => {
         customer = {
           givenNames: user.fullName || 'Customer',
           email: user.email,
-          mobileNumber: user.phone || '081234567890'
+          mobileNumber: user.phone || '081234567890',
         };
       }
     } else {
@@ -985,7 +1098,7 @@ const createPelunasanInvoice = async (req, res, next) => {
         customer = {
           givenNames: addr.fullName || 'Customer',
           email: addr.email || 'customer@example.com',
-          mobileNumber: addr.phone || '081234567890'
+          mobileNumber: addr.phone || '081234567890',
         };
       } catch (e) {}
     }
@@ -998,11 +1111,11 @@ const createPelunasanInvoice = async (req, res, next) => {
       description: `Pelunasan & Ongkir AriaNation #${order.orderNumber || order.id}`,
       customer: customer,
       successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
-      failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout-pelunasan/${order.id}`
+      failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout-pelunasan/${order.id}`,
     };
 
     const xenditResponse = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
-    
+
     await paymentService.create({
       id: paymentId,
       orderId: order.id,
@@ -1012,10 +1125,14 @@ const createPelunasanInvoice = async (req, res, next) => {
       transactionId: paymentId,
       qrisUrl: xenditResponse.invoiceUrl,
       xenditId: xenditResponse.id,
-      paymentType: 'FULL'
+      paymentType: 'FULL',
     });
 
-    return sendSuccess(res, { paymentUrl: xenditResponse.invoiceUrl }, 'Invoice pelunasan berhasil dibuat');
+    return sendSuccess(
+      res,
+      { paymentUrl: xenditResponse.invoiceUrl },
+      'Invoice pelunasan berhasil dibuat'
+    );
   } catch (error) {
     next(error);
   }
@@ -1050,7 +1167,8 @@ const requestRefund = async (req, res, next) => {
     if (order.status !== 'CONFIRMED' && order.status !== 'PAID_WAITING_APPROVAL') {
       return res.status(403).json({
         success: false,
-        message: 'Pembatalan sepihak dan refund hanya bisa diajukan saat pesanan belum diproses (berstatus CONFIRMED atau PAID_WAITING_APPROVAL).'
+        message:
+          'Pembatalan sepihak dan refund hanya bisa diajukan saat pesanan belum diproses (berstatus CONFIRMED atau PAID_WAITING_APPROVAL).',
       });
     }
 
@@ -1058,12 +1176,10 @@ const requestRefund = async (req, res, next) => {
     const refundDetailsJSON = JSON.stringify({
       bankName: bankName.trim(),
       accountNumber: accountNumber.trim(),
-      accountName: accountName.trim()
+      accountName: accountName.trim(),
     });
 
-    await knex('order')
-      .where('id', id)
-      .update({ refundDetails: refundDetailsJSON });
+    await knex('order').where('id', id).update({ refundDetails: refundDetailsJSON });
 
     // Tentukan pelapor status
     const requestedBy = req.user ? req.user.id : 'GUEST_USER';
@@ -1083,7 +1199,7 @@ const requestRefund = async (req, res, next) => {
         title: 'Permintaan Refund Diterima',
         message: `Kustomer mengajukan refund untuk pesanan #${order.orderNumber}. Alasan: ${reason}`,
         type: 'ORDER_ISSUE',
-        isRead: false
+        isRead: false,
       });
     } catch (err) {
       console.error('Failed to create Admin notification for Refund:', err.message);
@@ -1119,7 +1235,11 @@ const completeOrder = async (req, res, next) => {
       req.body?.notes || 'Pesanan Diterima'
     );
 
-    return sendSuccess(res, updatedOrder, 'Pesanan berhasil diselesaikan. Poin Anda telah ditambahkan!');
+    return sendSuccess(
+      res,
+      updatedOrder,
+      'Pesanan berhasil diselesaikan. Poin Anda telah ditambahkan!'
+    );
   } catch (error) {
     next(error);
   }
@@ -1145,4 +1265,3 @@ module.exports = {
 // triggered restart
 
 // Trigger nodemon restart after env change
-

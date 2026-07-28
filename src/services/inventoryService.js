@@ -19,7 +19,15 @@ class InventoryService {
    * @param {String} referenceType - Tipe reference: order, po_order, manual_adjustment
    * @param {String} changedBy - User ID yang melakukan perubahan
    */
-  async logInventoryChange(productId, change, type, reason = '', referenceId = null, referenceType = null, changedBy = null) {
+  async logInventoryChange(
+    productId,
+    change,
+    type,
+    reason = '',
+    referenceId = null,
+    referenceType = null,
+    changedBy = null
+  ) {
     try {
       // Get current stock
       const product = await knex('product')
@@ -50,21 +58,21 @@ class InventoryService {
 
       // Also log to system activity
       const actionMap = {
-        'stock_in': 'Restock Produk',
-        'sale': 'Stok Terjual',
-        'adjustment': 'Penyesuaian Stok',
-        'return': 'Pengembalian Stok'
+        stock_in: 'Restock Produk',
+        sale: 'Stok Terjual',
+        adjustment: 'Penyesuaian Stok',
+        return: 'Pengembalian Stok',
       };
-      
+
       const actionName = actionMap[type] || 'Perubahan Stok';
       const actionDetails = `${reason || actionName} (Perubahan: ${change > 0 ? '+' : ''}${change}, Sisa: ${stockAfter})`;
-      
+
       await activityService.logActivity({
         userId: changedBy,
         action: actionName,
         details: actionDetails,
         entityType: 'PRODUCT',
-        entityId: productId
+        entityId: productId,
       });
 
       return true;
@@ -85,10 +93,7 @@ class InventoryService {
       throw new ValidationError('Stok tidak boleh negatif');
     }
 
-    const product = await knex('product')
-      .select('readyStock')
-      .where('id', productId)
-      .first();
+    const product = await knex('product').select('readyStock').where('id', productId).first();
 
     if (!product) {
       throw new NotFoundError('Produk tidak ditemukan');
@@ -98,12 +103,10 @@ class InventoryService {
     const change = quantity - oldStock;
 
     // Update product table
-    await knex('product')
-      .where('id', productId)
-      .update({
-        readyStock: quantity,
-        stockQuantity: quantity, // Keep stockQuantity in sync
-      });
+    await knex('product').where('id', productId).update({
+      readyStock: quantity,
+      stockQuantity: quantity, // Keep stockQuantity in sync
+    });
 
     // Log the change
     await this.logInventoryChange(
@@ -149,12 +152,10 @@ class InventoryService {
     const newStock = currentStock - quantity;
 
     // Update stock
-    await knex('product')
-      .where('id', productId)
-      .update({
-        readyStock: newStock,
-        stockQuantity: newStock,
-      });
+    await knex('product').where('id', productId).update({
+      readyStock: newStock,
+      stockQuantity: newStock,
+    });
 
     // Log
     await this.logInventoryChange(
@@ -180,10 +181,7 @@ class InventoryService {
       throw new ValidationError('Jumlah restock harus lebih dari 0');
     }
 
-    const product = await knex('product')
-      .select('readyStock')
-      .where('id', productId)
-      .first();
+    const product = await knex('product').select('readyStock').where('id', productId).first();
 
     if (!product) {
       throw new NotFoundError('Produk tidak ditemukan');
@@ -193,12 +191,10 @@ class InventoryService {
     const newStock = currentStock + quantity;
 
     // Update stock
-    await knex('product')
-      .where('id', productId)
-      .update({
-        readyStock: newStock,
-        stockQuantity: newStock,
-      });
+    await knex('product').where('id', productId).update({
+      readyStock: newStock,
+      stockQuantity: newStock,
+    });
 
     // Log
     await this.logInventoryChange(
@@ -248,14 +244,14 @@ class InventoryService {
           .whereIn('status', ['pending', 'confirmed'])
           .count('* as count')
           .first()
-          .then(r => r.count || 0);
+          .then((r) => r.count || 0);
 
         const poQuantity = await knex('po_orders')
           .where('productId', product.id)
           .whereIn('status', ['pending', 'confirmed'])
           .sum('quantity as total')
           .first()
-          .then(r => r.total || 0);
+          .then((r) => r.total || 0);
 
         return {
           ...product,
@@ -283,14 +279,14 @@ class InventoryService {
     if (startDate) query = query.where('createdAt', '>=', startDate);
     if (endDate) query = query.where('createdAt', '<=', endDate);
 
-    const total = await query.clone().count('* as count').first().then(r => r.count);
+    const total = await query
+      .clone()
+      .count('* as count')
+      .first()
+      .then((r) => r.count);
     const offset = (page - 1) * limit;
 
-    const logs = await query
-      .select('*')
-      .orderBy('createdAt', 'desc')
-      .limit(limit)
-      .offset(offset);
+    const logs = await query.select('*').orderBy('createdAt', 'desc').limit(limit).offset(offset);
 
     // Get product info untuk setiap log
     const enriched = await Promise.all(
@@ -322,25 +318,25 @@ class InventoryService {
     // Total stok (sum of all items), exclude untracked or Bawa Sendiri
     const totalStock = await knex('product')
       .where('isActive', true)
-      .where(function() {
+      .where(function () {
         this.where('trackStock', 1).orWhere('trackStock', true);
       })
       .whereNot('productName', 'like', '%Bawa Sendiri%')
       .sum('stockQuantity as total')
       .first()
-      .then(r => r.total || 0);
+      .then((r) => r.total || 0);
 
     // Low stock products (count of product types), exclude untracked or Bawa Sendiri
     const lowStockProducts = await knex('product')
       .where('isActive', true)
       .where('stockQuantity', '<', 10)
-      .where(function() {
+      .where(function () {
         this.where('trackStock', 1).orWhere('trackStock', true);
       })
       .whereNot('productName', 'like', '%Bawa Sendiri%')
       .count('* as count')
       .first()
-      .then(r => r.count || 0);
+      .then((r) => r.count || 0);
 
     const byCategory = await knex('product')
       .where('isActive', true)
@@ -350,16 +346,13 @@ class InventoryService {
       .groupBy('categoryId');
 
     // PO statistics
-    const poStats = await knex('po_orders')
-      .select('status')
-      .count('* as count')
-      .groupBy('status');
+    const poStats = await knex('po_orders').select('status').count('* as count').groupBy('status');
 
     const totalPOQuantity = await knex('po_orders')
       .whereIn('status', ['pending', 'confirmed'])
       .sum('quantity as total')
       .first()
-      .then(r => r.total || 0);
+      .then((r) => r.total || 0);
 
     return {
       inventory: {

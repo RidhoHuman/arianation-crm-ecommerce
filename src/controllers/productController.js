@@ -11,75 +11,109 @@ const getAllProducts = async (req, res, next) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
-    const { categoryId, category, collectionId, collection, businessType, productType, excludeType, isActive, search, minPrice, maxPrice, tag, isSale, type, sortBy, sortOrder } =
-      req.query;
+    const {
+      categoryId,
+      category,
+      collectionId,
+      collection,
+      businessType,
+      productType,
+      excludeType,
+      isActive,
+      search,
+      minPrice,
+      maxPrice,
+      tag,
+      isSale,
+      type,
+      sortBy,
+      sortOrder,
+    } = req.query;
 
     // Build Knex query dengan filter
-    let query = knex('product')
-      .leftJoin('productCategory', 'product.categoryId', 'productCategory.id');
+    let query = knex('product').leftJoin(
+      'productCategory',
+      'product.categoryId',
+      'productCategory.id'
+    );
 
     if (categoryId) query = query.where('product.categoryId', categoryId);
     if (category) query = query.where('product.categoryId', category);
-    
+
     if (collectionId || collection) {
       const colId = collectionId || collection;
-      
+
       if (colId === 'new-arrivals') {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        query = query.where(builder => {
-          builder.whereExists(function() {
-            this.select('*').from('product_collection')
+        query = query.where((builder) => {
+          builder
+            .whereExists(function () {
+              this.select('*')
+                .from('product_collection')
                 .where('collectionId', colId)
                 .whereRaw('product_collection.productId = product.id');
-          }).orWhere('product.createdAt', '>=', thirtyDaysAgo);
+            })
+            .orWhere('product.createdAt', '>=', thirtyDaysAgo);
         });
       } else if (colId === 'best-seller') {
         // Fetch threshold dynamically
-        const setting = await knex('store_settings').where('settingKey', 'best_seller_threshold').first();
-        const threshold = setting && !isNaN(parseInt(setting.settingValue, 10)) ? parseInt(setting.settingValue, 10) : 5;
-        
-        query = query.where(builder => {
-          builder.whereExists(function() {
-            this.select('*').from('product_collection')
+        const setting = await knex('store_settings')
+          .where('settingKey', 'best_seller_threshold')
+          .first();
+        const threshold =
+          setting && !isNaN(parseInt(setting.settingValue, 10))
+            ? parseInt(setting.settingValue, 10)
+            : 5;
+
+        query = query.where((builder) => {
+          builder
+            .whereExists(function () {
+              this.select('*')
+                .from('product_collection')
                 .where('collectionId', colId)
                 .whereRaw('product_collection.productId = product.id');
-          }).orWhereExists(function() {
-            this.select('productId').from('orderItem')
+            })
+            .orWhereExists(function () {
+              this.select('productId')
+                .from('orderItem')
                 .whereRaw('orderItem.productId = product.id')
                 .groupBy('productId')
                 .havingRaw('SUM(quantity) >= ?', [threshold]);
-          });
+            });
         });
       } else {
-        query = query.join('product_collection', 'product.id', 'product_collection.productId')
-                     .where('product_collection.collectionId', colId);
+        query = query
+          .join('product_collection', 'product.id', 'product_collection.productId')
+          .where('product_collection.collectionId', colId);
       }
     }
-    
+
     // Map URL type (e.g., 't-shirts', 'hoodies') using product_type_master slug or id
     if (type) {
-      query = query.leftJoin('product_type_master', 'product.productTypeId', 'product_type_master.id')
-                   .where(function() {
-                     this.where('product_type_master.slug', type)
-                         .orWhere('product_type_master.id', type);
-                   });
+      query = query
+        .leftJoin('product_type_master', 'product.productTypeId', 'product_type_master.id')
+        .where(function () {
+          this.where('product_type_master.slug', type).orWhere('product_type_master.id', type);
+        });
     }
 
     if (businessType) query = query.where('product.businessType', businessType);
     if (productType) query = query.where('product.productType', productType);
     if (excludeType) query = query.whereNot('product.productType', excludeType);
-    if (isActive !== undefined) query = query.where('product.isActive', isActive === 'true' ? 1 : 0);
+    if (isActive !== undefined)
+      query = query.where('product.isActive', isActive === 'true' ? 1 : 0);
     if (isSale !== undefined) query = query.where('product.isSale', isSale === 'true' ? 1 : 0);
     if (tag) query = query.where('product.tags', 'like', `%${tag}%`);
     if (search) {
       const terms = search.trim().split(/\s+/).filter(Boolean);
       if (terms.length > 0) {
         query = query.where((builder) => {
-          terms.forEach(term => {
-            builder.where(sub => {
-              sub.where('product.productName', 'like', `%${term}%`)
-                 .orWhere('product.description', 'like', `%${term}%`);
+          terms.forEach((term) => {
+            builder.where((sub) => {
+              sub
+                .where('product.productName', 'like', `%${term}%`)
+                .orWhere('product.description', 'like', `%${term}%`);
             });
           });
         });
@@ -93,11 +127,12 @@ const getAllProducts = async (req, res, next) => {
     if (sortBy === 'stock') sortColumn = 'stockQuantity';
     else if (sortBy === 'price') sortColumn = 'price';
     else if (sortBy === 'name') sortColumn = 'productName';
-    
+
     if (sortOrder === 'asc') sortDirection = 'asc';
 
     const [products, countResult] = await Promise.all([
-      query.clone()
+      query
+        .clone()
         .select(
           'product.id',
           'product.categoryId',
@@ -127,11 +162,11 @@ const getAllProducts = async (req, res, next) => {
     const total = countResult.count;
 
     // Fetch variants (colors/sizes)
-    const productIds = products.map(p => p.id);
+    const productIds = products.map((p) => p.id);
     if (productIds.length > 0) {
       const variants = await knex('productvariant').whereIn('productId', productIds);
-      products.forEach(p => {
-        p.variants = variants.filter(v => v.productId === p.id);
+      products.forEach((p) => {
+        p.variants = variants.filter((v) => v.productId === p.id);
       });
     }
 
@@ -162,8 +197,10 @@ const getProductById = async (req, res, next) => {
     }
 
     // Fetch collectionIds
-    const collections = await knex('product_collection').where('productId', id).select('collectionId');
-    product.collectionIds = collections.map(c => c.collectionId);
+    const collections = await knex('product_collection')
+      .where('productId', id)
+      .select('collectionId');
+    product.collectionIds = collections.map((c) => c.collectionId);
 
     // Fetch variants
     const variants = await knex('productvariant').where('productId', id);
@@ -225,11 +262,22 @@ const createProduct = async (req, res, next) => {
       tags: tags || null,
       isSale: isSale === true || isSale === 'true' || isSale === 1 || isSale === '1',
       salePrice: salePrice ? parseFloat(salePrice) : null,
-      isActive: isActive === undefined ? true : (isActive === true || isActive === 'true' || isActive === 1 || isActive === '1'),
-      trackStock: trackStock === undefined ? true : (trackStock === true || trackStock === 'true' || trackStock === 1 || trackStock === '1'),
-      imageUrls: imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null,
+      isActive:
+        isActive === undefined
+          ? true
+          : isActive === true || isActive === 'true' || isActive === 1 || isActive === '1',
+      trackStock:
+        trackStock === undefined
+          ? true
+          : trackStock === true || trackStock === 'true' || trackStock === 1 || trackStock === '1',
+      imageUrls: imageUrls
+        ? typeof imageUrls === 'string'
+          ? JSON.parse(imageUrls)
+          : imageUrls
+        : null,
       variants: variants, // pass variants to productService.create
-      weight_gram: weight_gram === '' || weight_gram === undefined ? null : parseInt(weight_gram, 10)
+      weight_gram:
+        weight_gram === '' || weight_gram === undefined ? null : parseInt(weight_gram, 10),
     });
 
     // Save collectionIds jika ada
@@ -237,7 +285,7 @@ const createProduct = async (req, res, next) => {
     if (colIds) {
       if (!Array.isArray(colIds)) colIds = [colIds];
       if (colIds.length > 0) {
-        const colRecords = colIds.map(cId => ({ productId: product.id, collectionId: cId }));
+        const colRecords = colIds.map((cId) => ({ productId: product.id, collectionId: cId }));
         await knex('product_collection').insert(colRecords);
       }
     }
@@ -251,13 +299,34 @@ const createProduct = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     // DEBUG LOGGING
     try {
-      require('fs').appendFileSync('debug-error.log', 'UPDATE PRODUCT PAYLOAD: ' + JSON.stringify(req.body) + '\n');
-    } catch(e) {}
+      require('fs').appendFileSync(
+        'debug-error.log',
+        'UPDATE PRODUCT PAYLOAD: ' + JSON.stringify(req.body) + '\n'
+      );
+    } catch (e) {}
 
-    const { productName, description, descriptionEn, price, stockQuantity, imageUrl, sizeChartImage, imageUrls, isActive, tags, isSale, salePrice, categoryId, productTypeId, variants, trackStock, weight_gram } = req.body;
+    const {
+      productName,
+      description,
+      descriptionEn,
+      price,
+      stockQuantity,
+      imageUrl,
+      sizeChartImage,
+      imageUrls,
+      isActive,
+      tags,
+      isSale,
+      salePrice,
+      categoryId,
+      productTypeId,
+      variants,
+      trackStock,
+      weight_gram,
+    } = req.body;
 
     const existing = await productService.findById(id);
     if (!existing) {
@@ -272,21 +341,36 @@ const updateProduct = async (req, res, next) => {
     if (stockQuantity !== undefined) updateData.stockQuantity = stockQuantity;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
     if (sizeChartImage !== undefined) updateData.sizeChartImage = sizeChartImage;
-    if (isActive !== undefined) updateData.isActive = isActive === true || isActive === 'true' || isActive === 1 || isActive === '1';
+    if (isActive !== undefined)
+      updateData.isActive =
+        isActive === true || isActive === 'true' || isActive === 1 || isActive === '1';
     if (tags !== undefined) updateData.tags = tags;
-    if (isSale !== undefined) updateData.isSale = isSale === true || isSale === 'true' || isSale === 1 || isSale === '1';
+    if (isSale !== undefined)
+      updateData.isSale = isSale === true || isSale === 'true' || isSale === 1 || isSale === '1';
     if (salePrice !== undefined) updateData.salePrice = salePrice ? parseFloat(salePrice) : null;
-    if (trackStock !== undefined) updateData.trackStock = trackStock === true || trackStock === 'true' || trackStock === 1 || trackStock === '1';
-    if (imageUrls !== undefined) updateData.imageUrls = imageUrls ? (typeof imageUrls === 'string' ? JSON.parse(imageUrls) : imageUrls) : null;
+    if (trackStock !== undefined)
+      updateData.trackStock =
+        trackStock === true || trackStock === 'true' || trackStock === 1 || trackStock === '1';
+    if (imageUrls !== undefined)
+      updateData.imageUrls = imageUrls
+        ? typeof imageUrls === 'string'
+          ? JSON.parse(imageUrls)
+          : imageUrls
+        : null;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
-    if (productTypeId !== undefined) updateData.productTypeId = productTypeId === '' ? null : productTypeId;
-    if (weight_gram !== undefined) updateData.weight_gram = weight_gram === '' ? null : parseInt(weight_gram, 10);
-    
+    if (productTypeId !== undefined)
+      updateData.productTypeId = productTypeId === '' ? null : productTypeId;
+    if (weight_gram !== undefined)
+      updateData.weight_gram = weight_gram === '' ? null : parseInt(weight_gram, 10);
+
     // Process variants and dynamic stock
     if (variants !== undefined) {
       updateData.variants = variants;
       if (Array.isArray(variants) && variants.length > 0) {
-        updateData.stockQuantity = variants.reduce((sum, v) => sum + (parseInt(v.stockQuantity, 10) || 0), 0);
+        updateData.stockQuantity = variants.reduce(
+          (sum, v) => sum + (parseInt(v.stockQuantity, 10) || 0),
+          0
+        );
       }
     }
 
@@ -298,7 +382,7 @@ const updateProduct = async (req, res, next) => {
       if (!Array.isArray(colIds)) colIds = [colIds];
       await knex('product_collection').where('productId', id).del();
       if (colIds.length > 0) {
-        const colRecords = colIds.map(cId => ({ productId: id, collectionId: cId }));
+        const colRecords = colIds.map((cId) => ({ productId: id, collectionId: cId }));
         await knex('product_collection').insert(colRecords);
       }
     }
@@ -427,11 +511,8 @@ const uploadProductImageAndUpdate = async (req, res, next) => {
 
     // Verify product exists
     const knex = require('../config/knex');
-    const product = await knex('product')
-      .where('id', productId)
-      .select('*')
-      .first();
-    
+    const product = await knex('product').where('id', productId).select('*').first();
+
     if (!product) {
       // Delete uploaded file if product not found
       const { deleteFile } = require('../middleware/upload');
@@ -443,18 +524,13 @@ const uploadProductImageAndUpdate = async (req, res, next) => {
     const fileUrl = getFileUrl(req.file.filename, 'products');
 
     // Update product with image URL
-    await knex('product')
-      .where('id', productId)
-      .update({
-        imageUrl: fileUrl,
-        updatedAt: new Date(),
-      });
+    await knex('product').where('id', productId).update({
+      imageUrl: fileUrl,
+      updatedAt: new Date(),
+    });
 
     // Fetch updated product
-    const updatedProduct = await knex('product')
-      .where('id', productId)
-      .select('*')
-      .first();
+    const updatedProduct = await knex('product').where('id', productId).select('*').first();
 
     return sendSuccess(res, updatedProduct, 'Product image updated successfully');
   } catch (error) {
@@ -465,8 +541,16 @@ const uploadProductImageAndUpdate = async (req, res, next) => {
 const addProductColor = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { colorName, hexCode, stockQuantity, imageUrl, imageUrlBack, imageUrlLeft, imageUrlRight } = req.body;
-    
+    const {
+      colorName,
+      hexCode,
+      stockQuantity,
+      imageUrl,
+      imageUrlBack,
+      imageUrlLeft,
+      imageUrlRight,
+    } = req.body;
+
     // Check if product exists
     const knex = require('../config/knex');
     const product = await knex('product').where('id', id).first();
@@ -495,25 +579,33 @@ const addProductColor = async (req, res, next) => {
 const updateProductColor = async (req, res, next) => {
   try {
     const { id, colorId } = req.params;
-    const { colorName, hexCode, stockQuantity, imageUrl, imageUrlBack, imageUrlLeft, imageUrlRight } = req.body;
+    const {
+      colorName,
+      hexCode,
+      stockQuantity,
+      imageUrl,
+      imageUrlBack,
+      imageUrlLeft,
+      imageUrlRight,
+    } = req.body;
     const knex = require('../config/knex');
-    
+
     const updateData = {
       colorName,
       hexCode,
       stockQuantity,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
     if (imageUrlBack !== undefined) updateData.imageUrlBack = imageUrlBack;
     if (imageUrlLeft !== undefined) updateData.imageUrlLeft = imageUrlLeft;
     if (imageUrlRight !== undefined) updateData.imageUrlRight = imageUrlRight;
-    
+
     const updated = await knex('product_color_variant')
       .where({ id: colorId, productId: id })
       .update(updateData);
-      
+
     if (!updated) throw new NotFoundError('Color variant not found');
     return sendSuccess(res, { id: colorId }, 'Color variant updated');
   } catch (error) {
@@ -537,7 +629,9 @@ const bulkDeleteProducts = async (req, res, next) => {
   try {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ success: false, message: 'Invalid or empty product IDs provided' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Invalid or empty product IDs provided' });
     }
     const knex = require('../config/knex');
     await knex('product').whereIn('id', ids).update({ deletedAt: new Date(), isActive: false });

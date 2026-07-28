@@ -75,7 +75,11 @@ const defaultFrontendOrigin =
     ? 'https://arianation-crm-ecommerce.vercel.app'
     : 'http://localhost:3000';
 
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || process.env.FRONTEND_URL || defaultFrontendOrigin)
+const allowedOrigins = (
+  process.env.CORS_ALLOWED_ORIGINS ||
+  process.env.FRONTEND_URL ||
+  defaultFrontendOrigin
+)
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -190,8 +194,10 @@ if (process.env.NODE_ENV !== 'production') {
 app.post('/api/setup-db', async (req, res) => {
   try {
     // Check if users already exist
-    const existingUsers = await knex('user').first().catch(() => null);
-    
+    const existingUsers = await knex('user')
+      .first()
+      .catch(() => null);
+
     // If users exist, require authentication
     if (existingUsers) {
       const secret = req.query.secret || req.headers['x-setup-token'];
@@ -199,9 +205,9 @@ app.post('/api/setup-db', async (req, res) => {
 
       if (!secret || secret !== expectedSecret) {
         console.log('⚠️  Setup endpoint unauthorized attempt (database already initialized)');
-        return res.status(401).json({ 
-          success: false, 
-          error: 'Database already initialized. Authorization required for reset.' 
+        return res.status(401).json({
+          success: false,
+          error: 'Database already initialized. Authorization required for reset.',
         });
       }
     } else {
@@ -289,7 +295,7 @@ app.post('/api/setup-db', async (req, res) => {
           t.string('id').primary();
           t.string('code').unique().notNullable();
           t.string('type').notNullable().defaultTo('PERCENTAGE'); // PERCENTAGE, NOMINAL
-          t.decimal('value', 10, 2).notNullable(); 
+          t.decimal('value', 10, 2).notNullable();
           t.decimal('minPurchase', 10, 2).defaultTo(0);
           t.decimal('maxDiscount', 10, 2).defaultTo(0);
           t.integer('usageLimit').nullable();
@@ -427,7 +433,7 @@ app.post('/api/setup-db', async (req, res) => {
     const hasTags = await knex.schema.hasColumn('product', 'tags');
     if (!hasTags) {
       console.log(`📝 Adding tags and isSale to product...`);
-      await knex.schema.alterTable('product', t => {
+      await knex.schema.alterTable('product', (t) => {
         t.string('tags').nullable();
         t.boolean('isSale').defaultTo(false);
       });
@@ -436,7 +442,7 @@ app.post('/api/setup-db', async (req, res) => {
     const hasSalePrice = await knex.schema.hasColumn('product', 'salePrice');
     if (!hasSalePrice) {
       console.log(`📝 Adding salePrice to product...`);
-      await knex.schema.alterTable('product', t => {
+      await knex.schema.alterTable('product', (t) => {
         t.decimal('salePrice', 10, 2).nullable();
       });
     }
@@ -444,7 +450,7 @@ app.post('/api/setup-db', async (req, res) => {
     const hasSystemActivity = await knex.schema.hasTable('system_activity');
     if (!hasSystemActivity) {
       console.log(`📝 Creating system_activity table (auto-migrate)...`);
-      await knex.schema.createTable('system_activity', t => {
+      await knex.schema.createTable('system_activity', (t) => {
         t.string('id').primary();
         t.string('userId').nullable();
         t.string('action');
@@ -458,7 +464,7 @@ app.post('/api/setup-db', async (req, res) => {
     const hasPushSubscriptions = await knex.schema.hasTable('pushSubscriptions');
     if (!hasPushSubscriptions) {
       console.log(`📝 Creating pushSubscriptions table (auto-migrate)...`);
-      await knex.schema.createTable('pushSubscriptions', t => {
+      await knex.schema.createTable('pushSubscriptions', (t) => {
         t.increments('id').primary();
         t.string('userId').notNullable();
         t.text('endpoint').notNullable();
@@ -625,13 +631,17 @@ if (process.env.NODE_ENV !== 'production') {
 
 // 404
 app.use((req, res) => {
-  const isSpaRequest = req.method === 'GET' && (req.path === '/' || req.path === '/api' || !req.path.startsWith('/api/'));
+  const isSpaRequest =
+    req.method === 'GET' &&
+    (req.path === '/' || req.path === '/api' || !req.path.startsWith('/api/'));
 
   if (isSpaRequest) {
     const indexPath = path.join(frontendDistPath, 'index.html');
     return res.sendFile(indexPath, (err) => {
       if (err) {
-        res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
+        res
+          .status(404)
+          .json({ success: false, message: `Route ${req.method} ${req.path} not found` });
       }
     });
   }

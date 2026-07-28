@@ -6,7 +6,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 const { rateLimit } = require('express-rate-limit');
 
 // Rate limiter khusus untuk validasi voucher:
-// Maksimal 5 percobaan gagal per IP dalam 1 menit. 
+// Maksimal 5 percobaan gagal per IP dalam 1 menit.
 // Jika lebih, diblokir selama 15 menit.
 const validateVoucherLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 menit blokir (waktu cooldown)
@@ -14,8 +14,9 @@ const validateVoucherLimiter = rateLimit({
   skipSuccessfulRequests: true, // HANYA hitung jika validasi GAGAL (status >= 400)
   message: {
     success: false,
-    message: "Terlalu banyak percobaan kode voucher yang salah. Silakan coba lagi setelah 15 menit."
-  }
+    message:
+      'Terlalu banyak percobaan kode voucher yang salah. Silakan coba lagi setelah 15 menit.',
+  },
 });
 
 // Public endpoint (kustomer bisa validasi tanpa login / dengan login)

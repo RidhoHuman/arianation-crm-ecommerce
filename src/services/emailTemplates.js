@@ -87,8 +87,8 @@ function renderOrderNotificationEmail({ notification, customer, order }) {
       const isPickup = order?.deliveryType === 'PICKUP';
       return buildBaseTemplate({
         title: isPickup ? 'Pesanan Telah Diambil' : 'Pesanan Telah Diterima',
-        message: isPickup 
-          ? 'Terima kasih telah berkunjung dan mengambil pesanan Anda di Arianation!' 
+        message: isPickup
+          ? 'Terima kasih telah berkunjung dan mengambil pesanan Anda di Arianation!'
           : 'Pesanan Anda telah diterima. Terima kasih telah berbelanja di Arianation.',
         orderNumber,
         customerName,

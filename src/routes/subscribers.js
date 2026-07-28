@@ -11,6 +11,11 @@ router.post('/unsubscribe', subscriberController.unsubscribe);
 
 // Admin routes
 router.get('/', authenticate, authorize('ADMIN', 'OWNER'), subscriberController.getSubscribers);
-router.post('/send-promo', authenticate, authorize('ADMIN', 'OWNER'), subscriberController.sendPromoEmail);
+router.post(
+  '/send-promo',
+  authenticate,
+  authorize('ADMIN', 'OWNER'),
+  subscriberController.sendPromoEmail
+);
 
 module.exports = router;

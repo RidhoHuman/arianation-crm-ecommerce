@@ -63,17 +63,19 @@ const updateCourierWebhook = async (req, res, next) => {
     let tracking;
     if (existingTracking) {
       // Update existing tracking
-      await knex('orderTracking').where('orderId', orderId).update({
-        status: status || existingTracking.status || 'PROCESSING',
-        currentLocation: currentLocation || existingTracking.currentLocation || null,
-        estimatedDeliveryDate: estimatedDeliveryDate
-          ? new Date(estimatedDeliveryDate)
-          : existingTracking.estimatedDeliveryDate || null,
-        carrier: carrier || existingTracking.carrier || null,
-        trackingNumber: trackingNumber || existingTracking.trackingNumber || null,
-        lastUpdate: new Date(),
-        notes: notes || existingTracking.notes || null,
-      });
+      await knex('orderTracking')
+        .where('orderId', orderId)
+        .update({
+          status: status || existingTracking.status || 'PROCESSING',
+          currentLocation: currentLocation || existingTracking.currentLocation || null,
+          estimatedDeliveryDate: estimatedDeliveryDate
+            ? new Date(estimatedDeliveryDate)
+            : existingTracking.estimatedDeliveryDate || null,
+          carrier: carrier || existingTracking.carrier || null,
+          trackingNumber: trackingNumber || existingTracking.trackingNumber || null,
+          lastUpdate: new Date(),
+          notes: notes || existingTracking.notes || null,
+        });
       tracking = await knex('orderTracking').where('orderId', orderId).first();
     } else {
       // Create new tracking

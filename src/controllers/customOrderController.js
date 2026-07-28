@@ -10,59 +10,65 @@ const createCustomOrder = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const data = req.body;
-    
+
     const quantity = parseInt(data.quantity) || 1;
     const colors = parseInt(data.numberOfColors) || 1;
     let selectedPositions = [];
     if (data.printPosition) {
-      selectedPositions = data.printPosition.split(',').map(s => s.trim()).filter(Boolean);
+      selectedPositions = data.printPosition
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
-    
+
     let basePrice = 0;
     let techPrice = 0;
-    
+
     if (data.productTypeForSablon) {
       const product = await knex('product').where('id', data.productTypeForSablon).first();
       if (product) basePrice = parseFloat(product.price) || 0;
     }
-    
+
     if (data.printTechnique) {
       const technique = await knex('print_techniques').where('name', data.printTechnique).first();
       if (technique) {
         const baseTechPrice = parseFloat(technique.basePrice) || 0;
-        
+
         const multiplierSisi = selectedPositions.length > 0 ? selectedPositions.length : 1;
         if (technique.pricingType === 'fixed') {
           techPrice = baseTechPrice;
         } else if (technique.pricingType === 'color_based') {
           techPrice = baseTechPrice * colors * multiplierSisi;
         } else if (technique.pricingType === 'area_based') {
-          const matrix = typeof technique.priceMatrix === 'string' ? JSON.parse(technique.priceMatrix) : technique.priceMatrix;
+          const matrix =
+            typeof technique.priceMatrix === 'string'
+              ? JSON.parse(technique.priceMatrix)
+              : technique.priceMatrix;
           const currentSize = data.printSize;
           if (matrix && currentSize && matrix[currentSize] !== undefined) {
-             techPrice = parseFloat(matrix[currentSize]) * multiplierSisi;
+            techPrice = parseFloat(matrix[currentSize]) * multiplierSisi;
           } else {
-             techPrice = baseTechPrice * multiplierSisi;
+            techPrice = baseTechPrice * multiplierSisi;
           }
         }
       }
     }
-    
+
     const estimatedUnit = basePrice + techPrice;
     const estimatedTotal = estimatedUnit * quantity;
-    
+
     // Parse files from multipart upload
     let mockupPreviewUrl = null;
     let designFileUrl = null;
-    
+
     if (req.files && req.files.length > 0) {
-      const mockupFile = req.files.find(f => f.fieldname === 'mockupPreview');
+      const mockupFile = req.files.find((f) => f.fieldname === 'mockupPreview');
       if (mockupFile) mockupPreviewUrl = mockupFile.url;
-      
-      const mainDesign = req.files.find(f => f.fieldname === 'designFile');
+
+      const mainDesign = req.files.find((f) => f.fieldname === 'designFile');
       if (mainDesign) designFileUrl = mainDesign.url;
     }
-    
+
     const requestData = {
       id: require('cuid')(),
       userId,
@@ -90,11 +96,11 @@ const createCustomOrder = async (req, res, next) => {
       status: 'SUBMITTED',
       submittedAt: new Date(),
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     await knex('designRequest').insert(requestData);
-    
+
     // Audit log
     await knex('auditLog')
       .insert({
@@ -130,7 +136,7 @@ const createCustomOrder = async (req, res, next) => {
         title: 'Pesanan Sablon Baru!',
         message: `Permintaan Custom Sablon "${data.designTitle}" menunggu untuk ditinjau.`,
         type: 'NEW_ORDER',
-        isRead: false
+        isRead: false,
       });
     } catch (err) {
       console.error('Failed to create Admin notification for Sablon:', err.message);
@@ -145,8 +151,16 @@ const createCustomOrder = async (req, res, next) => {
 const generateSablonPayment = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { orderId } = req.params; 
-    const { paymentMethod, usePoints, paymentType = 'DP', shippingCost, shippingCourier, deliveryAddress, deliveryType } = req.body;
+    const { orderId } = req.params;
+    const {
+      paymentMethod,
+      usePoints,
+      paymentType = 'DP',
+      shippingCost,
+      shippingCourier,
+      deliveryAddress,
+      deliveryType,
+    } = req.body;
 
     const user = await knex('user').where('id', userId).first();
     const order = await knex('order').where('id', orderId).where('userId', userId).first();
@@ -165,15 +179,21 @@ const generateSablonPayment = async (req, res, next) => {
 
     let grandTotal = Number(order.totalAmount);
     let pointsToDeduct = 0;
-    
+
     let exchangeRate = 10;
     let maxPercent = 50;
     try {
-      const exchangeSetting = await knex('store_settings').where('settingKey', 'points_exchange_rate').first();
-      const maxSetting = await knex('store_settings').where('settingKey', 'max_points_discount_percentage').first();
-      if (exchangeSetting && !isNaN(Number(exchangeSetting.settingValue))) exchangeRate = Number(exchangeSetting.settingValue);
-      if (maxSetting && !isNaN(Number(maxSetting.settingValue))) maxPercent = Number(maxSetting.settingValue);
-    } catch(e) {
+      const exchangeSetting = await knex('store_settings')
+        .where('settingKey', 'points_exchange_rate')
+        .first();
+      const maxSetting = await knex('store_settings')
+        .where('settingKey', 'max_points_discount_percentage')
+        .first();
+      if (exchangeSetting && !isNaN(Number(exchangeSetting.settingValue)))
+        exchangeRate = Number(exchangeSetting.settingValue);
+      if (maxSetting && !isNaN(Number(maxSetting.settingValue)))
+        maxPercent = Number(maxSetting.settingValue);
+    } catch (e) {
       console.log('Error fetching point settings:', e);
     }
 
@@ -181,7 +201,7 @@ const generateSablonPayment = async (req, res, next) => {
       const maxAllowedDiscount = (grandTotal * maxPercent) / 100;
       const totalPointsValue = user.rewardPoints * exchangeRate;
       let discountFromPoints = 0;
-      
+
       if (totalPointsValue > maxAllowedDiscount) {
         discountFromPoints = maxAllowedDiscount;
         pointsToDeduct = Math.ceil(maxAllowedDiscount / exchangeRate);
@@ -192,15 +212,15 @@ const generateSablonPayment = async (req, res, next) => {
         discountFromPoints = totalPointsValue;
         pointsToDeduct = user.rewardPoints;
       }
-      
-      grandTotal -= (pointsToDeduct * exchangeRate);
+
+      grandTotal -= pointsToDeduct * exchangeRate;
     }
 
     if (grandTotal < 0) grandTotal = 0;
 
     const isFull = paymentType === 'FULL';
     const amountToPay = isFull ? grandTotal : Math.floor(grandTotal / 2);
-    
+
     // Shipping Fee (Front-loaded)
     let finalShippingCost = shippingCost ? Number(shippingCost) : 0;
     let finalAmount = amountToPay + finalShippingCost;
@@ -221,16 +241,18 @@ const generateSablonPayment = async (req, res, next) => {
       }
 
       // Update Order Details
-      await trx('order').where('id', orderId).update({
-        deliveryAddress: deliveryAddress ? JSON.stringify(deliveryAddress) : null,
-        deliveryType: deliveryType || 'SHIPPING',
-        shippingCourier: shippingCourier || null,
-        shippingCost: finalShippingCost,
-        paymentOption: isFull ? 'LUNAS' : 'DP_50',
-        productPaymentStatus: 'PENDING',
-        shippingPaymentStatus: 'PENDING',
-        updatedAt: new Date()
-      });
+      await trx('order')
+        .where('id', orderId)
+        .update({
+          deliveryAddress: deliveryAddress ? JSON.stringify(deliveryAddress) : null,
+          deliveryType: deliveryType || 'SHIPPING',
+          shippingCourier: shippingCourier || null,
+          shippingCost: finalShippingCost,
+          paymentOption: isFull ? 'LUNAS' : 'DP_50',
+          productPaymentStatus: 'PENDING',
+          shippingPaymentStatus: 'PENDING',
+          updatedAt: new Date(),
+        });
     });
 
     // 2. CALL XENDIT AFTER TRANSACTION
@@ -243,13 +265,13 @@ const generateSablonPayment = async (req, res, next) => {
         givenNames: customerNameParts[0] || 'Customer',
         ...(customerNameParts.length > 1 && { surname: customerNameParts.slice(1).join(' ') }),
         email: user.email,
-        mobileNumber: user.phone || '081234567890'
+        mobileNumber: user.phone || '081234567890',
       };
 
       const paymentId = require('cuid')();
       const invoiceType = isFull ? 'LUNAS' : 'DP';
       const externalIdWithSuffix = `${order.id}-${invoiceType}-${Date.now()}`;
-      
+
       const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
       const invoiceRequest = {
         externalId: externalIdWithSuffix, // <--- Suffix ditambahkan sesuai instruksi Sprint 2
@@ -258,13 +280,13 @@ const generateSablonPayment = async (req, res, next) => {
         description: `${isFull ? 'Lunas' : 'DP'} Sablon AriaNation #${order.orderNumber}`,
         customer: customer,
         successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
-        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout-sablon/${order.id}`
+        failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout-sablon/${order.id}`,
       };
 
       const xenditResponse = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
       paymentUrl = xenditResponse.invoiceUrl;
       xenditId = xenditResponse.id;
-      
+
       const paymentType = isFull ? 'FULL' : 'DP';
       const existingPayment = await knex('payment')
         .where({ orderId: order.id, status: 'PENDING' })
@@ -277,7 +299,7 @@ const generateSablonPayment = async (req, res, next) => {
           qrisUrl: paymentUrl,
           xenditId: xenditId,
           transactionId: order.id,
-          paymentType: paymentType
+          paymentType: paymentType,
         });
       } else {
         // Insert Payment Record
@@ -290,14 +312,14 @@ const generateSablonPayment = async (req, res, next) => {
           transactionId: order.id,
           qrisUrl: paymentUrl,
           xenditId: xenditId,
-          paymentType: paymentType
+          paymentType: paymentType,
         });
       }
 
       // Update Order Status to indicate payment is waiting
       await knex('order').where('id', orderId).update({
         status: 'PENDING', // Keep PENDING or PAID_WAITING_APPROVAL if actually paid. Waiting Xendit = PENDING.
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       // Queue 'Waiting for Payment' Notification
@@ -313,7 +335,6 @@ const generateSablonPayment = async (req, res, next) => {
       } catch (notifErr) {
         console.error('Failed to queue Sablon PENDING notification:', notifErr.message);
       }
-
     } catch (err) {
       console.error('Xendit Invoice Error:', err.message);
 
@@ -329,7 +350,9 @@ const generateSablonPayment = async (req, res, next) => {
         });
       }
 
-      throw new BadRequestError('Gagal membuat tagihan Xendit. Poin Anda telah dikembalikan otomatis.');
+      throw new BadRequestError(
+        'Gagal membuat tagihan Xendit. Poin Anda telah dikembalikan otomatis.'
+      );
     }
 
     return sendSuccess(res, { orderId, paymentUrl }, 'Checkout berhasil dibuat');
@@ -338,64 +361,69 @@ const generateSablonPayment = async (req, res, next) => {
   }
 };
 
-
 const createDraftCustomOrder = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const data = req.body;
-    
+
     const quantity = parseInt(data.quantity) || 1;
     const colors = parseInt(data.numberOfColors) || 1;
     let selectedPositions = [];
     if (data.printPosition) {
-      selectedPositions = data.printPosition.split(',').map(s => s.trim()).filter(Boolean);
+      selectedPositions = data.printPosition
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
-    
+
     let basePrice = 0;
     let techPrice = 0;
-    
+
     if (data.productTypeForSablon) {
       const product = await knex('product').where('id', data.productTypeForSablon).first();
       if (product) basePrice = parseFloat(product.price) || 0;
     }
-    
+
     if (data.printTechnique) {
       const technique = await knex('print_techniques').where('name', data.printTechnique).first();
       if (technique) {
         const baseTechPrice = parseFloat(technique.basePrice) || 0;
-        
+
         const multiplierSisi = selectedPositions.length > 0 ? selectedPositions.length : 1;
         if (technique.pricingType === 'fixed') {
           techPrice = baseTechPrice;
         } else if (technique.pricingType === 'color_based') {
           techPrice = baseTechPrice * colors * multiplierSisi;
         } else if (technique.pricingType === 'area_based') {
-          const matrix = typeof technique.priceMatrix === 'string' ? JSON.parse(technique.priceMatrix) : technique.priceMatrix;
+          const matrix =
+            typeof technique.priceMatrix === 'string'
+              ? JSON.parse(technique.priceMatrix)
+              : technique.priceMatrix;
           const currentSize = data.printSize;
           if (matrix && currentSize && matrix[currentSize] !== undefined) {
-             techPrice = parseFloat(matrix[currentSize]) * multiplierSisi;
+            techPrice = parseFloat(matrix[currentSize]) * multiplierSisi;
           } else {
-             techPrice = baseTechPrice * multiplierSisi;
+            techPrice = baseTechPrice * multiplierSisi;
           }
         }
       }
     }
-    
+
     const estimatedUnit = basePrice + techPrice;
     const estimatedTotal = estimatedUnit * quantity;
-    
+
     // Parse files from multipart upload
     let mockupPreviewUrl = null;
     let designFileUrl = null;
-    
+
     if (req.files && req.files.length > 0) {
-      const mockupFile = req.files.find(f => f.fieldname === 'mockupPreview');
+      const mockupFile = req.files.find((f) => f.fieldname === 'mockupPreview');
       if (mockupFile) mockupPreviewUrl = mockupFile.url;
-      
-      const mainDesign = req.files.find(f => f.fieldname === 'designFile');
+
+      const mainDesign = req.files.find((f) => f.fieldname === 'designFile');
       if (mainDesign) designFileUrl = mainDesign.url;
     }
-    
+
     const requestData = {
       id: require('cuid')(),
       userId,
@@ -422,11 +450,11 @@ const createDraftCustomOrder = async (req, res, next) => {
       estimatedPrice: estimatedTotal,
       status: 'DRAFT', // The critical difference
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     await knex('designRequest').insert(requestData);
-    
+
     return sendCreated(res, requestData, 'Item sablon ditambahkan ke keranjang (Draf)');
   } catch (error) {
     next(error);
@@ -450,7 +478,7 @@ const checkoutDraftCustomOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { draftIds } = req.body;
-    
+
     if (!draftIds || !Array.isArray(draftIds) || draftIds.length === 0) {
       throw new BadRequestError('Tidak ada item yang dipilih untuk checkout');
     }
@@ -464,7 +492,7 @@ const checkoutDraftCustomOrders = async (req, res, next) => {
     }
 
     let totalAmount = 0;
-    drafts.forEach(draft => {
+    drafts.forEach((draft) => {
       totalAmount += parseFloat(draft.estimatedPrice || 0);
     });
 
@@ -483,7 +511,7 @@ const checkoutDraftCustomOrders = async (req, res, next) => {
         city: 'Alamat Sablon',
         postalCode: '00000',
         phone: drafts[0].whatsappNumber || '-',
-        email: ''
+        email: '',
       };
 
       await trx('order').insert({
@@ -500,15 +528,12 @@ const checkoutDraftCustomOrders = async (req, res, next) => {
       });
 
       // 2. Update all Design Requests to belong to this order & change status to SUBMITTED
-      await trx('designRequest')
-        .whereIn('id', draftIds)
-        .update({
-          orderId,
-          status: 'SUBMITTED',
-          submittedAt: new Date(),
-          updatedAt: new Date()
-        });
-        
+      await trx('designRequest').whereIn('id', draftIds).update({
+        orderId,
+        status: 'SUBMITTED',
+        submittedAt: new Date(),
+        updatedAt: new Date(),
+      });
     });
 
     // Notifications
@@ -523,12 +548,12 @@ const checkoutDraftCustomOrders = async (req, res, next) => {
         title: 'Pengajuan Sablon Terkirim 🚀',
         message: `Pengajuan Sablon Anda (${orderId}) berhasil dikirim dengan ${drafts.length} item. Tim kami akan segera meninjau desain Anda.`,
       });
-      
+
       await knex('admin_notifications').insert({
         title: 'Pengajuan Sablon Baru (Bulk)!',
         message: `Pesanan Custom Sablon (${orderId}) masuk dengan ${drafts.length} variasi. Menunggu Evaluasi Admin.`,
         type: 'NEW_ORDER',
-        isRead: false
+        isRead: false,
       });
     } catch (e) {
       console.error('Failed notifications checkout', e);
@@ -543,7 +568,7 @@ const checkoutDraftCustomOrders = async (req, res, next) => {
 const createSablonPelunasanInvoice = async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    
+
     const order = await knex('order').where('id', orderId).first();
     if (!order) throw new NotFoundError('Order not found');
 
@@ -558,7 +583,7 @@ const createSablonPelunasanInvoice = async (req, res, next) => {
     const user = await knex('user').where('id', order.userId).first();
 
     const grandTotal = Number(order.totalAmount);
-    
+
     // The DP amount was Math.floor(grandTotal / 2)
     // The Pelunasan is Math.ceil(grandTotal / 2)
     const finalAmount = Math.ceil(grandTotal / 2);
@@ -566,13 +591,13 @@ const createSablonPelunasanInvoice = async (req, res, next) => {
     const paymentId = require('cuid')();
     const invoiceType = 'LUNAS';
     const externalIdWithSuffix = `${order.id}-${invoiceType}-${Date.now()}`;
-    
+
     const customerNameParts = user?.fullName ? user.fullName.split(' ') : [];
     const customer = {
       givenNames: customerNameParts[0] || 'Customer',
       ...(customerNameParts.length > 1 && { surname: customerNameParts.slice(1).join(' ') }),
       email: user?.email || 'customer@example.com',
-      mobileNumber: user?.phone || '081234567890'
+      mobileNumber: user?.phone || '081234567890',
     };
 
     const xenditClient = new Xendit({ secretKey: process.env.XENDIT_API_KEY });
@@ -583,12 +608,12 @@ const createSablonPelunasanInvoice = async (req, res, next) => {
       description: `Pelunasan Sablon AriaNation #${order.orderNumber}`,
       customer: customer,
       successRedirectUrl: `${process.env.FRONTEND_URL}/order-tracking/${order.id}`,
-      failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout-sablon/${order.id}`
+      failureRedirectUrl: `${process.env.FRONTEND_URL}/checkout-sablon/${order.id}`,
     };
 
     const xenditResponse = await xenditClient.Invoice.createInvoice({ data: invoiceRequest });
     const paymentUrl = xenditResponse.invoiceUrl;
-    
+
     const existingPayment = await knex('payment')
       .where({ orderId: order.id, paymentType: 'FULL', status: 'PENDING' })
       .first();
@@ -599,7 +624,7 @@ const createSablonPelunasanInvoice = async (req, res, next) => {
         method: 'XENDIT',
         qrisUrl: paymentUrl,
         xenditId: xenditResponse.id,
-        transactionId: order.id
+        transactionId: order.id,
       });
     } else {
       // Save Payment locally
@@ -612,7 +637,7 @@ const createSablonPelunasanInvoice = async (req, res, next) => {
         transactionId: order.id,
         qrisUrl: paymentUrl,
         xenditId: xenditResponse.id,
-        paymentType: 'FULL'
+        paymentType: 'FULL',
       });
     }
 
@@ -630,7 +655,11 @@ const createSablonPelunasanInvoice = async (req, res, next) => {
       console.error('Failed to queue Sablon LUNAS notification:', notifErr.message);
     }
 
-    return sendSuccess(res, { paymentUrl }, 'Tagihan Pelunasan berhasil dibuat dan dikirim ke kustomer');
+    return sendSuccess(
+      res,
+      { paymentUrl },
+      'Tagihan Pelunasan berhasil dibuat dan dikirim ke kustomer'
+    );
   } catch (error) {
     next(error);
   }
@@ -661,5 +690,5 @@ module.exports = {
   getDraftCustomOrders,
   checkoutDraftCustomOrders,
   deleteDraftCustomOrder,
-  createSablonPelunasanInvoice
+  createSablonPelunasanInvoice,
 };

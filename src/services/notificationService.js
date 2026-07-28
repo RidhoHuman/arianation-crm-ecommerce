@@ -14,7 +14,6 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   );
 }
 
-
 function createTransporter() {
   const user = process.env.EMAIL_USER || process.env.SMTP_USER;
   const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
@@ -63,7 +62,7 @@ const queueNotification = async ({
 
   const cuid = require('cuid');
   const notificationId = cuid();
-  
+
   await knex('customerNotification').insert({
     id: notificationId,
     userId: userId || order.userId || null,
@@ -95,23 +94,26 @@ const queueNotification = async ({
     const targetUserId = userId || order.userId;
     if (targetUserId && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
       const subscriptions = await knex('pushSubscriptions').where({ userId: targetUserId });
-      
+
       const pushPayload = JSON.stringify({
         title: title || 'Notifikasi Baru',
         body: message,
         url: `/customer/orders/${orderId}`,
-        icon: '/images/arianation-logo.png' // Or appropriate icon
+        icon: '/images/arianation-logo.png', // Or appropriate icon
       });
 
       for (const sub of subscriptions) {
         try {
-          await webPush.sendNotification({
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth
-            }
-          }, pushPayload);
+          await webPush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.p256dh,
+                auth: sub.auth,
+              },
+            },
+            pushPayload
+          );
         } catch (err) {
           if (err.statusCode === 404 || err.statusCode === 410) {
             // Subscription has expired or is no longer valid
@@ -147,14 +149,13 @@ const queueCustomerNotification = async ({
     throw new Error('userId or recipientEmail is required to queue a customer notification');
   }
 
-  const customer = userId ? await knex('user')
-    .select('id', 'email', 'fullName')
-    .where('id', userId)
-    .first() : null;
+  const customer = userId
+    ? await knex('user').select('id', 'email', 'fullName').where('id', userId).first()
+    : null;
 
   const cuid = require('cuid');
   const notificationId = cuid();
-  
+
   await knex('customerNotification').insert({
     id: notificationId,
     userId: userId || null,
@@ -185,29 +186,32 @@ const queueCustomerNotification = async ({
   try {
     if (userId && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
       const subscriptions = await knex('pushSubscriptions').where({ userId });
-      
+
       const urlMap = {
-        'ORDER': `/customer/orders/${referenceId}`,
-        'DESIGN_REQUEST': `/account?tab=sablon`,
-        'SYSTEM': `/notifications`
+        ORDER: `/customer/orders/${referenceId}`,
+        DESIGN_REQUEST: `/account?tab=sablon`,
+        SYSTEM: `/notifications`,
       };
-      
+
       const pushPayload = JSON.stringify({
         title: title || 'Notifikasi Baru',
         body: message,
         url: urlMap[referenceType] || `/notifications`,
-        icon: '/images/arianation-logo.png'
+        icon: '/images/arianation-logo.png',
       });
 
       for (const sub of subscriptions) {
         try {
-          await webPush.sendNotification({
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth
-            }
-          }, pushPayload);
+          await webPush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.p256dh,
+                auth: sub.auth,
+              },
+            },
+            pushPayload
+          );
         } catch (err) {
           if (err.statusCode === 404 || err.statusCode === 410) {
             await knex('pushSubscriptions').where({ id: sub.id }).delete();
@@ -231,18 +235,29 @@ const queueCustomerNotification = async ({
 const sendOrderNotification = async (notificationId) => {
   return enqueueNotification(async () => {
     const notification = await knex('customerNotification')
-      .select('id', 'referenceId', 'referenceType', 'userId', 'recipientEmail', 'type', 'title', 'message', 'emailSent')
+      .select(
+        'id',
+        'referenceId',
+        'referenceType',
+        'userId',
+        'recipientEmail',
+        'type',
+        'title',
+        'message',
+        'emailSent'
+      )
       .where('id', notificationId)
       .first();
 
     if (!notification) throw new Error('Notification not found');
 
-    const order = notification.referenceType === 'ORDER' 
-      ? await knex('order')
-        .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt', 'deliveryType')
-        .where('id', notification.referenceId)
-        .first()
-      : null;
+    const order =
+      notification.referenceType === 'ORDER'
+        ? await knex('order')
+            .select('id', 'orderNumber', 'totalAmount', 'status', 'createdAt', 'deliveryType')
+            .where('id', notification.referenceId)
+            .first()
+        : null;
 
     const transporter = createTransporter();
 
@@ -267,12 +282,10 @@ const sendOrderNotification = async (notificationId) => {
       console.log('Subject:', email.subject);
       console.log('Text:', email.text);
 
-      await knex('customerNotification')
-        .where('id', notificationId)
-        .update({
-          emailSent: false,
-          updatedAt: new Date(),
-        });
+      await knex('customerNotification').where('id', notificationId).update({
+        emailSent: false,
+        updatedAt: new Date(),
+      });
 
       return { success: true, logged: true, queued: true };
     }
@@ -287,16 +300,19 @@ const sendOrderNotification = async (notificationId) => {
 
     const info = await transporter.sendMail(mailOptions);
 
-    await knex('customerNotification')
-      .where('id', notificationId)
-      .update({
-        emailSent: true,
-        sentAt: new Date(),
-        updatedAt: new Date(),
-      });
+    await knex('customerNotification').where('id', notificationId).update({
+      emailSent: true,
+      sentAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     return { success: true, info, queued: true };
   });
 };
 
-module.exports = { queueNotification, queueCustomerNotification, sendOrderNotification, createTransporter };
+module.exports = {
+  queueNotification,
+  queueCustomerNotification,
+  sendOrderNotification,
+  createTransporter,
+};

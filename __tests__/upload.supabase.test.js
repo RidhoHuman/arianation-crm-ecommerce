@@ -3,7 +3,9 @@ jest.mock('@supabase/supabase-js', () => ({
     storage: {
       from: (bucket) => ({
         upload: jest.fn().mockResolvedValue({ data: null, error: null }),
-        createSignedUrl: jest.fn().mockResolvedValue({ data: { signedUrl: 'https://signed.example' }, error: null }),
+        createSignedUrl: jest
+          .fn()
+          .mockResolvedValue({ data: { signedUrl: 'https://signed.example' }, error: null }),
         remove: jest.fn().mockResolvedValue({ data: null, error: null }),
       }),
     },
@@ -29,6 +31,8 @@ afterAll(() => {
 describe('Supabase upload helper', () => {
   test('uploads buffer without throwing', async () => {
     const buf = Buffer.from('hello world');
-    await expect(uploadBufferToSupabase('products/test-file.txt', buf, 'text/plain')).resolves.toBeUndefined();
+    await expect(
+      uploadBufferToSupabase('products/test-file.txt', buf, 'text/plain')
+    ).resolves.toBeUndefined();
   });
 });

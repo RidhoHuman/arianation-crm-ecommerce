@@ -19,15 +19,15 @@ exports.subscribe = async (req, res) => {
     }
 
     await knex('newsletter_subscribers').insert({ email });
-    
+
     // Create admin notification
     await knex('admin_notifications').insert({
       title: 'Pelanggan Baru!',
       message: `${email} baru saja berlangganan newsletter.`,
       type: 'NEW_SUBSCRIBER',
-      isRead: false
+      isRead: false,
     });
-    
+
     res.json({ success: true, message: 'Berhasil berlangganan!' });
   } catch (error) {
     console.error('Error subscribing:', error);
@@ -59,7 +59,7 @@ exports.unsubscribe = async (req, res) => {
 // Background job processor
 const processPromoBlast = async (subscribers, subject, emailData) => {
   console.log(`[PromoBlast] Starting background job for ${subscribers.length} subscribers...`);
-  
+
   const user = process.env.EMAIL_USER || process.env.SMTP_USER;
   const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
 
@@ -80,7 +80,7 @@ const processPromoBlast = async (subscribers, subject, emailData) => {
   const batchSize = 10;
   for (let i = 0; i < subscribers.length; i += batchSize) {
     const batch = subscribers.slice(i, i + batchSize);
-    
+
     // Process batch concurrently
     const promises = batch.map(async (sub) => {
       try {
@@ -91,23 +91,25 @@ const processPromoBlast = async (subscribers, subject, emailData) => {
           text: emailData.text,
           html: emailData.html,
         });
-        
+
         // Push notification to user account if they have one
         const userRec = await knex('user').where('email', sub.email).first();
         if (userRec) {
           const cuid = require('cuid');
-          await knex('orderNotification').insert({
-            id: cuid(),
-            orderId: 'PROMO', // Differentiate from actual order
-            userId: userRec.id,
-            type: 'PROMO',
-            title: subject,
-            message: 'Promo Baru! Cek email Anda untuk info selengkapnya.',
-            emailSent: true,
-            createdAt: new Date(),
-          }).catch(() => {}); // Ignore errors if table structure is strict
+          await knex('orderNotification')
+            .insert({
+              id: cuid(),
+              orderId: 'PROMO', // Differentiate from actual order
+              userId: userRec.id,
+              type: 'PROMO',
+              title: subject,
+              message: 'Promo Baru! Cek email Anda untuk info selengkapnya.',
+              emailSent: true,
+              createdAt: new Date(),
+            })
+            .catch(() => {}); // Ignore errors if table structure is strict
         }
-        
+
         return true;
       } catch (err) {
         console.error(`[PromoBlast] Failed to send to ${sub.email}:`, err.message);
@@ -116,23 +118,23 @@ const processPromoBlast = async (subscribers, subject, emailData) => {
     });
 
     const results = await Promise.all(promises);
-    successCount += results.filter(r => r).length;
-    failCount += results.filter(r => !r).length;
-    
+    successCount += results.filter((r) => r).length;
+    failCount += results.filter((r) => !r).length;
+
     // Tiny delay between batches to avoid rate limits
     if (i + batchSize < subscribers.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
 
   console.log(`[PromoBlast] Job completed. Success: ${successCount}, Failed: ${failCount}`);
-  
+
   // Save log/report to database (optional)
   await knex('admin_notifications').insert({
     title: 'Laporan Blast Promo',
     message: `Blast promo "${subject}" selesai. Berhasil: ${successCount}, Gagal: ${failCount}`,
     type: 'SYSTEM',
-    isRead: false
+    isRead: false,
   });
 };
 
@@ -153,14 +155,14 @@ exports.sendPromoEmail = async (req, res) => {
     const emailData = renderPromoEmail({ subject, message, useTemplate });
 
     // Start background job WITHOUT awaiting
-    processPromoBlast(subscribers, subject, emailData).catch(err => {
+    processPromoBlast(subscribers, subject, emailData).catch((err) => {
       console.error('[PromoBlast] Background job crashed:', err);
     });
 
     // Return 202 Accepted immediately
-    res.status(202).json({ 
-      success: true, 
-      message: `Proses pengiriman blast promo ke ${subscribers.length} pelanggan sedang berjalan di latar belakang.`
+    res.status(202).json({
+      success: true,
+      message: `Proses pengiriman blast promo ke ${subscribers.length} pelanggan sedang berjalan di latar belakang.`,
     });
   } catch (error) {
     console.error('Error initiating promo blast:', error);

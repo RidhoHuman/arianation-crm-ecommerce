@@ -16,10 +16,7 @@ const createReview = async (req, res, next) => {
     }
 
     // 1. Validasi Kepemilikan & Status Pesanan
-    const order = await knex('order')
-      .where('id', orderId)
-      .andWhere('userId', userId)
-      .first();
+    const order = await knex('order').where('id', orderId).andWhere('userId', userId).first();
 
     if (!order) {
       throw new ForbiddenError('Anda tidak memiliki akses ke pesanan ini');
@@ -27,7 +24,9 @@ const createReview = async (req, res, next) => {
 
     // Pastikan order status adalah DELIVERED (Selesai)
     if (order.status !== 'DELIVERED') {
-      throw new BadRequestError('Ulasan hanya bisa diberikan untuk pesanan yang sudah selesai (DELIVERED)');
+      throw new BadRequestError(
+        'Ulasan hanya bisa diberikan untuk pesanan yang sudah selesai (DELIVERED)'
+      );
     }
 
     // Pastikan produk ada di dalam order
@@ -39,7 +38,7 @@ const createReview = async (req, res, next) => {
         .where('orderId', orderId)
         .andWhere('id', productId) // ID unik dari designRequest
         .first();
-      
+
       if (sablonReq) isItemValid = true;
     } else {
       // Default: validasi ke tabel orderItem (retail)
@@ -67,11 +66,21 @@ const createReview = async (req, res, next) => {
 
     // 2. Tentukan Poin Insentif
     // Ambil konfigurasi poin ulasan dari database
-    const textSetting = await knex('store_settings').where('settingKey', 'review_text_points').first();
-    const imageSetting = await knex('store_settings').where('settingKey', 'review_image_points').first();
-    
-    const textPoints = textSetting && !isNaN(Number(textSetting.settingValue)) ? Number(textSetting.settingValue) : 100;
-    const imagePoints = imageSetting && !isNaN(Number(imageSetting.settingValue)) ? Number(imageSetting.settingValue) : 500;
+    const textSetting = await knex('store_settings')
+      .where('settingKey', 'review_text_points')
+      .first();
+    const imageSetting = await knex('store_settings')
+      .where('settingKey', 'review_image_points')
+      .first();
+
+    const textPoints =
+      textSetting && !isNaN(Number(textSetting.settingValue))
+        ? Number(textSetting.settingValue)
+        : 100;
+    const imagePoints =
+      imageSetting && !isNaN(Number(imageSetting.settingValue))
+        ? Number(imageSetting.settingValue)
+        : 500;
 
     // Kalkulasi poin
     const pointsAwarded = imageUrl ? imagePoints : textPoints;
@@ -85,13 +94,11 @@ const createReview = async (req, res, next) => {
       comment,
       imageUrl: imageUrl || null,
       pointsAwarded,
-      isVerified: true
+      isVerified: true,
     });
 
     // 4. Tambahkan Poin ke User
-    await knex('user')
-      .where('id', userId)
-      .increment('rewardPoints', pointsAwarded);
+    await knex('user').where('id', userId).increment('rewardPoints', pointsAwarded);
 
     // Ambil data user terbaru untuk kembalian
     const updatedUser = await knex('user').where('id', userId).first();
@@ -101,8 +108,8 @@ const createReview = async (req, res, next) => {
       message: `Ulasan berhasil dikirim. Anda mendapatkan ${pointsAwarded} Poin!`,
       data: {
         pointsAwarded,
-        newTotalPoints: updatedUser.rewardPoints
-      }
+        newTotalPoints: updatedUser.rewardPoints,
+      },
     });
   } catch (error) {
     next(error);
@@ -118,17 +125,15 @@ const getProductReviews = async (req, res, next) => {
     const reviews = await knex('product_review')
       .join('user', 'product_review.userId', '=', 'user.id')
       .where('product_review.productId', productId)
-      .select(
-        'product_review.*',
-        'user.fullName as userName'
-      )
+      .select('product_review.*', 'user.fullName as userName')
       .orderBy('product_review.created_at', 'desc');
 
     // Hitung rata-rata
     const totalReviews = reviews.length;
-    const avgRating = totalReviews > 0 
-      ? (reviews.reduce((acc, curr) => acc + curr.rating, 0) / totalReviews).toFixed(1)
-      : 0;
+    const avgRating =
+      totalReviews > 0
+        ? (reviews.reduce((acc, curr) => acc + curr.rating, 0) / totalReviews).toFixed(1)
+        : 0;
 
     res.status(200).json({
       success: true,
@@ -136,9 +141,9 @@ const getProductReviews = async (req, res, next) => {
         reviews,
         stats: {
           totalReviews,
-          avgRating: Number(avgRating)
-        }
-      }
+          avgRating: Number(avgRating),
+        },
+      },
     });
   } catch (error) {
     next(error);
@@ -161,7 +166,7 @@ const getAllReviewsAdmin = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: reviews
+      data: reviews,
     });
   } catch (error) {
     next(error);
@@ -173,7 +178,7 @@ const deleteReviewAdmin = async (req, res, next) => {
   try {
     const { id } = req.params;
     const review = await knex('product_review').where({ id }).first();
-    
+
     if (!review) {
       throw new NotFoundError('Ulasan tidak ditemukan');
     }
@@ -182,7 +187,7 @@ const deleteReviewAdmin = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Ulasan berhasil dihapus'
+      message: 'Ulasan berhasil dihapus',
     });
   } catch (error) {
     next(error);
@@ -193,5 +198,5 @@ module.exports = {
   createReview,
   getProductReviews,
   getAllReviewsAdmin,
-  deleteReviewAdmin
+  deleteReviewAdmin,
 };

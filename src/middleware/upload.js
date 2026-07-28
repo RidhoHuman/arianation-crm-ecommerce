@@ -303,35 +303,39 @@ const uploadCustomOrderFiles = (req, res, next) => {
     } else if (err) {
       return res.status(400).json({ success: false, message: err.message });
     }
-    
+
     if (!req.files || req.files.length === 0) {
       return next();
     }
 
     if (USE_SUPABASE && supabase) {
       try {
-        await Promise.all(req.files.map(async (file) => {
-          const ext = path.extname(file.originalname).toLowerCase();
-          const timestamp = Date.now();
-          const random = Math.floor(Math.random() * 10000);
-          const filename = `order_${timestamp}_${random}${ext}`;
-          
-          const key = `designs/${filename}`;
-          await uploadBufferToSupabase(key, file.buffer, file.mimetype);
-          
-          file.filename = filename;
-          file.size = file.size || file.buffer.length;
-          file.url = getFileUrl(filename, 'designs');
-        }));
+        await Promise.all(
+          req.files.map(async (file) => {
+            const ext = path.extname(file.originalname).toLowerCase();
+            const timestamp = Date.now();
+            const random = Math.floor(Math.random() * 10000);
+            const filename = `order_${timestamp}_${random}${ext}`;
+
+            const key = `designs/${filename}`;
+            await uploadBufferToSupabase(key, file.buffer, file.mimetype);
+
+            file.filename = filename;
+            file.size = file.size || file.buffer.length;
+            file.url = getFileUrl(filename, 'designs');
+          })
+        );
       } catch (uploadErr) {
         console.error('Supabase multi-upload error:', uploadErr.message);
         sentryCapture(uploadErr, req, { stage: 'upload', type: 'custom_orders' });
-        return res.status(500).json({ success: false, message: 'Failed to upload files to Supabase' });
+        return res
+          .status(500)
+          .json({ success: false, message: 'Failed to upload files to Supabase' });
       }
     }
 
     if (!USE_SUPABASE) {
-      req.files.forEach(file => {
+      req.files.forEach((file) => {
         file.url = getFileUrl(file.filename, 'designs');
       });
     }
@@ -339,8 +343,6 @@ const uploadCustomOrderFiles = (req, res, next) => {
     next();
   });
 };
-
-
 
 // ============================================================
 // UTILITY FUNCTIONS

@@ -5,7 +5,15 @@ const { BadRequestError } = require('../utils/errors');
 const notificationService = require('./notificationService');
 
 const validTransitions = {
-  PENDING: ['PAID_WAITING_APPROVAL', 'CONFIRMED', 'CANCELLED', 'READY_TO_SHIP', 'PROCESSING', 'ON_HOLD', 'IN_PRODUCTION'],
+  PENDING: [
+    'PAID_WAITING_APPROVAL',
+    'CONFIRMED',
+    'CANCELLED',
+    'READY_TO_SHIP',
+    'PROCESSING',
+    'ON_HOLD',
+    'IN_PRODUCTION',
+  ],
   CONFIRMED: ['PROCESSING', 'CANCELLED', 'REFUND_REQUESTED', 'IN_PRODUCTION', 'READY_TO_SHIP'],
   PAID_WAITING_APPROVAL: ['PROCESSING', 'IN_PRODUCTION', 'CANCELLED', 'REFUND_REQUESTED'],
   IN_PRODUCTION: ['WAITING_FINAL_PAYMENT', 'CANCELLED', 'READY_TO_SHIP'],
@@ -22,7 +30,7 @@ const validTransitions = {
   ON_HOLD: ['PROCESSING', 'READY_FOR_DELIVERY', 'SHIPPED', 'CANCELLED', 'WAITING_FINAL_PAYMENT'],
   REFUND_REQUESTED: ['REFUNDED', 'CONFIRMED'],
   REFUNDED: [],
-  RETURNED: []
+  RETURNED: [],
 };
 
 /**
@@ -56,17 +64,26 @@ const validateTransitionRules = async (trx, order, newStatus) => {
   const isCustomSablon = await trx('designRequest').where('orderId', order.id).first();
 
   if (isCustomSablon) {
-    if (order.status === 'PAID_WAITING_APPROVAL' && !['IN_PRODUCTION', 'CANCELLED', 'REFUND_REQUESTED'].includes(newStatus)) {
+    if (
+      order.status === 'PAID_WAITING_APPROVAL' &&
+      !['IN_PRODUCTION', 'CANCELLED', 'REFUND_REQUESTED'].includes(newStatus)
+    ) {
       throw new BadRequestError('Custom Sablon orders must go to IN_PRODUCTION after approval');
     }
   } else {
-    if (order.status === 'PAID_WAITING_APPROVAL' && !['PROCESSING', 'CANCELLED', 'REFUND_REQUESTED'].includes(newStatus)) {
+    if (
+      order.status === 'PAID_WAITING_APPROVAL' &&
+      !['PROCESSING', 'CANCELLED', 'REFUND_REQUESTED'].includes(newStatus)
+    ) {
       throw new BadRequestError('Retail orders must go to PROCESSING after approval');
     }
   }
 
   // PENDING → CONFIRMED / PAID_WAITING_APPROVAL / READY_TO_SHIP: Only if Payment.status = 'COMPLETED'
-  if (order.status === 'PENDING' && ['CONFIRMED', 'PAID_WAITING_APPROVAL', 'READY_TO_SHIP'].includes(newStatus)) {
+  if (
+    order.status === 'PENDING' &&
+    ['CONFIRMED', 'PAID_WAITING_APPROVAL', 'READY_TO_SHIP'].includes(newStatus)
+  ) {
     if (!order.payment || order.payment.status !== 'COMPLETED') {
       throw new BadRequestError('Cannot approve order without completed payment');
     }
@@ -102,10 +119,7 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
     }
 
     // Get payment info for validation
-    const payment = await trx('payment')
-      .select('status')
-      .where('orderId', orderId)
-      .first();
+    const payment = await trx('payment').select('status').where('orderId', orderId).first();
 
     // Get tracking info for validation
     const tracking = await trx('orderTracking')
@@ -129,12 +143,10 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
     const previousStatus = order.status;
 
     // Update order status with optimistic locking (Race condition prevention)
-    const updatedRows = await trx('order')
-      .where({ id: orderId, status: order.status })
-      .update({
-        status: newStatus,
-        updatedAt: new Date(),
-      });
+    const updatedRows = await trx('order').where({ id: orderId, status: order.status }).update({
+      status: newStatus,
+      updatedAt: new Date(),
+    });
 
     if (updatedRows === 0) {
       throw new BadRequestError('Race condition: Order status was changed by another process');
@@ -142,32 +154,33 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
 
     // Cancel related design requests if this is a Custom Sablon order
     if (newStatus === 'CANCELLED' && order.orderNumber && order.orderNumber.startsWith('SAB-')) {
-      await trx('designRequest')
-        .where('orderId', orderId)
-        .update({
-          status: 'CANCELLED',
-          updatedAt: new Date()
-        });
+      await trx('designRequest').where('orderId', orderId).update({
+        status: 'CANCELLED',
+        updatedAt: new Date(),
+      });
     }
 
     // Award points if COMPLETED and order belongs to a user
     if (newStatus === 'COMPLETED' && order.userId) {
       const orderData = await trx('order').where('id', orderId).select('totalAmount').first();
-      
-      const earningRateSetting = await trx('store_settings').where('settingKey', 'points_earning_rate').first();
-      const earningRate = earningRateSetting && !isNaN(Number(earningRateSetting.settingValue)) 
-        ? Number(earningRateSetting.settingValue) 
-        : 10000;
-        
+
+      const earningRateSetting = await trx('store_settings')
+        .where('settingKey', 'points_earning_rate')
+        .first();
+      const earningRate =
+        earningRateSetting && !isNaN(Number(earningRateSetting.settingValue))
+          ? Number(earningRateSetting.settingValue)
+          : 10000;
+
       // Mencegah pembagian dengan 0 secara absolut (fallback to 10000)
-      const safeRate = earningRate > 0 ? earningRate : 10000; 
-      
+      const safeRate = earningRate > 0 ? earningRate : 10000;
+
       const earnedPoints = Math.floor((orderData.totalAmount || 0) / safeRate);
-      
+
       if (earnedPoints > 0) {
         // Update User table
         await trx('user').where('id', order.userId).increment('rewardPoints', earnedPoints);
-        
+
         // Add point history
         await trx('pointHistory').insert({
           id: require('cuid')(),
@@ -178,27 +191,33 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
           createdAt: new Date(),
         });
       }
-      
+
       // Update Customer Metrics
       const metrics = await trx('customerMetrics').where('userId', order.userId).first();
       if (metrics) {
         const newTotalTransactions = (metrics.totalTransactions || 0) + 1;
-        const newTotalSpent = parseFloat(metrics.totalSpent || 0) + parseFloat(orderData.totalAmount || 0);
+        const newTotalSpent =
+          parseFloat(metrics.totalSpent || 0) + parseFloat(orderData.totalAmount || 0);
         const newAverageOrderValue = newTotalSpent / newTotalTransactions;
-        
+
         // Fetch tier thresholds
-        const tierSettings = await trx('store_settings')
-          .whereIn('settingKey', ['tier_silver_min', 'tier_gold_min', 'tier_platinum_min']);
-        
+        const tierSettings = await trx('store_settings').whereIn('settingKey', [
+          'tier_silver_min',
+          'tier_gold_min',
+          'tier_platinum_min',
+        ]);
+
         const getTierMin = (key, defaultMin) => {
-          const setting = tierSettings.find(s => s.settingKey === key);
-          return setting && !isNaN(Number(setting.settingValue)) ? Number(setting.settingValue) : defaultMin;
+          const setting = tierSettings.find((s) => s.settingKey === key);
+          return setting && !isNaN(Number(setting.settingValue))
+            ? Number(setting.settingValue)
+            : defaultMin;
         };
 
         const platinumMin = getTierMin('tier_platinum_min', 5000000);
         const goldMin = getTierMin('tier_gold_min', 2000000);
         const silverMin = getTierMin('tier_silver_min', 500000);
-        
+
         // Tier calculation
         let newTier = metrics.currentTier || 'BRONZE';
         if (!metrics.isTierManuallySet) {
@@ -208,14 +227,16 @@ const updateOrderStatus = async (orderId, newStatus, updatedBy, reason = null, n
           else newTier = 'BRONZE';
         }
 
-        await trx('customerMetrics').where('userId', order.userId).update({
-          totalTransactions: newTotalTransactions,
-          totalSpent: newTotalSpent,
-          averageOrderValue: newAverageOrderValue,
-          loyaltyPoints: (metrics.loyaltyPoints || 0) + earnedPoints,
-          currentTier: newTier,
-          updatedAt: new Date()
-        });
+        await trx('customerMetrics')
+          .where('userId', order.userId)
+          .update({
+            totalTransactions: newTotalTransactions,
+            totalSpent: newTotalSpent,
+            averageOrderValue: newAverageOrderValue,
+            loyaltyPoints: (metrics.loyaltyPoints || 0) + earnedPoints,
+            currentTier: newTier,
+            updatedAt: new Date(),
+          });
       }
     }
 
@@ -269,7 +290,8 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
     },
     READY_TO_SHIP: {
       title: 'Pesanan Siap Dikirim/Diambil 📦',
-      message: 'Pesanan Anda sudah selesai dikemas dan siap untuk dikirim oleh kurir atau diambil di toko.',
+      message:
+        'Pesanan Anda sudah selesai dikemas dan siap untuk dikirim oleh kurir atau diambil di toko.',
       type: 'READY_TO_SHIP',
     },
     READY_FOR_DELIVERY: {
@@ -304,12 +326,14 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
     },
     ABANDONED: {
       title: 'Pesanan Dibatalkan Otomatis ❌',
-      message: 'Mohon Maaf, pesanan Sablon Anda telah dibatalkan oleh sistem karena melewati batas waktu pelunasan 7 hari. Sesuai S&K, Uang Muka (DP) tidak dapat dikembalikan.',
+      message:
+        'Mohon Maaf, pesanan Sablon Anda telah dibatalkan oleh sistem karena melewati batas waktu pelunasan 7 hari. Sesuai S&K, Uang Muka (DP) tidak dapat dikembalikan.',
       type: 'ABANDONED',
     },
     ON_HOLD: {
       title: 'Pesanan Dibekukan (ON HOLD) ⏸️',
-      message: 'Pesanan Anda dibekukan karena ada permasalahan (misal: melewati batas waktu pelunasan).',
+      message:
+        'Pesanan Anda dibekukan karena ada permasalahan (misal: melewati batas waktu pelunasan).',
       type: 'ON_HOLD',
     },
     REFUND_REQUESTED: {
@@ -339,12 +363,12 @@ const triggerStatusNotification = async (trx, orderId, status, order) => {
         userId: order.userId || null,
         type: config.type,
         title: config.title,
-        message: config.message
+        message: config.message,
       });
-      
+
       // Also trigger the email sending process
       if (notif && notif.id) {
-        notificationService.sendOrderNotification(notif.id).catch(err => {
+        notificationService.sendOrderNotification(notif.id).catch((err) => {
           console.error('Failed to send order notification email:', err);
         });
       }
@@ -384,10 +408,12 @@ const getOrderTimeline = async (orderId) => {
   ]);
 
   // Get tracking history
-  const trackingHistory = tracking ? await knex('trackingHistory')
-    .select('status', 'timestamp', 'location', 'notes')
-    .where('trackingId', tracking.id)
-    .orderBy('timestamp', 'desc') : [];
+  const trackingHistory = tracking
+    ? await knex('trackingHistory')
+        .select('status', 'timestamp', 'location', 'notes')
+        .where('trackingId', tracking.id)
+        .orderBy('timestamp', 'desc')
+    : [];
 
   // Merge and sort by timestamp
   const timeline = [
@@ -444,17 +470,19 @@ const updateOrderTracking = async (orderId, payload = {}) => {
   let trackingRecord;
   if (tracking) {
     // Update existing
-    await knex('orderTracking').where('orderId', orderId).update({
-      status: nextStatus,
-      currentLocation: payload.currentLocation ?? tracking.currentLocation ?? null,
-      estimatedDeliveryDate: payload.estimatedDeliveryDate
-        ? new Date(payload.estimatedDeliveryDate)
-        : tracking.estimatedDeliveryDate || null,
-      carrier: payload.carrier ?? tracking.carrier ?? null,
-      trackingNumber: payload.trackingNumber ?? tracking.trackingNumber ?? null,
-      lastUpdate: new Date(),
-      notes: payload.notes ?? tracking.notes ?? null,
-    });
+    await knex('orderTracking')
+      .where('orderId', orderId)
+      .update({
+        status: nextStatus,
+        currentLocation: payload.currentLocation ?? tracking.currentLocation ?? null,
+        estimatedDeliveryDate: payload.estimatedDeliveryDate
+          ? new Date(payload.estimatedDeliveryDate)
+          : tracking.estimatedDeliveryDate || null,
+        carrier: payload.carrier ?? tracking.carrier ?? null,
+        trackingNumber: payload.trackingNumber ?? tracking.trackingNumber ?? null,
+        lastUpdate: new Date(),
+        notes: payload.notes ?? tracking.notes ?? null,
+      });
     trackingRecord = await knex('orderTracking').where('orderId', orderId).first();
   } else {
     // Create new
@@ -498,12 +526,10 @@ const updateOrderTracking = async (orderId, payload = {}) => {
  * @returns {Promise<Object>} Updated notification
  */
 const markNotificationAsSent = async (notificationId) => {
-  return await knex('orderNotification')
-    .where('id', notificationId)
-    .update({
-      emailSent: true,
-      sentAt: new Date(),
-    });
+  return await knex('orderNotification').where('id', notificationId).update({
+    emailSent: true,
+    sentAt: new Date(),
+  });
 };
 
 module.exports = {

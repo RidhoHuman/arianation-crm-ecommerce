@@ -71,7 +71,11 @@ router.get('/dashboard', getDashboard);
 // ============================================================
 router.get('/products', getProducts);
 router.post('/products', upload.uploadProductImage, createProduct);
-router.post('/products/upload-image', upload.uploadProductImage, require('../controllers/adminController').uploadImageHandler);
+router.post(
+  '/products/upload-image',
+  upload.uploadProductImage,
+  require('../controllers/adminController').uploadImageHandler
+);
 router.put('/products/:id', upload.uploadProductImage, updateProduct);
 router.delete('/products/:id', deleteProduct);
 

@@ -67,9 +67,7 @@ class POService {
    * Get PO by ID
    */
   async getPOById(poId) {
-    const po = await knex('po_orders')
-      .where('id', poId)
-      .first();
+    const po = await knex('po_orders').where('id', poId).first();
 
     if (!po) {
       throw new NotFoundError('PO order tidak ditemukan');
@@ -100,14 +98,14 @@ class POService {
     if (productId) query = query.where('productId', productId);
     if (customerId) query = query.where('customerId', customerId);
 
-    const total = await query.clone().count('* as count').first().then(r => r.count);
+    const total = await query
+      .clone()
+      .count('* as count')
+      .first()
+      .then((r) => r.count);
     const offset = (page - 1) * limit;
 
-    const orders = await query
-      .select('*')
-      .orderBy('createdAt', 'desc')
-      .limit(limit)
-      .offset(offset);
+    const orders = await query.select('*').orderBy('createdAt', 'desc').limit(limit).offset(offset);
 
     // Get product details untuk setiap PO
     const enriched = await Promise.all(
@@ -143,7 +141,9 @@ class POService {
     const po = await this.getPOById(poId);
 
     if (po.status !== 'pending') {
-      throw new ValidationError(`Hanya PO dengan status 'pending' yang bisa di-confirm. Status saat ini: ${po.status}`);
+      throw new ValidationError(
+        `Hanya PO dengan status 'pending' yang bisa di-confirm. Status saat ini: ${po.status}`
+      );
     }
 
     // Update PO status
@@ -179,13 +179,11 @@ class POService {
       throw new ValidationError(`PO dengan status '${po.status}' tidak bisa dibatalkan`);
     }
 
-    await knex('po_orders')
-      .where('id', poId)
-      .update({
-        status: 'cancelled',
-        cancelledAt: new Date(),
-        notes: reason,
-      });
+    await knex('po_orders').where('id', poId).update({
+      status: 'cancelled',
+      cancelledAt: new Date(),
+      notes: reason,
+    });
 
     // Log inventory change
     await inventoryService.logInventoryChange(
@@ -240,12 +238,10 @@ class POService {
       throw new ValidationError(`Hanya PO dengan status 'shipped' yang bisa di-deliver`);
     }
 
-    await knex('po_orders')
-      .where('id', poId)
-      .update({
-        status: 'delivered',
-        deliveredAt: new Date(),
-      });
+    await knex('po_orders').where('id', poId).update({
+      status: 'delivered',
+      deliveredAt: new Date(),
+    });
 
     await inventoryService.logInventoryChange(
       po.productId,
@@ -263,20 +259,44 @@ class POService {
    * Get PO statistics
    */
   async getPOStats() {
-    const [totalPO, pendingPO, confirmedPO, shippedPO, deliveredPO, cancelledPO] = await Promise.all([
-      knex('po_orders').count('* as count').first().then(r => r.count || 0),
-      knex('po_orders').where('status', 'pending').count('* as count').first().then(r => r.count || 0),
-      knex('po_orders').where('status', 'confirmed').count('* as count').first().then(r => r.count || 0),
-      knex('po_orders').where('status', 'shipped').count('* as count').first().then(r => r.count || 0),
-      knex('po_orders').where('status', 'delivered').count('* as count').first().then(r => r.count || 0),
-      knex('po_orders').where('status', 'cancelled').count('* as count').first().then(r => r.count || 0),
-    ]);
+    const [totalPO, pendingPO, confirmedPO, shippedPO, deliveredPO, cancelledPO] =
+      await Promise.all([
+        knex('po_orders')
+          .count('* as count')
+          .first()
+          .then((r) => r.count || 0),
+        knex('po_orders')
+          .where('status', 'pending')
+          .count('* as count')
+          .first()
+          .then((r) => r.count || 0),
+        knex('po_orders')
+          .where('status', 'confirmed')
+          .count('* as count')
+          .first()
+          .then((r) => r.count || 0),
+        knex('po_orders')
+          .where('status', 'shipped')
+          .count('* as count')
+          .first()
+          .then((r) => r.count || 0),
+        knex('po_orders')
+          .where('status', 'delivered')
+          .count('* as count')
+          .first()
+          .then((r) => r.count || 0),
+        knex('po_orders')
+          .where('status', 'cancelled')
+          .count('* as count')
+          .first()
+          .then((r) => r.count || 0),
+      ]);
 
     const totalRevenue = await knex('po_orders')
       .where('status', 'delivered')
       .sum('totalPrice as sum')
       .first()
-      .then(r => r.sum || 0);
+      .then((r) => r.sum || 0);
 
     return {
       total: totalPO,

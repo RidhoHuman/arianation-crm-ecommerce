@@ -53,7 +53,7 @@ const getUserById = async (req, res, next) => {
         currentTier: 'BRONZE',
         totalSpent: 0,
         loyaltyPoints: user.rewardPoints || 0,
-        totalTransactions: 0
+        totalTransactions: 0,
       };
     }
 
@@ -111,49 +111,43 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
-  const updateProfile = async (req, res, next) => {
-    try {
-      const {
-        fullName,
-        phone,
-        address,
-        city,
-        postalCode,
-        province,
-        emailPromo,
-        emailOrderUpdates,
-      } = req.body;
-      const userId = req.user.id;
-  
-      const updateData = {};
-      if (fullName !== undefined) updateData.fullName = fullName;
-      if (phone !== undefined) updateData.phone = phone;
-  
-      const user = await userService.update(userId, updateData);
-  
-      if (
-        address !== undefined ||
-        city !== undefined ||
-        postalCode !== undefined ||
-        province !== undefined ||
-        emailPromo !== undefined ||
-        emailOrderUpdates !== undefined
-      ) {
-        const profileData = {};
-        if (address !== undefined) profileData.address = address;
-        if (city !== undefined) profileData.city = city;
-        if (postalCode !== undefined) profileData.postalCode = postalCode;
-        if (province !== undefined) profileData.province = province;
-        if (emailPromo !== undefined) profileData.emailPromo = emailPromo;
-        if (emailOrderUpdates !== undefined) profileData.emailOrderUpdates = emailOrderUpdates;
+const updateProfile = async (req, res, next) => {
+  try {
+    const { fullName, phone, address, city, postalCode, province, emailPromo, emailOrderUpdates } =
+      req.body;
+    const userId = req.user.id;
+
+    const updateData = {};
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (phone !== undefined) updateData.phone = phone;
+
+    const user = await userService.update(userId, updateData);
+
+    if (
+      address !== undefined ||
+      city !== undefined ||
+      postalCode !== undefined ||
+      province !== undefined ||
+      emailPromo !== undefined ||
+      emailOrderUpdates !== undefined
+    ) {
+      const profileData = {};
+      if (address !== undefined) profileData.address = address;
+      if (city !== undefined) profileData.city = city;
+      if (postalCode !== undefined) profileData.postalCode = postalCode;
+      if (province !== undefined) profileData.province = province;
+      if (emailPromo !== undefined) profileData.emailPromo = emailPromo;
+      if (emailOrderUpdates !== undefined) profileData.emailOrderUpdates = emailOrderUpdates;
 
       // Insert/Update ke customerProfile table menggunakan Knex
       const existing = await knex('customerProfile').where('userId', userId).first();
       if (existing) {
-        await knex('customerProfile').where('userId', userId).update({
-          ...profileData,
-          updatedAt: new Date()
-        });
+        await knex('customerProfile')
+          .where('userId', userId)
+          .update({
+            ...profileData,
+            updatedAt: new Date(),
+          });
       } else {
         const id = require('cuid')();
         await knex('customerProfile').insert({
@@ -161,7 +155,7 @@ const deleteUser = async (req, res, next) => {
           userId,
           ...profileData,
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         });
       }
     }
@@ -211,9 +205,7 @@ const getPointsHistory = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    const history = await knex('pointHistory')
-      .where('userId', userId)
-      .orderBy('createdAt', 'desc');
+    const history = await knex('pointHistory').where('userId', userId).orderBy('createdAt', 'desc');
 
     // Jika kosong, kita berikan bonus registrasi fiktif (karena user lama belum tercatat saat register)
     if (history.length === 0) {

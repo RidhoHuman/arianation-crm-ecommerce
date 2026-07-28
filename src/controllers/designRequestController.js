@@ -85,7 +85,7 @@ const createDesignRequest = async (req, res, next) => {
       shippingAddress,
       shippingNotes,
       designFileUrl: bodyDesignFileUrl,
-      fileType: bodyFileType
+      fileType: bodyFileType,
     } = req.body;
 
     // Validation
@@ -110,32 +110,38 @@ const createDesignRequest = async (req, res, next) => {
     try {
       if (productTypeForSablon && quantity) {
         // Fetch product base price
-        const product = await knex('product').where('id', productTypeForSablon).select('price').first();
+        const product = await knex('product')
+          .where('id', productTypeForSablon)
+          .select('price')
+          .first();
         const baseKaosPrice = product && product.price ? parseFloat(product.price) : 0;
-        
+
         let sablonPrice = 0;
         let isPriceCalculable = false;
 
         if (printTechnique) {
           const techData = await knex('print_techniques').where('name', printTechnique).first();
           if (techData && techData.priceMatrix) {
-            const matrix = typeof techData.priceMatrix === 'string' ? JSON.parse(techData.priceMatrix) : techData.priceMatrix;
+            const matrix =
+              typeof techData.priceMatrix === 'string'
+                ? JSON.parse(techData.priceMatrix)
+                : techData.priceMatrix;
             if (printSize && matrix[printSize] !== undefined) {
               sablonPrice = parseFloat(matrix[printSize]);
               isPriceCalculable = true;
             }
           } else if (techData && techData.pricingType === 'area_based' && techData.basePrice) {
-             // Fallback for techniques without matrix but with basePrice
-             sablonPrice = parseFloat(techData.basePrice);
-             isPriceCalculable = true;
+            // Fallback for techniques without matrix but with basePrice
+            sablonPrice = parseFloat(techData.basePrice);
+            isPriceCalculable = true;
           }
         } else {
-           // No print technique selected, maybe just base product price
-           isPriceCalculable = true;
+          // No print technique selected, maybe just base product price
+          isPriceCalculable = true;
         }
 
         if (isPriceCalculable) {
-           estimatedPrice = parseInt(quantity, 10) * (baseKaosPrice + sablonPrice);
+          estimatedPrice = parseInt(quantity, 10) * (baseKaosPrice + sablonPrice);
         }
       }
     } catch (err) {
@@ -186,14 +192,16 @@ const createDesignRequest = async (req, res, next) => {
       .catch(() => {}); // Don't fail if audit log fails
 
     // Queue notification to customer
-    await notificationService.queueCustomerNotification({
-      referenceId: request.id,
-      referenceType: 'DESIGN_REQUEST',
-      userId,
-      type: 'DESIGN_REQUEST_SUBMITTED',
-      title: 'Design Request Diterima',
-      message: `Permintaan desain "${designTitle}" telah berhasil diajukan.`
-    }).catch(console.error);
+    await notificationService
+      .queueCustomerNotification({
+        referenceId: request.id,
+        referenceType: 'DESIGN_REQUEST',
+        userId,
+        type: 'DESIGN_REQUEST_SUBMITTED',
+        title: 'Design Request Diterima',
+        message: `Permintaan desain "${designTitle}" telah berhasil diajukan.`,
+      })
+      .catch(console.error);
 
     return sendCreated(res, request, MESSAGES.DESIGN_REQUEST_CREATED);
   } catch (error) {
@@ -257,7 +265,7 @@ const updateDesignRequest = async (req, res, next) => {
     if (status !== undefined && status !== existing.status) {
       let title = status === 'REJECTED' ? 'Design Request Ditolak' : 'Update Status Design Request';
       let message = `Status permintaan desain "${existing.designTitle}" telah diubah menjadi ${status}.`;
-      
+
       if (status === 'REJECTED' && rejectReason) {
         message = `Permintaan desain "${existing.designTitle}" Anda telah ditolak. Alasan: ${rejectReason}`;
       } else if (status === 'APPROVED') {
@@ -266,53 +274,55 @@ const updateDesignRequest = async (req, res, next) => {
       }
 
       // Status changed, notify customer
-      await notificationService.queueCustomerNotification({
-        referenceId: id,
-        referenceType: 'DESIGN_REQUEST',
-        userId: existing.userId,
-        type: `DESIGN_REQUEST_${status}`,
-        title: title,
-        message: message
-      }).catch(console.error);
+      await notificationService
+        .queueCustomerNotification({
+          referenceId: id,
+          referenceType: 'DESIGN_REQUEST',
+          userId: existing.userId,
+          type: `DESIGN_REQUEST_${status}`,
+          title: title,
+          message: message,
+        })
+        .catch(console.error);
 
       // [NEW LOGIC] Sync with Parent Order if exists
       if (existing.orderId) {
         const knex = require('../config/knex');
         // Get all design requests for this order
         const siblings = await knex('designRequest').where('orderId', existing.orderId);
-        
+
         // Check if all are processed (none are SUBMITTED, DRAFT, or REVISION_REQUESTED)
-        const allProcessed = siblings.every(req => 
+        const allProcessed = siblings.every((req) =>
           ['APPROVED', 'REJECTED', 'CANCELLED'].includes(req.status)
         );
 
         if (allProcessed) {
           // Calculate new total amount for the order based ONLY on APPROVED designs
           const newTotalAmount = siblings
-            .filter(req => req.status === 'APPROVED')
+            .filter((req) => req.status === 'APPROVED')
             .reduce((sum, req) => {
               const estPrice = parseFloat(req.estimatedPrice) || 0;
               return sum + estPrice;
             }, 0);
 
           // Update the parent order
-          await knex('order')
-            .where('id', existing.orderId)
-            .update({
-              totalAmount: newTotalAmount,
-              status: 'CONFIRMED', // CONFIRMED means Admin has approved the designs and set the final price
-              updatedAt: new Date()
-            });
+          await knex('order').where('id', existing.orderId).update({
+            totalAmount: newTotalAmount,
+            status: 'CONFIRMED', // CONFIRMED means Admin has approved the designs and set the final price
+            updatedAt: new Date(),
+          });
 
           // Optional: Send another notification that the Order is ready for payment
-          await notificationService.queueCustomerNotification({
-            referenceId: existing.orderId,
-            referenceType: 'ORDER',
-            userId: existing.userId,
-            type: 'ORDER_READY_FOR_PAYMENT',
-            title: 'Pesanan Siap Dibayar',
-            message: `Semua desain dalam pesanan ${existing.orderId} telah selesai direview. Silakan pilih metode pembayaran untuk melanjutkan.`
-          }).catch(console.error);
+          await notificationService
+            .queueCustomerNotification({
+              referenceId: existing.orderId,
+              referenceType: 'ORDER',
+              userId: existing.userId,
+              type: 'ORDER_READY_FOR_PAYMENT',
+              title: 'Pesanan Siap Dibayar',
+              message: `Semua desain dalam pesanan ${existing.orderId} telah selesai direview. Silakan pilih metode pembayaran untuk melanjutkan.`,
+            })
+            .catch(console.error);
         }
       }
     } // Missing brace for if (status !== undefined && status !== existing.status)
@@ -336,16 +346,21 @@ const submitDesignRequest = async (req, res, next) => {
       throw new AuthorizationError(MESSAGES.FORBIDDEN);
     }
 
-    const request = await designRequestService.update(id, { status: 'SUBMITTED', submittedAt: new Date() });
+    const request = await designRequestService.update(id, {
+      status: 'SUBMITTED',
+      submittedAt: new Date(),
+    });
 
-    await notificationService.queueCustomerNotification({
-      referenceId: id,
-      referenceType: 'DESIGN_REQUEST',
-      userId: existing.userId,
-      type: 'DESIGN_REQUEST_SUBMITTED',
-      title: 'Design Request Diterima',
-      message: `Permintaan desain "${existing.designTitle}" telah berhasil diajukan.`
-    }).catch(console.error);
+    await notificationService
+      .queueCustomerNotification({
+        referenceId: id,
+        referenceType: 'DESIGN_REQUEST',
+        userId: existing.userId,
+        type: 'DESIGN_REQUEST_SUBMITTED',
+        title: 'Design Request Diterima',
+        message: `Permintaan desain "${existing.designTitle}" telah berhasil diajukan.`,
+      })
+      .catch(console.error);
 
     return sendSuccess(res, request, 'Design request submitted successfully');
   } catch (error) {
@@ -386,14 +401,16 @@ const addFeedback = async (req, res, next) => {
     const feedback = await knex('designFeedback').where('id', feedbackId).first();
 
     // Notify customer about feedback
-    await notificationService.queueCustomerNotification({
-      referenceId: id,
-      referenceType: 'DESIGN_REQUEST',
-      userId: designRequest.userId,
-      type: `DESIGN_REQUEST_FEEDBACK_${feedbackType}`,
-      title: 'Feedback Design Request',
-      message: `Admin telah memberikan feedback untuk desain "${designRequest.designTitle}": ${feedbackType}.`
-    }).catch(console.error);
+    await notificationService
+      .queueCustomerNotification({
+        referenceId: id,
+        referenceType: 'DESIGN_REQUEST',
+        userId: designRequest.userId,
+        type: `DESIGN_REQUEST_FEEDBACK_${feedbackType}`,
+        title: 'Feedback Design Request',
+        message: `Admin telah memberikan feedback untuk desain "${designRequest.designTitle}": ${feedbackType}.`,
+      })
+      .catch(console.error);
 
     return sendCreated(res, feedback, MESSAGES.DESIGN_FEEDBACK_ADDED);
   } catch (error) {
@@ -516,7 +533,7 @@ const uploadDesignFileAndUpdate = async (req, res, next) => {
       const path = require('path');
       const oldFilename = path.basename(designRequest.designFileUrl);
       const oldFilePath = path.join(__dirname, '../../uploads/designs', oldFilename);
-      
+
       try {
         if (fs.existsSync(oldFilePath)) {
           fs.unlinkSync(oldFilePath);
@@ -528,14 +545,12 @@ const uploadDesignFileAndUpdate = async (req, res, next) => {
     }
 
     // Update design request with file URL and reset status
-    const updatedDesignRequest = await knex('designRequest')
-      .where('id', designRequestId)
-      .update({
-        designFileUrl: fileUrl, // Update to the correct column name: designFileUrl
-        status: 'SUBMITTED', // Reset status so admin reviews it again
-        submittedAt: new Date(),
-        updatedAt: new Date(),
-      });
+    const updatedDesignRequest = await knex('designRequest').where('id', designRequestId).update({
+      designFileUrl: fileUrl, // Update to the correct column name: designFileUrl
+      status: 'SUBMITTED', // Reset status so admin reviews it again
+      submittedAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     // Notify Admin about the re-upload (Optional but good UX)
     try {
@@ -546,17 +561,14 @@ const uploadDesignFileAndUpdate = async (req, res, next) => {
         userId: null, // Admin
         type: 'DESIGN_REQUEST_REUPLOADED',
         title: 'File Revisi Diunggah',
-        message: `Kustomer telah mengunggah file revisi untuk permintaan desain "${designRequest.designTitle}".`
+        message: `Kustomer telah mengunggah file revisi untuk permintaan desain "${designRequest.designTitle}".`,
       });
-    } catch(e) {
+    } catch (e) {
       console.error('Failed to notify admin on re-upload', e);
     }
 
     // Fetch updated record
-    const updated = await knex('designRequest')
-      .where('id', designRequestId)
-      .select('*')
-      .first();
+    const updated = await knex('designRequest').where('id', designRequestId).select('*').first();
 
     return sendSuccess(res, updated, 'Design file uploaded successfully');
   } catch (error) {
