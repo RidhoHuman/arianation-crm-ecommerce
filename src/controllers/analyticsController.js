@@ -30,9 +30,9 @@ const getSalesAnalytics = async (req, res, next) => {
     // Get summary
     const summary = await knex('order')
       .select(
-        knex.raw('COUNT(DISTINCT order.id) as totalOrders'),
-        knex.raw('COALESCE(SUM(orderItem.quantity), 0) as totalItems'),
-        knex.raw('COALESCE(SUM(order.totalAmount), 0) as totalRevenue')
+        knex.raw('COUNT(DISTINCT ??) as totalOrders', ['order.id']),
+        knex.raw('COALESCE(SUM(??), 0) as totalItems', ['orderItem.quantity']),
+        knex.raw('COALESCE(SUM(??), 0) as totalRevenue', ['order.totalAmount'])
       )
       .leftJoin('orderItem', 'order.id', 'orderItem.orderId')
       .where('order.createdAt', '>=', daysAgo)

@@ -31,7 +31,6 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      NODE_ENV: test
       PORT: 3001
       NODE_OPTIONS: --max-old-space-size=1024
     steps:

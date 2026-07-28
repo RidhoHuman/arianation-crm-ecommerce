@@ -258,7 +258,10 @@ const getRevenueAnalytics = async (filters = {}) => {
   const grouped = {};
 
   orders.forEach((order) => {
+    if (!order.createdAt) return;
     const date = new Date(order.createdAt);
+    if (isNaN(date.getTime())) return;
+    
     let key;
 
     if (groupBy === 'day') {
