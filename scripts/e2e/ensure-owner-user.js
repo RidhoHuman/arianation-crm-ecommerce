@@ -18,7 +18,7 @@ async function main() {
       fullName: OWNER_FULL_NAME,
       role: 'OWNER',
       isActive: true,
-      emailVerified: new Date(),
+      emailVerified: true,
       updatedAt: new Date()
     });
   } else {
@@ -29,7 +29,7 @@ async function main() {
       fullName: OWNER_FULL_NAME,
       role: 'OWNER',
       isActive: true,
-      emailVerified: new Date(),
+      emailVerified: true,
       createdAt: new Date(),
       updatedAt: new Date()
     });

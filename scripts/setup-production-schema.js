@@ -54,7 +54,23 @@ async function setupSchema() {
       });
       console.log('✅ user table created');
     } else {
-      console.log('⏭️  user table sudah ada');
+      console.log('⏭️  user table sudah ada, checking columns...');
+      const hasRewardPoints = await db.schema.hasColumn('user', 'rewardPoints');
+      const hasEmailVerified = await db.schema.hasColumn('user', 'emailVerified');
+      
+      if (!hasRewardPoints || !hasEmailVerified) {
+        await db.schema.alterTable('user', (t) => {
+          if (!hasRewardPoints) {
+            console.log('   ➕ adding rewardPoints column');
+            t.integer('rewardPoints').defaultTo(0);
+          }
+          if (!hasEmailVerified) {
+            console.log('   ➕ adding emailVerified column');
+            t.boolean('emailVerified').defaultTo(false);
+          }
+        });
+        console.log('✅ user table updated with missing columns');
+      }
     }
 
     // Product Category table
