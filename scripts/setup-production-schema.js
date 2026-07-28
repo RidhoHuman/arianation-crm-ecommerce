@@ -610,6 +610,31 @@ async function setupSchema() {
       console.log('⏭️  wishlist table sudah ada');
     }
 
+    // Voucher table
+    const hasVoucherTable = await db.schema.hasTable('voucher');
+    if (!hasVoucherTable) {
+      console.log('📝 Creating voucher table...');
+      await db.schema.createTable('voucher', (t) => {
+        t.string('id').primary();
+        t.string('code').unique().notNullable();
+        t.string('type').notNullable(); // PERCENTAGE or FIXED
+        t.decimal('value', 10, 2).notNullable();
+        t.decimal('minPurchase', 10, 2).defaultTo(0);
+        t.decimal('maxDiscount', 10, 2).defaultTo(0);
+        t.integer('usageLimit').nullable();
+        t.integer('usedCount').defaultTo(0);
+        t.boolean('isActive').defaultTo(true);
+        t.timestamp('expiresAt').nullable();
+        t.string('targetTier').defaultTo('ALL');
+        t.boolean('isPublic').defaultTo(true);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ voucher table created');
+    } else {
+      console.log('⏭️  voucher table sudah ada');
+    }
+
     // Point History table
     const hasPointHistoryTable = await db.schema.hasTable('pointHistory');
     if (!hasPointHistoryTable) {
