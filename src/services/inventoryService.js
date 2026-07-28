@@ -220,7 +220,7 @@ class InventoryService {
       'id',
       'productName',
       'price',
-      'category',
+      'categoryId as category',
       'stockQuantity',
       'readyStock',
       'stockType',
@@ -229,11 +229,11 @@ class InventoryService {
       'businessType'
     );
 
-    if (category) query = query.where('category', category);
+    if (category) query = query.where('categoryId', category);
     if (search) query = query.where('productName', 'like', `%${search}%`);
     if (featured !== undefined) query = query.where('featured', featured);
 
-    const products = await query.orderBy('category', 'asc').orderBy('productName', 'asc');
+    const products = await query.orderBy('categoryId', 'asc').orderBy('productName', 'asc');
 
     // Tambahkan PO count per product
     const enriched = await Promise.all(
