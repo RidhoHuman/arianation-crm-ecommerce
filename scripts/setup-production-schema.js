@@ -384,6 +384,30 @@ async function setupSchema() {
       }
     }
 
+    // Print Techniques table
+    const hasPrintTechniquesTable = await db.schema.hasTable('print_techniques');
+    if (!hasPrintTechniquesTable) {
+      console.log('📝 Creating print_techniques table...');
+      await db.schema.createTable('print_techniques', (t) => {
+        t.string('id').primary();
+        t.string('name').notNullable();
+        t.text('description').nullable();
+        t.text('allowedCategories').defaultTo('[]'); // JSON string
+        t.integer('minOrder').defaultTo(1);
+        t.string('pricingType').defaultTo('fixed');
+        t.decimal('basePrice', 10, 2).defaultTo(0);
+        t.text('priceMatrix').nullable(); // JSON string
+        t.integer('maxColors').nullable();
+        t.string('imageUrl').nullable();
+        t.boolean('isActive').defaultTo(true);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ print_techniques table created');
+    } else {
+      console.log('⏭️  print_techniques table sudah ada');
+    }
+
     // Design Request table
     const hasDesignRequestTable = await db.schema.hasTable('designRequest');
     if (!hasDesignRequestTable) {
