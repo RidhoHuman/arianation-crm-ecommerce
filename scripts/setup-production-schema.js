@@ -90,12 +90,32 @@ async function setupSchema() {
         t.string('id').primary();
         t.string('categoryName');
         t.string('businessType');
+        t.text('description');
+        t.string('imageUrl');
+        t.text('longDescription');
+        t.string('purpose');
+        t.text('highlights');
+        t.text('useCases');
+        t.boolean('isActive').defaultTo(true);
         t.timestamp('createdAt').defaultTo(db.fn.now());
         t.timestamp('updatedAt').defaultTo(db.fn.now());
       });
       console.log('✅ productCategory table created');
     } else {
-      console.log('⏭️  productCategory table sudah ada');
+      console.log('⏭️  productCategory table sudah ada, checking columns...');
+      const hasDesc = await db.schema.hasColumn('productCategory', 'description');
+      if (!hasDesc) {
+        await db.schema.alterTable('productCategory', (t) => {
+          t.text('description');
+          t.string('imageUrl');
+          t.text('longDescription');
+          t.string('purpose');
+          t.text('highlights');
+          t.text('useCases');
+          t.boolean('isActive').defaultTo(true);
+        });
+        console.log('✅ Added missing columns to productCategory');
+      }
     }
 
     // Product Type Master table
