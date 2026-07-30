@@ -257,7 +257,7 @@ export default function Layout() {
                   </Link>
                 )}
                 <Link to={user.role === 'ADMIN' || user.role === 'OWNER' ? "/admin" : "/account"} className={`hidden md:inline-block transition-colors ${isTransparent ? 'text-white hover:text-gray-300' : 'text-aria-charcoal dark:text-gray-300 hover:text-aria-maroon dark:hover:text-white'}`}>
-                  {user.role === 'ADMIN' || user.role === 'OWNER' ? 'Admin' : t('account')}
+                  {user.role === 'OWNER' ? 'Owner' : user.role === 'ADMIN' ? 'Admin' : t('account')}
                 </Link>
                 <button
                   onClick={handleLogout}
@@ -339,7 +339,7 @@ export default function Layout() {
                     onClick={() => setIsMobileMenuOpen(false)} 
                     className="font-bold text-sm tracking-widest text-blue-600 dark:text-blue-400 hover:text-aria-maroon uppercase"
                   >
-                    {user.role === 'ADMIN' || user.role === 'OWNER' ? t('adminPanel') : t('account')}
+                    {user.role === 'OWNER' ? 'Owner Panel' : user.role === 'ADMIN' ? 'Admin Panel' : t('account')}
                   </Link>
                 )}
               </div>
