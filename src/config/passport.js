@@ -37,7 +37,7 @@ if (config.google.clientId && config.google.clientSecret) {
               fullName: profile.displayName || 'Google User',
               role: 'CUSTOMER',
               isActive: true,
-              emailVerified: true, // Google emails are already verified
+              emailVerified: new Date(), // Google emails are already verified
               createdAt: new Date(),
               updatedAt: new Date(),
             };
@@ -118,7 +118,7 @@ if (config.facebook.appId && config.facebook.appSecret) {
                   : 'Facebook User'),
               role: 'CUSTOMER',
               isActive: true,
-              emailVerified: true, // Facebook emails are already verified
+              emailVerified: new Date(), // Facebook emails are already verified
               createdAt: new Date(),
               updatedAt: new Date(),
             };
