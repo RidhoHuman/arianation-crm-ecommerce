@@ -846,6 +846,38 @@ async function setupSchema() {
       console.log('✅ product_collection table created');
     }
 
+    // Portfolio Items table
+    const hasPortfolioTable = await db.schema.hasTable('portfolio_items');
+    if (!hasPortfolioTable) {
+      console.log('📝 Creating portfolio_items table...');
+      await db.schema.createTable('portfolio_items', (t) => {
+        t.increments('id').primary();
+        t.string('title').notNullable();
+        t.string('category').notNullable();
+        t.string('image').notNullable();
+        t.boolean('isActive').defaultTo(true);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ portfolio_items table created');
+    }
+
+    // FAQ Items table
+    const hasFaqTable = await db.schema.hasTable('faq_items');
+    if (!hasFaqTable) {
+      console.log('📝 Creating faq_items table...');
+      await db.schema.createTable('faq_items', (t) => {
+        t.increments('id').primary();
+        t.text('question').notNullable();
+        t.text('answer').notNullable();
+        t.integer('orderIndex').defaultTo(0);
+        t.boolean('isActive').defaultTo(true);
+        t.timestamp('createdAt').defaultTo(db.fn.now());
+        t.timestamp('updatedAt').defaultTo(db.fn.now());
+      });
+      console.log('✅ faq_items table created');
+    }
+
     console.log('\n✅ Production schema setup complete!');
   } catch (err) {
     console.error('❌ Schema setup failed:', err.message);

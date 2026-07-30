@@ -203,6 +203,31 @@ async function seedDatabase() {
       console.log('⏭️  Products sudah ada, skip seeding');
     }
 
+    // 4. Seed FAQs
+    console.log('\n📝 Seeding faqs...');
+    const faqs = [
+      {
+        question: 'Bagaimana cara memesan sablon custom?',
+        answer: 'Anda bisa klik tombol "Start Free Consultation" atau menghubungi admin kami via WhatsApp.',
+        orderIndex: 1,
+        isActive: true,
+      },
+      {
+        question: 'Berapa minimal order untuk sablon?',
+        answer: 'Minimal order untuk sablon manual adalah 12 pcs. Untuk sablon DTF bisa satuan.',
+        orderIndex: 2,
+        isActive: true,
+      }
+    ];
+    
+    const existingFaqs = await db('faq_items').first();
+    if (!existingFaqs) {
+      await db('faq_items').insert(faqs);
+      console.log(`✅ ${faqs.length} FAQs created`);
+    } else {
+      console.log('⏭️  FAQs sudah ada, skip seeding');
+    }
+
     console.log('\n✅ Seeding production database complete!');
     console.log('\n📋 Test Credentials:');
     console.log('  Owner:     owner@arianation.com / owner123');
