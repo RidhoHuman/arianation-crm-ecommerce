@@ -12,7 +12,7 @@ if (config.google.clientId && config.google.clientSecret) {
       {
         clientID: config.google.clientId,
         clientSecret: config.google.clientSecret,
-        callbackURL: `${process.env.BASE_URL || 'http://localhost:3001'}/api/auth/google/callback`,
+        callbackURL: `${process.env.BASE_URL || (process.env.NODE_ENV === 'production' ? 'https://arianation-crm-ecommerce.vercel.app' : 'http://localhost:3001')}/api/auth/google/callback`,
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
@@ -82,8 +82,8 @@ if (config.facebook.appId && config.facebook.appSecret) {
       {
         clientID: config.facebook.appId,
         clientSecret: config.facebook.appSecret,
-        callbackURL: `${process.env.BASE_URL || 'http://localhost:3001'}/api/auth/facebook/callback`,
-        profileFields: ['id', 'emails', 'name', 'displayName'],
+        callbackURL: `${process.env.BASE_URL || (process.env.NODE_ENV === 'production' ? 'https://arianation-crm-ecommerce.vercel.app' : 'http://localhost:3001')}/api/auth/facebook/callback`,
+        profileFields: ['id', 'emails', 'name', 'picture.type(large)'],
         graphAPIVersion: 'v19.0',
       },
       async (accessToken, refreshToken, profile, done) => {
