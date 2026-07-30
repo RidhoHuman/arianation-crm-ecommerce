@@ -25,7 +25,17 @@ const cookieOptions = {
 const oauthCallback = async (req, res, next) => {
   try {
     const user = req.user; // from passport
-    const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000');
+    
+    // Determine the frontend URL intelligently based on the request host
+    let frontendUrl = process.env.FRONTEND_URL || '';
+    const host = req.get('host') || '';
+    if (!frontendUrl) {
+      if (host.includes('vercel.app')) {
+        frontendUrl = ''; // Use relative redirect on Vercel
+      } else {
+        frontendUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000';
+      }
+    }
 
     if (!user) {
       return res.redirect(`${frontendUrl}/login?error=auth_failed`);
