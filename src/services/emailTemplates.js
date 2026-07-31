@@ -63,9 +63,12 @@ function renderOrderNotificationEmail({ notification, customer, order }) {
           : null,
       });
     case 'PROCESSING':
+      const isPickupProcess = order?.deliveryType === 'PICKUP' || order?.shippingCourier === 'SELF_PICKUP';
       return buildBaseTemplate({
         title: 'Pesanan Sedang Diproses',
-        message: 'Tim kami sedang menyiapkan pesanan Anda untuk tahap pengiriman berikutnya.',
+        message: isPickupProcess 
+          ? 'Tim kami sedang menyiapkan pesanan Anda. Kami akan memberitahu Anda segera setelah pesanan siap untuk diambil di toko.'
+          : 'Tim kami sedang menyiapkan pesanan Anda untuk tahap pengiriman berikutnya.',
         orderNumber,
         customerName,
       });
